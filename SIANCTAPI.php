@@ -1,0 +1,908 @@
+<?php
+
+/**
+ * Sidora Analysis API for CameraTrap
+ *
+ * Modified by MS of Quotient on 2014-07-10:
+ * - Added $config to object, read in from __construct
+ * - Removed dependcy on Drupal
+ * - Removed literal linebreaks from strings in favor of newline chars
+ * - Added $user as class property
+ * - Renamed $user to $app_id
+ *
+ * file: SIANCT.inc
+ * @author: Gert Schmeltz Pedersen gertsp45@gmail.com
+ */
+
+// Date/timezone for portability
+date_default_timezone_set(@date_default_timezone_get());
+
+// Class definition
+class SIANCTAPI {
+  private $config;
+  private $app_id;
+
+  /**
+   * Constructor
+   * Accepts an array containing configuration details and a string with the app_id.
+   */
+  function __construct($config = array(), $app_id = '') {
+    $this->config = array();
+    if (is_array($config)) {
+      $this->config = $config;
+    }
+
+    // Default the config
+    $this->config += array(
+      'sianctapi_block_cache' => '',  // Deprecate.
+      'sianctapi_block_solr' => 'noSolrUrl',
+      'sianctapi_block_solr_max' => 1000,
+      'sianctapi_block_solr_xslt_filtered' => 'none',
+      'sianctapi_block_solr_xslt_tree' => 'none',
+      'sianctapi_block_gsearch' => 'nogflowurl',
+      'sianctapi_block_fedora' => 'nofedoraurl',
+      'sianctapi_block_fedora_userpass' => 'nofedorauser:password',
+      'sianctapi_block_cache_refreshing' => array(),  // Deprecate.
+      'sianctapi_path' => '',
+    );
+
+    // Set app_id
+    $this->app_id = $app_id;
+
+    return;
+  }
+
+  function sianctapiGetFile($filepath) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetFile $filepath ");
+    $result = $this->sianctapiGettFile($filepath);
+    $out = '';
+    if (strpos($filepath, '.html') > -1) {
+      $out .= '<div id="sianctapiFileResult">';
+    }
+    $out .= $result;
+    if (strpos($filepath, '.html') > -1) {
+      $out .= '</div>';
+    }
+    fclose($logfp);
+    return $out;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGettFile($filepath) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettFile $filepath ");
+    $i = strpos($filepath, '/');
+    if ($i === false || !$i === 0) {
+      $filepath = trim($this->config['sianctapi_path'], '/') . '/' . $filepath;
+    }
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiGettFile $i $filepath ");
+    if (!is_readable($filepath)) {
+      $result = 'SYSTEM ERROR: file is not readable: ' . $filepath;
+    } else {
+      $fp = fopen($filepath, 'r');
+      if ($fp === false) {
+        $result = 'SYSTEM ERROR: fopen failed: ' . $filepath;
+      } else {
+        $result = fread($fp, filesize($filepath));
+        if ($result === false) {
+          $result = 'SYSTEM ERROR: fread failed: ' . $filepath;
+        }
+        fclose($fp);
+      }
+    }
+    $logString = substr($result,0,2000);
+    if (strlen($result) > 2000) $logString .= '...';
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiGettFile $filepath result:\n $logString");
+    return $result;
+  }
+
+  function sianctapiSaveInFile($filepath, $contents) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiSaveInFile $filepath");
+    $result = 'Saving ' . $filepath . ': ';
+    $fp = fopen($filepath, 'w');
+    if ($fp) {
+      $fw = fwrite($fp, $contents);
+      if ($fw === false) {
+        $result .= 'fwrite failed';
+      } else {
+        $result .= $fw . ' bytes written';
+      }
+    } else {
+      $result .= 'fopen failed';
+    }
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiSaveInFile $result\n");
+    fclose($logfp);
+    fclose($fp);
+    return $result;
+  }
+
+  function sianctapiSaveSelectedObservations($filepath, $obstables, $obstablePids, $speciesNames) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiSaveSelectedObservations $filepath");
+    $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
+    if ($resultingObservations) {
+      $result = $this->sianctapiSaveInFile($filepath, $resultingObservations);
+    } else {
+      $result = 'No resulting observations';
+    }
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiSaveSelectedObservations $result\n");
+    fclose($logfp);
+    return $result;
+  }
+
+  /**
+   * Streams the content of a file from runtime. Basic rules for limiting to csv.
+   * Added by mds
+   */
+  function sianctapiDownload($filename = NULL) {
+    if (FALSE !== strpos($filename, '../')) {
+      return NULL;
+    }
+
+    $ext = substr($filename, -4);
+    if (!in_array($ext, array('.csv', 'jpeg', 'json', '.png', '.jpg'))) {
+      return NULL;
+    }
+
+    $file = $this->path('runtime/' . $filename);
+    if (!is_file($file)) {
+      self::sendHeader(404);
+      return NULL;
+    }
+
+    echo file_get_contents($file);
+    exit();
+  }
+
+  function sianctapiRunWorkflow($workflowName, $obstablePids, $speciesNames, $resultFileExt) {
+    #return '<div id="sianctapiRunWorkflowResult">' . $workflowName . '|'. $obstablePids . '|'. $speciesNames . '|'. $resultFileExt . '</div>';
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiRunWorkflow / $workflowName / $obstablePids / $speciesNames");
+    $sianctapiCache = $this->sianctapiCacheGet();
+    $obstables = $sianctapiCache['obstables'];
+    $UUID = uniqid();
+    $csvfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
+    $result = $csvfilepath;
+    $saveresult = $this->sianctapiSaveSelectedObservations($csvfilepath, $obstables, $obstablePids, $speciesNames);
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow saving csv: $saveresult");
+    $result_worked = FALSE;
+
+    if (!file_exists($csvfilepath)) {
+      $result = 'SYSTEM ERROR: csv file was not created: ' . $saveresult;
+    } else {
+      $resultfilepath = $csvfilepath;
+
+      if (strpos($workflowName, '.R') > -1) {
+        $resultfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.' . $resultFileExt;
+        $workflowfilepath = trim($this->config['sianctapi_path'], '/') . '/' . $workflowName;
+        $outfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . '-' . $UUID . '.out';
+
+        if (!is_readable($workflowfilepath)) {
+          $result = 'SYSTEM ERROR: R script file is not readable: ' . $workflowfilepath;
+        } else {
+          $command = 'R CMD BATCH "--args ' . $csvfilepath . ' ' . $resultfilepath . '" ' . $workflowfilepath . ' ' . $outfilepath . ' 2>&1';
+          $datestamp = $this->datetimems();
+          fwrite($logfp, "\n[$datestamp]  $this->app_id sianctapiRunWorkflow command: $command");
+          $rOut = shell_exec($command);
+
+          $datestamp = $this->datetimems();
+          fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow R out:\n $rOut");
+          if (!is_readable($resultfilepath)) {
+            $result = 'SYSTEM ERROR: result file was not created: ' . $resultfilepath;
+            $routfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . 'out';
+            if (!is_readable($routfilepath)) {
+              $result .= '\n diagnosis file ' . $routfilepath . ' not found';
+            } else {
+              $result .= '\n diagnosis file ' . $routfilepath . ' contains\n' . $this->sianctapiGettFile($routfilepath);
+            }
+          } else {
+            $result = $resultfilepath;
+            $result_worked = TRUE;
+          }
+        }
+      } else {
+        // Assume this works for CSVs...
+        $result_worked = TRUE;
+      }
+    }
+
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow result: $result");
+    fclose($logfp);
+
+    if (!$result_worked) {
+      self::sendHeader(500);
+      return '';
+    }
+
+    $out = "\n" . '<div id="sianctapiRunWorkflowResult">';
+    if ($result_worked == TRUE && strpos($result, '/') !== FALSE) {
+      $foo = explode('/', $result);
+      $out .= end($foo);
+    } else {
+      $out .= $result; //basename($result);
+    }
+    $out .= '</div>' . "\n";
+    return $out;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetProjectStructure($xslt) {
+    $solrResult = $this->sianctapiGetProjectStructureFromSolr($xslt);
+    return $solrResult;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetProjectStructureMetadata($params) {
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    return $solrResult;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetProjectStructureCached() {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    $sianctapiCache = $this->sianctapiCacheGet(); #FIX
+    $result = $sianctapiCache['projectStructure'];
+    $logString = substr($result,0,300);
+    if (strlen($result) > 300) $logString .= '...';
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetProjectStructureCached\n $logString");
+    fclose($logfp);
+    return $result;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetProjectStructureFromSolr($xslt) {
+    $solrXslt = $xslt;
+    if ($xslt == '' || $xslt == 'default') {
+      $solrXslt = $this->config['sianctapi_block_solr_xslt_tree']; #FIX
+    }
+    $xsltParams =  '';
+    if ($solrXslt != 'none') {
+      $xsltParams = '&wt=xslt&tr=' . $solrXslt;
+    }
+
+    $params = 'q=PID:si*&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=9999' . $xsltParams;
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    return $solrResult;
+  }
+
+  function sianctapiGetProjectStructureMetadataFromSolr($params) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
+    $solrUrl = $this->config['sianctapi_block_solr']; #FIX
+    $command = 'curl --silent "' . $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on" 2>&1';
+    fwrite($logfp, "\n[$datestamp] command: $command");
+    $solrResult = shell_exec($command);
+    $datestamp = $this->datetimems();
+    $logString = substr($solrResult,0,300);
+    if (strlen($solrResult) > 300) $logString .= '...';
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id solrResult: $logString");
+    fclose($logfp);
+    return $solrResult;
+  }
+
+  function sianctapiGetAllObstablePids() {
+    $solrResult = $this->sianctapiGetAllObstablePidsFromSolr();
+    return $solrResult;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetAllObstablePidsFromSolr() {
+    $params = 'q=PID:si*&rows=9999&wt=xslt&tr=sianctapiGetObstablePids.xslt';
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    return $solrResult;
+  }
+
+  function sianctapiGetAllObstablePidsCached() {
+    $result = $this->sianctapiGettAllObstablePidsCached();
+    return $result;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGettAllObstablePidsCached() {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettAllObstablePidsCached");
+    $result = file_get_contents($this->sianctapiGetCachePath() . 'obstablePids.txt');
+    $logString = substr($result,0,300);
+    if (strlen($result) > 300) $logString .= '...';
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettAllObstablePidsCached\n $logString");
+    fclose($logfp);
+    return $result;
+  }
+
+  function sianctapiGetSelectedObservations($obstablePids, $speciesNames) {
+    #global $user;
+    $sianctapiCache = $this->sianctapiCacheGet();
+    $obstables = $sianctapiCache['obstables'];
+    $countobstables = count($obstables);
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
+    if ($obstablePids == 'ALL') {
+      //$obstablePids = $this->sianctapiGetAllObstablePidsFromSolr();
+      $obstablePids = $sianctapiCache['obstablePids'];
+    }
+    $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
+    $out = "\n" . '<div id="sianctapiGetObservationsResult">';
+    $out .= $resultingObservations;
+    $out .= "\n" . '</div>' . "\n";
+    return $out;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGettSelectedObservations(&$obstables, $obstablePids, $speciesNames) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    $countobstables = count($obstables);
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
+
+    #$resultingObservations = 'Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, UnusedCol1, UnusedCol2, UnusedCol3';
+    $resultingObservations = 'Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, Actual Lat, Actual Long, Feature type';
+    $speciesnamesArray = explode(",", $speciesNames);
+    $countSpeciesnames=count($speciesnamesArray);
+    if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
+      $countSpeciesnames = 0;
+    }
+    $obstablePidArray = explode(",", $obstablePids);
+    $countPids=count($obstablePidArray);
+    if ($countPids == 1 && !$obstablePidArray[0]) {
+      $countPids = 0;
+    }
+    $countLinesSum = 0;
+    $countSelectedLinesSum = 0;
+    for($i=0;$i<$countPids;$i++) {
+      $datestamp = $this->datetimems();
+      $obstablePid = trim($obstablePidArray[$i]);
+      //fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetObservations: obstablePid= $obstablePid");
+      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
+      $resultingObservationsForPid = $obstable;
+      $lines = explode("\n", $obstable);
+      //fwrite($logfp, "\n[$datestamp] $this->app_id lines: $lines");
+      $countLines = count($lines);
+      if ($countLines == 1 && !$lines[0]) {
+        $countLines = 0;
+      }
+      //fwrite($logfp, "\n[$datestamp] $this->app_id countLines: $countLines");
+      $countSelectedLines = $countLines;
+      if ($countSpeciesnames>0 && trim($speciesnamesArray[0])) {
+        $countSelectedLines = 0;
+        $resultingObservationsForPid = '';
+        for($j=1;$j<=$countLines;$j++) {
+          $line = trim($lines[$j]);
+          //fwrite($logfp, "\n[$datestamp] $this->app_id line $j: $line");
+          $speciesFound = false;
+          if ($line) {
+            for($k=0;$k<$countSpeciesnames;$k++) {
+              $speciesName = trim($speciesnamesArray[$k]);
+              //fwrite($logfp, "\n[$datestamp] $this->app_id species $k: $speciesName");
+              if($speciesName && stripos($line, $speciesName)) {
+                $speciesFound = true;
+              }
+            }
+          }
+          if ($speciesFound) {
+            if ($countSelectedLines > 0) {
+              $resultingObservationsForPid .= "\n";
+            }
+            $resultingObservationsForPid .= $line;
+            $countSelectedLines++;
+          }
+        }
+      }
+      if ($resultingObservationsForPid) {
+        $resultingObservations .= "\n" . $resultingObservationsForPid;
+      }
+      $countSelectedLinesSum += $countSelectedLines;
+      $countLinesSum += $countLines;
+      $lenselectedObservations = strlen($resultingObservations);
+      $datestamp = $this->datetimems();
+      $n = $i + 1;
+      fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
+    }
+    fclose($logfp);
+    return $resultingObservations;
+    //return str_replace('"', '', $resultingObservations);
+  }
+
+  function sianctapiGetObstable(&$obstables, $obstablePid) {
+    //$logdatestamp = date('Y-m-d');
+    //$logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    #$obstable = $obstables[$obstablePid];
+    if (!array_key_exists($obstablePid, $obstables)) {
+      $obstable = $this->sianctapiGetObstableForSianct($obstables, $obstablePid);
+      return $obstable;
+    } else {
+      return $obstables[$obstablePid];
+    }
+    //$datestamp = $this->datetimems();
+    //fwrite($logfp, "\n[$datestamp] sianctapiGetObstable obstable: \n$obstable");
+    #return $obstable;
+    return FALSE;
+  }
+
+  function sianctapiGetObstableForSianct(&$obstables, $obstablePid) {
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    $obstable = '';
+
+    #$solrResult = $this->sianctapiGetProjectHierarchyLabelsFromSolr($obstablePid);
+
+    // Additional column change
+    $solrResult = $this->sianctapiGetFieldsAddedToCsvFromSolr($obstablePid);
+    $splitSolrResult = strpos($solrResult, '###');
+    $projectHierarchyLabels = substr($solrResult, 0, $splitSolrResult);
+    $actualLatLongFeaturetype = substr($solrResult, $splitSolrResult+3);
+    // End Additional column change
+
+    $params = 'objects/' . $obstablePid . '/datastreams/CSV/content';
+    $fedoraResult = $this->sianctapiGetDataFromFedora($params);
+    $lines = explode("\n", trim($fedoraResult));
+    //$datestamp = $this->datetimems();
+    //fwrite($logfp, "\n[$datestamp] $this->app_id lines: $lines");
+    $countLines=count($lines);
+    if ($countLines == 1 && !$lines[0]) {
+      $countLines = 0;
+    }
+    $countObsLines = 0;
+    for($j=0;$j<$countLines;$j++) {
+      $line = trim($lines[$j]);
+      //fwrite($logfp, "\n[$datestamp] $this->app_id line $j: $line");
+      if ($line) {
+        if ($countObsLines > 0) {
+          $obstable .= "\n";
+        }
+
+        #$obstable .= $solrResult . ',' . $line;
+        $abbrline = substr($line, 0, strlen($line)-3); // removing last three unused columns
+        $obstable .= $projectHierarchyLabels . ',' . $abbrline . ',' . $actualLatLongFeaturetype;
+        $countObsLines++;
+      }
+    }
+    $obstables[$obstablePid] = $obstable;
+    //$this->sianctapiCacheSet('sianctapi_block_obstables', $obstables);
+    $countobstables = count($obstables);
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n\n[$datestamp] sianctapiGetObstableForSianct: obstablePid: $obstablePid #csvLines: $countLines #obsLines: $countObsLines #obstables: $countobstables");
+    return $obstable;
+  }
+
+  function sianctapiGetFieldsAddedToCsvFromSolr($obstablePid) {
+    $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiFieldsAddedToCsv.xslt';
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    return $solrResult;
+  }
+
+  function sianctapiGetProjectHierarchyLabelsFromSolr($obstablePid) {
+    $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiProjectStructureToCsv.xslt';
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    return $solrResult;
+  }
+
+  function sianctapiGetDataFromFedora($params) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetDataFromFedora: params=$params ");
+    $fedoraUrl = $this->config['sianctapi_block_fedora'];
+    $fedoraUserPass = $this->config['sianctapi_block_fedora_userpass'];
+    $command = 'curl --silent -u ' . $fedoraUserPass . ' "' . $fedoraUrl . '/' . $params . '" 2>&1';
+    fwrite($logfp, "\n[$datestamp] $this->app_id command: $command");
+    $fedoraResult = shell_exec($command);
+    $datestamp = $this->datetimems();
+    //fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$fedoraResult");
+    $datestamp = $this->datetimems();
+    $logString = substr($fedoraResult,0,300);
+    if (strlen($fedoraResult) > 300) {
+      $logString .= '...';
+    }
+    fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$logString");
+    fclose($logfp);
+    return $fedoraResult;
+  }
+
+  function sianctapiGetSpecies($obstablePids) {
+    $sianctapiCache = $this->sianctapiCacheGet();
+    $obstables = $sianctapiCache['obstables'];
+    $countobstables = count($obstables);
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpecies: obstablePids= $obstablePids countobstables= $countobstables");
+    $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids);
+    $datestamp = $this->datetimems();
+    fclose($logfp);
+    return $result;
+    exit();
+  }
+
+  function sianctapiGetAllSpeciesNamesCached() {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    $sianctapiCache = $this->sianctapiCacheGet();
+    $result = $sianctapiCache['speciesOptions'];
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetAllSpeciesNamesCached\n $result");
+    fclose($logfp);
+    return $result;
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiGetSpeciesOptions($obstables, $obstablePids, &$sianctapiCache) {
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids countobstables= " . count($obstables));
+    if ($obstablePids == 'ALL') {
+      $obstablePids = $sianctapiCache['obstablePids'];
+      fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids");
+    }
+
+    $speciesnames = array();
+    $obstablePidArray = explode(",", $obstablePids);
+    $countPids=count($obstablePidArray);
+    if ($countPids == 1 && !$obstablePidArray[0]) {
+      $countPids = 0;
+    }
+    $countObsLines = 0;
+
+    for($i=0;$i<$countPids;$i++) {
+      $datestamp = $this->datetimems();
+      $obstablePid = trim($obstablePidArray[$i]);
+      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
+      $lines = explode("\n", $obstable);
+      $countLines = count($lines);
+      if ($countLines == 1 && !$lines[0]) {
+        $countLines = 0;
+      }
+      for($j=0;$j<=$countLines;$j++) {
+        if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
+          continue;
+        }
+        $line = $lines[$j];
+        $columns = explode(",", $line);
+        $begintime = trim($columns[6]);
+        $speciesname = trim($columns[8]);
+        $speciesname = trim($speciesname, '"');
+        if ($speciesname and $begintime) {
+          $commonname = trim($columns[9]);
+          $commonname = trim($commonname, '"');
+          if ( array_key_exists($speciesname, $speciesnames) ) {
+            $countObs = $speciesnames[$speciesname][1];
+            $speciesnames[$speciesname] = array($commonname, $countObs + 1);
+          } else {
+            $speciesnames[$speciesname] = array($commonname, 1);
+          }
+          $countObsLines++;
+          $count = $speciesnames[$speciesname][1];
+        }
+      }
+    }
+    $countSpeciesNames = count($speciesnames);
+    $datestamp = $this->datetimems();
+
+    ksort($speciesnames);
+
+    $result = "\n" . '<div id="sianctapiGetSpeciesResult">';
+    $result .= "\n" . '<option value=" ">' . $countSpeciesNames . ' names ( ' . $countObsLines . ' observations )</option>';
+    foreach ($speciesnames as $key => $value) {
+      $result .= "\n" . '<option value="' . $key . '">' . $key . ' (' . $value[0] . ') (' . $value[1] . ')</option>';
+    }
+    $result .= "\n" . '</div>' . "\n";
+    fwrite($logfp, "\n[$datestamp] $this->app_id result: $result");
+    fclose($logfp);
+
+    return $result;
+  }
+
+  function sianctapiSelectObstables($query, $xslt) {
+    $solrXslt = $xslt;
+    if ($xslt == '' || $xslt == 'default') {
+      $solrXslt = $this->config['sianctapi_block_solr_xslt_filtered'];
+    }
+    $xsltParams =  '';
+    if ($solrXslt != 'none') {
+      $xsltParams = '&wt=xslt&tr=' . $solrXslt;
+    }
+    $params = 'q=' . urlencode($query) . '&rows=9999&sort=PID+asc' . $xsltParams;
+    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    #DEBUG:
+    #return var_export($query, TRUE);
+    #return var_export($params, TRUE);
+    #return var_export($solrResult, TRUE);
+    return $solrResult;
+    exit();
+  }
+
+  function sianctapiGetObstablesCached() {
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetObstablesCached");
+    $obstables = $this->arrayFromFile($this->sianctapiGetCachePath() . 'obstables.txt');
+    $countobstables = count($obstables);
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetObstablesCached count=$countobstables");
+    fclose($logfp);
+    return $obstables;
+  }
+
+  /**
+   * This isn't called within the API, but called from the .sh script.
+   */
+  function sianctapiCacheRefresh() {
+    #global $user;
+    $file = $this->path('runtime/sianctapi-cache-file');
+    if (!is_writable($file)) {
+      exit('Failed to write cache. Cache not writable.');
+    }
+    $datestamp = $this->datetimems();
+    $cacheBeginLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh begin";
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh ");
+    $sianctapiCacheRefreshing = array(
+      'beginTime'=>$datestamp,
+      'obstablePids'=>'',
+      'obstables'=>array(),
+      'selectedObservations'=>'',
+      'projectStructure'=>'',
+      'speciesOptions'=>'',
+      'endTime'=>'',
+      );
+
+    # DEBUG:
+    #$sianctapiCacheRefreshing = $this->sianctapiCacheGet();
+
+    $sianctapiCacheRefreshing['obstablePids'] = $this->sianctapiGetAllObstablePidsFromSolr();
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+
+    $datestamp = $this->datetimems();
+    $cacheObstablePidsLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh obstablePids:\n " . $sianctapiCacheRefreshing['obstablePids'];
+    $sianctapiCacheRefreshing['selectedObservations'] = $this->sianctapiGettSelectedObservations($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], '');
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+
+    $datestamp = $this->datetimems();
+    $countobstables = count($sianctapiCacheRefreshing['obstables']);
+    $cacheObstablesLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh countobstables: $countobstables";
+    $cacheAggregatedObservationsLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations'];
+
+    $sianctapiCacheRefreshing['projectStructure'] = $this->sianctapiGetProjectStructureFromSolr('default');
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+
+    $datestamp = $this->datetimems();
+    $cacheProjectStructureLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure'];
+
+    $sianctapiCacheRefreshing['speciesOptions'] = $this->sianctapiGetSpeciesOptions($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+
+    $datestamp = $this->datetimems();
+    $cacheSpeciesOptionsLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions'];
+
+    $datestamp = $this->datetimems();
+    $sianctapiCacheRefreshing['endTime'] = $datestamp;
+    $endtime = $sianctapiCacheRefreshing['endTime'];
+    $cacheEndLine = "\n\n[$endtime] $this->app_id sianctapiCacheRefresh end";
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+
+    $cachedatestamp = date('Y-m-d-H-i-s');
+    $cachelogfile = '/tmp/sianctapi-cache-' . $cachedatestamp . '.log';
+    $cachefp = fopen($cachelogfile, 'a');
+    fwrite($cachefp, $cacheBeginLine);
+    fwrite($cachefp, $cacheObstablePidsLine);
+    fwrite($cachefp, $cacheObstablesLine);
+    fwrite($cachefp, $cacheAggregatedObservationsLine);
+    fwrite($cachefp, $cacheProjectStructureLine);
+    fwrite($cachefp, $cacheSpeciesOptionsLine);
+    fwrite($cachefp, $cacheEndLine);
+
+    $lenobstablePids = strlen($sianctapiCacheRefreshing['obstablePids']);
+    $countobstables = count($sianctapiCacheRefreshing['obstables']);
+    $lenselectedObservations = strlen($sianctapiCacheRefreshing['selectedObservations']);
+    $lenprojectStructure = strlen($sianctapiCacheRefreshing['projectStructure']);
+    $lenspeciesOptions = strlen($sianctapiCacheRefreshing['speciesOptions']);
+
+    $cacheCheckLine = "\n\n[$datestamp] $this->app_id sianctapiCacheRefresh check
+      lenobstablePids: $lenobstablePids
+      countobstables: $countobstables
+      lenselectedObservations: $lenselectedObservations
+      lenprojectStructure: $lenprojectStructure
+      lenspeciesOptions: $lenspeciesOptions";
+    fwrite($cachefp, $cacheCheckLine);
+    if ($lenobstablePids<1000 || $countobstables<100 || $lenselectedObservations<1000 || $lenprojectStructure<1000 || $lenspeciesOptions<1000) {
+      fwrite($cachefp, "\n\nsianctapiCacheRefresh FAILED");
+      fwrite($logfp, "\n\nsianctapiCacheRefresh FAILED");
+      return "$cachelogfile FAILED \n";
+    } else {
+      $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
+      return "$cachelogfile \n";
+    }
+    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', array()); #FIX
+    $endtime = $sianctapiCacheRefreshing['endTime'];
+    $cacheEndLine = "\n\n[$endtime] $this->app_id sianctapiCacheRefresh end";
+    fwrite($cachefp, $cacheEndLine);
+    fwrite($logfp, $cacheEndLine);
+    fclose($cachefp);
+    fclose($logfp);
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function sianctapiCacheCheck() {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiCacheCheck ");
+    $sianctapiCache = $this->sianctapiCacheGet();
+    $obstablePids = $sianctapiCache['obstablePids'];
+    $lenobstablePids = strlen($obstablePids);
+    $obstablesRefreshing = $sianctapiCache['obstables'];
+    $countobstables = count($obstablesRefreshing);
+    $selectedObservations = $sianctapiCache['selectedObservations'];
+    $lenselectedObservations = strlen($selectedObservations);
+    $projectStructure = $sianctapiCache['projectStructure'];
+    $lenprojectStructure = strlen($projectStructure);
+    $speciesOptions = $sianctapiCache['speciesOptions'];
+    $lenspeciesOptions = strlen($speciesOptions);
+    $endtime = $sianctapiCache['endTime'];
+    $cacheCheckLine = "\n\n[$datestamp] $this->app_id sianctapiCacheCheck
+      lenobstablePids: $lenobstablePids
+      countobstables: $countobstables
+      lenselectedObservations: $lenselectedObservations
+      lenprojectStructure: $lenprojectStructure
+      lenspeciesOptions: $lenspeciesOptions
+      endtime: $endtime";
+    fwrite($logfp, $cacheCheckLine);
+    fclose($logfp);
+    return "$cacheCheckLine \n";
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  /**
+   * TODO: This isn't really relevant to the API and should be deprecated. It is not used now
+   */
+  function sianctapiGetModulePath($moduleName) {
+    #global $user;
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    $result = $this->config['sianctapi_path'];
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetModulePath $result");
+    return "\n" . '<div id="sianctapiModulePathResult">' . $result . '</div>' . "\n";
+    fclose($logfp);
+    #module_invoke_all('exit');
+    exit();
+  }
+
+  function datetimems() {
+    $mt = microtime();
+    $mta = explode(" ",$mt);
+    $dt = date("Y-m-d H:i:s",$mta[1]);
+    $ms = substr($mta[0],1,4);
+    return $dt . $ms;
+  }
+
+  function path($path) {
+    return $this->config['sianctapi_path'] . '/' . $path;
+  }
+
+  /**
+   * This replace's drupal's variable_set function.
+   * TODO: This needs to be replaced with a much, much better model.
+   */
+  function sianctapiCacheSet($name, $val) {
+    $value = serialize($val);
+    $file = $this->path('runtime/sianctapi-cache-file');
+    #return file_put_contents('/tmp/sianctapi-cache-file', $value);
+    if (!file_exists($file)) {
+      touch($file);
+    }
+    chmod($file, 0644);
+    return file_put_contents($file, $value);
+  }
+
+  function sianctapiCacheGet() {
+    $file = $this->path('runtime/sianctapi-cache-file');
+    if (file_exists($file)) {
+      #$cache = file_get_contents('/tmp/sianctapi-cache-file');
+      $cache = file_get_contents($file);
+      return unserialize($cache);
+    }
+    return array();
+  }
+
+  function sendHeader($code = NULL) {
+    switch ($code) {
+      case 100: $text = 'Continue'; break;
+      case 101: $text = 'Switching Protocols'; break;
+      case 200: $text = 'OK'; break;
+      case 201: $text = 'Created'; break;
+      case 202: $text = 'Accepted'; break;
+      case 203: $text = 'Non-Authoritative Information'; break;
+      case 204: $text = 'No Content'; break;
+      case 205: $text = 'Reset Content'; break;
+      case 206: $text = 'Partial Content'; break;
+      case 300: $text = 'Multiple Choices'; break;
+      case 301: $text = 'Moved Permanently'; break;
+      case 302: $text = 'Moved Temporarily'; break;
+      case 303: $text = 'See Other'; break;
+      case 304: $text = 'Not Modified'; break;
+      case 305: $text = 'Use Proxy'; break;
+      case 400: $text = 'Bad Request'; break;
+      case 401: $text = 'Unauthorized'; break;
+      case 402: $text = 'Payment Required'; break;
+      case 403: $text = 'Forbidden'; break;
+      case 404: $text = 'Not Found'; break;
+      case 405: $text = 'Method Not Allowed'; break;
+      case 406: $text = 'Not Acceptable'; break;
+      case 407: $text = 'Proxy Authentication Required'; break;
+      case 408: $text = 'Request Time-out'; break;
+      case 409: $text = 'Conflict'; break;
+      case 410: $text = 'Gone'; break;
+      case 411: $text = 'Length Required'; break;
+      case 412: $text = 'Precondition Failed'; break;
+      case 413: $text = 'Request Entity Too Large'; break;
+      case 414: $text = 'Request-URI Too Large'; break;
+      case 415: $text = 'Unsupported Media Type'; break;
+      case 500: $text = 'Internal Server Error'; break;
+      case 501: $text = 'Not Implemented'; break;
+      case 502: $text = 'Bad Gateway'; break;
+      case 503: $text = 'Service Unavailable'; break;
+      case 504: $text = 'Gateway Time-out'; break;
+      case 505: $text = 'HTTP Version not supported'; break;
+      default: return;
+    }
+
+    $protocol = (isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0');
+    header($protocol . ' ' . $code . ' ' . $text);
+    return;
+  }
+}
