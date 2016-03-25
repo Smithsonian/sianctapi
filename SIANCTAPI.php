@@ -742,9 +742,6 @@ class SIANCTAPI {
         }
         $line = $lines[$j];
         $columns = str_getcsv($line);
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
         $begintime = trim($columns[6]);
         $speciesname = trim($columns[8]);
         $speciesname = trim($speciesname, '"');
@@ -818,9 +815,6 @@ class SIANCTAPI {
         $line = $lines[$j];
         $columns = str_getcsv($line);
         fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . count($columns));
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
         $begintime = trim($columns[6]);
         $speciesname = trim($columns[8]);
         $speciesname = trim($speciesname, '"');
