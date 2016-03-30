@@ -4,3 +4,4 @@ files/*
 keys.config
 api.config
 
+sianctapiSolrRefresh.sh
