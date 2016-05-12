@@ -100,6 +100,23 @@ get_eda_import() {
 }
 
 
+################################################
+# Access the Endangered Species Cache endpoint
+#
+# Globals:
+#   URL
+# Arguments
+#   None
+# Returns
+#   None
+################################################
+get_endangered_species_cache() {
+  auth_curl -s \
+    -d command=eda_species_cache \
+    "${URL}/drush_scripts/index.php"
+}
+
+
 ##################################################################
 # Access and process the eMammal EDA import endpoint for species
 #
@@ -109,23 +126,15 @@ get_eda_import() {
 #   None
 ##################################################################
 get_eda_import_species() {
-  local counter
-  local increment
   local total
 
-  increment=50
   total="$(get_eda_import count)"
 
   if [[ "${total:--1}" -lt 1 ]]; then
     echo "Invalid deployment count" >&2
     return
   else
-    counter=0
-    while [[ ${counter} -lt ${total} ]]; do
-      get_eda_import species "${increment}"
-      (( counter += "${increment}" ))
-      echo "${counter} ${total}" | awk '{printf "Processed %.2f%%\n", $1 / $2 * 100}'
-    done
+    get_eda_import species
   fi
 
   echo "Finished processing species"
@@ -170,7 +179,8 @@ update_data() {
 
   case "${type}" in
     all)
-      for i in deployments species plot-data summary favorite-photos; do
+      # Order is important for deployment, species, and endangered-species-cache
+      for i in deployments species endangered-species-cache plot-data summary favorite-photos; do
         update_data "${i}"
       done
       ;;
@@ -189,6 +199,10 @@ update_data() {
     summary)
       header "Project Summary"
       get_eda_import summary
+      ;;
+    endangered-species-cache)
+      header "Endangered Species Cache"
+      get_endangered_species_cache
       ;;
     favorite-photos)
       header "AWS Favorite Photos"
@@ -221,7 +235,14 @@ Options:
 		Specify a host header for all curl requests.
 	-t <type>
 		Specify the data type to update. Default is all data.
-		Valid types: all, deployments, species, plot-data, summary, favorite-photos
+		Valid types:
+      all
+      deployments
+      endangered-species-cache
+      favorite-photos
+      plot-data
+      species
+      summary
 EOF
 }
 
