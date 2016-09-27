@@ -212,7 +212,7 @@ class SIANCTAPI {
         $outfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . '-' . $UUID . '.out';
         */
         $resultfilepath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.' . $resultFileExt;
-        $workflowfilepath = $this->config['sianctapi_path'] . '/' . $workflowName;
+        $workflowfilepath = $this->config['sianctapi_path'] . '/resources/rscripts/' . $workflowName;
         $outfilepath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
         if (!is_readable($workflowfilepath)) {
           $result = 'SYSTEM ERROR: R script file is not readable: ' . $workflowfilepath;
