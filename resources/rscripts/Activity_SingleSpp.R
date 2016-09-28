@@ -1,9 +1,13 @@
 require(overlap)
 require(lubridate)
+require(jpeg)
+require(png)
 
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 resultFile <- args[2]
+# Set workflow path for SIANCT API
+workflowPath <- file.path(getwd(), "resources/rscripts");
 
 #this setwd command will of course change or be eliminated depending how this is set up in the server
 #setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014")
@@ -54,9 +58,33 @@ temp.gph <- temp.gph[complete.cases(temp.gph)]
 
 #single species activity plot as png
 jpeg(resultFile,width=750,height=530,units="px",pointsize=14,quality=100)
-densityPlot(temp.gph,rug=TRUE, ylab="", xlab="", yaxt="n",
+
+
+
+
+# load logo
+ima <- readPNG(file.path(workflowPath, "images/emammal_nobackground_logo_bw.png"))
+
+#create function to place the logo
+logoing_func<-function(logo, x, y, size){
+  dims<-dim(logo)[1:2] #number of x-y pixels for the logo (aspect ratio)
+  AR<-dims[1]/dims[2]
+  par(usr=c(0, 1, 0, 1))
+  rasterImage(logo, x-(size/2), y-(AR*size/2), x+(size/2), y+(AR*size/2), interpolate=TRUE)
+}
+
+
+#plot
+densityPlot(temp.gph,rug=TRUE, xlab="", ylab = "",  extend = NULL,
             main=c(paste(data$Common.Name[[1]], "Activity"), paste("Observations =",length(temp.gph))))
-mtext("Activity Level",side=2,line=0.8)
+mtext("Activity Level",side=2,line=2.5)
 mtext("Time of Day",side=1,line=2.2)
 mtext("(Hashmarks are Animal Detections)",side=1,line=3.2)
+
+#add the logo
+logoing_func(ima, x=0.10, y=0.90, size=0.15)
+
+
+#add the plot again
+
 dev.off()
