@@ -77,12 +77,17 @@ logoing_func<-function(logo, x, y, size){
 #plot
 densityPlot(temp.gph,rug=TRUE, xlab="", ylab = "",  extend = NULL,
             main=c(paste(data$Common.Name[[1]], "Activity"), paste("Observations =",length(temp.gph))))
+rect(0,0,6,1, col = "grey", border = "grey")
+rect(18,0,24,1, col = "grey", border = "grey")
+par(new = T)
+densityPlot(temp.gph,rug=TRUE, xlab="", ylab = "",  extend = NULL,
+            main=c(paste(data$Common.Name[[1]], "Activity"), paste("Observations =",length(temp.gph))))
 mtext("Activity Level",side=2,line=2.5)
 mtext("Time of Day",side=1,line=2.2)
 mtext("(Hashmarks are Animal Detections)",side=1,line=3.2)
 
 #add the logo
-logoing_func(ima, x=0.10, y=0.90, size=0.15)
+logoing_func(ima, x=0.50, y=0.90, size=0.15)
 
 
 #add the plot again
