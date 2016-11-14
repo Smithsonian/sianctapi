@@ -314,9 +314,7 @@ class SIANCTAPI {
       $xsltParams = '&tr=' . $solrXslt;
     }
 
-    //$params = 'q=PID:si*&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=9999&wt=' . $wt . $xsltParams;
-    //$params = 'q=PID:(si*%20OR%20ct*)&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=9999&wt=' . $wt . $xsltParams;
-    $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si%20OR%20ct*)&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=9999&wt=' . $wt . $xsltParams;
+    $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si%20OR%20ct*)&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=99999&wt=' . $wt . $xsltParams;
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
   }
