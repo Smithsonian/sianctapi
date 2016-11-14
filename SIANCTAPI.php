@@ -567,10 +567,13 @@ class SIANCTAPI {
           $obstable .= "\n";
         }
 
-        #$obstable .= $solrResult . ',' . $line;
-        $abbrline = substr($line, 0, strlen($line)-3); // removing last three unused columns
-        $obstable .= $projectHierarchyLabels . ',' . $abbrline . ',' . $actualLatLongFeaturetype;
-        
+        // Restrict the Fedora CSV to the first X fields
+        $lineArray = array_slice(str_getcsv($line), 0, 11);
+        $stream = fopen('php://temp', 'r+');
+        fputcsv($stream, $lineArray);
+        rewind($stream);
+        $abbrline = trim(stream_get_contents($stream), "\r\n");
+        $obstable .= implode(',', array($projectHierarchyLabels, $abbrline, $actualLatLongFeaturetype));
 
         // Step 1 - Grab Solr result from Resource Object PID
         // This will give us projectPID & ctPID
