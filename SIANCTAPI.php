@@ -355,8 +355,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetAllObstablePidsFromSolr: noparams ");
-    //$params = 'q=PID:si*&rows=9999&wt=xslt&tr=sianctapiGetObstablePids.xslt';
-    $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si*%20OR%20ct*)&rows=9999&wt=xslt&tr=sianctapiGetObstablePids.xslt';
+    $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si*%20OR%20ct*)&rows=99999&wt=xslt&tr=sianctapiGetObstablePids.xslt';
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
   }
