@@ -479,6 +479,7 @@ class SIANCTAPI {
               //fwrite($logfp, "\n[$datestamp] $this->app_id species $k: $speciesName");
               if($speciesName && stripos($line, $speciesName)) {
                 $speciesFound = true;
+                break;
               }
             }
           }
