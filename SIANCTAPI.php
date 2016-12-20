@@ -619,7 +619,8 @@ class SIANCTAPI {
 
   function sianctapiGetFieldsAddedToCsvFromSolr($obstablePid) {
     $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiFieldsAddedToCsv-CT2.xslt';
-    $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    $solrResult =$this->sianctapiGetProjectStructureMetadataFromSolr($params);
+    $solrResult = trim($solrResult);
     return $solrResult;
   }
 
