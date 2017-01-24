@@ -127,6 +127,13 @@ function _get_routes() {
       'method' => '_GET',
       'args' => array('file'),
     ),
+
+    'sianctapi/getManifestIdentifications' => array(
+      'library' => 'SIANCTAPI',
+      'controller' => 'getManifestIdentifications',
+      'method' => '_POST',
+      'args' => array('ctPid'),
+    ),
   );
   return $routes;
 }

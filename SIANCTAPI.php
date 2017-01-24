@@ -1174,4 +1174,37 @@ class SIANCTAPI {
     
     return $accessConstraints;
   }
+
+  /**
+   * Get volunteer and researcher identifications for a deployment
+   *
+   * @param $ctPid
+   *   The deployment's ctPID.
+   *
+   * @return
+   *   A JSON-encoded object of identifications, grouped by image sequence.
+   */
+  function getManifestIdentifications($ctPid) {
+    $params = 'objects/' . $ctPid . '/datastreams/MANIFEST/content';
+    $results = array();
+    $fedoraResult = $this->sianctapiGetDataFromFedora($params);
+
+    $ids = array('VolunteerIdentifications', 'ResearcherIdentifications');
+    if ($xml = @simplexml_load_string($fedoraResult)) {
+      foreach ($xml->ImageSequence as $seq) {
+        foreach ($ids as $id) {
+          if (!property_exists($seq, $id)) {
+            continue 2;
+          }
+        }
+
+        foreach ($ids as $id) {
+          $sid = $seq->ImageSequenceId->__toString();
+          $results[$sid][$id] = $seq->{$id};
+        }
+      }
+    }
+
+    return json_encode($results);
+  }
 }
