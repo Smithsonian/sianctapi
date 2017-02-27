@@ -134,6 +134,13 @@ function _get_routes() {
       'method' => '_POST',
       'args' => array('ctPid'),
     ),
+
+    'edan/getImageSequence' => array(
+      'library' => 'EDAN_SIANCTAPI',
+      'controller' => 'getImageSequence',
+      'method' => '_GET',
+      'args' => array('type', 'id'),
+    ),
   );
   return $routes;
 }
