@@ -1,0 +1,56 @@
+{
+    "place": {
+        "addressCountry:": "US",
+        "addressLocality": "D.C.",
+        "addressRegion": "Washington",
+        "postalCode": "20560",
+        "streetAddress": "600 Independence Ave SW",
+        "geo": {
+            "latitude": "40.75",
+            "longitude": "73.98"
+        },
+        "access": {
+            "metroBus": "",
+            "metroRail": "",
+            "parkingGarage": ""
+        }
+    },
+    "features": {
+        "accessibility": "Wheelchairs",
+        "admission": "Free",
+        "bicycle": "Bike Rentals/Racks",
+        "dining": "Has eats",
+        "lockers": "locker info",
+        "parking": "Yes",
+        "public_wifi": "Yes"
+    },
+    "names": {
+        "acronymn": "NASM",
+        "short_name": "Air and Space",
+        "unit": "NASM",
+        "unit_category": "NASM",
+        "organizational_parent": "NASM"
+    },
+    "graphics": {
+        "icon": "http://icon",
+        "logo": "http://logo",
+        "image": "http://image",
+        "floor_plan": "http://link to floor plan"
+    },
+    "info": {
+        "mission_statement": "OK",
+        "highlights": ["values? popular works.?"],
+        "exhibitions": ["seems like a linked array"],
+        "date": "What's this for?",
+        "openingHours": [
+            "Mo-Fr 09:00-17:30",
+            "Sa 09:00-12:00"
+        ],
+        "category": "dunno."
+    },
+    "contact": {
+        "url": "http://",
+        "email": "me@si.edu",
+        "phone": "867-5309"
+    }
+}

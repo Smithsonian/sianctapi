@@ -1,0 +1,11 @@
+name = EDAN Custom Search
+description = Use an admin UI to create custom search pages and blocks
+core = 7.x
+dependencies[] = edan_record
+dependencies[] = edan_search
+package = EDAN Web Services
+
+; Manually added package info, since we maintain the updates
+version = "7.x-2.9-beta"
+project = "edan"
+project status url = http://wsd.si.edu/release-history

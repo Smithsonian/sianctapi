@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * @file edan_ckeditor_plugin.module
+ *
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function edan_ckeditor_plugin_menu() {
+  $items = array();
+
+  $items['edan/files'] = array(
+    'title' => t('Choose EDAN Image'),
+    'page callback' => 'edan_ckeditor_picker_files',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/menu.files.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * @return array
+ */
+// good: http://margotskapacs.com/2014/05/adding-ckeditor-plugins-manually-in-drupal/
+// http://docs.cksource.com/CKEditor_3.x/Tutorials
+// https://www.drupal.org/documentation/modules/ckeditor/contrib
+function edan_ckeditor_plugin_ckeditor_plugin()
+{
+  $plugins = array();
+
+  // the path is the most likely culprit, if the button doesn't show in the CKEditor admin UI
+  $plugins['edan_image_picker'] = array(
+    'name'    => 'edan_image_picker',
+    'desc'    => t('EDAN Image Picker'),
+    'path'    => drupal_get_path('module', 'edan_ckeditor_plugin') . '/plugins/edan_image_picker/',
+    'default' => 't',
+    'buttons' => array(
+      'edan_image_picker' => array(
+        'label' => 'EDAN Image Picker',
+        'icon'  => 'icons/edan_image_picker.png',
+      ),
+    ),
+  );
+
+  return $plugins;
+}

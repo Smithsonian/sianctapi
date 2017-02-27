@@ -1,0 +1,56 @@
+table#topic-values {
+  width: 100%;
+}
+
+a.tabledrag-handle .handle {
+  height: 24px;
+  width: 22px;
+}
+
+form .field-multiple-table th.field-label {
+  padding-left: 1rem;
+}
+
+fieldset {
+  margin-top: 1em;
+  padding: 2em 1em;
+}
+
+.edan-record {
+    display: block;
+    margin: 10px;
+    clear: both;
+}
+.edan-record .icon img {
+    max-width:100%;
+}
+.edan-record .icon {
+    display: inline;
+    float: left;
+    vertical-align: bottom;
+    /*max-width: 20%; */
+    margin-right: 20px;
+}
+.edan-record .edit-link {
+    margin: 0 0 10px 0;
+}
+.edan-record .museum-contact {
+    display: inline;
+    float: left;
+    vertical-align: bottom;
+    /*max-width: 30%; */
+    margin: 10px 0 10px 20px;
+}
+.museum-contact .museum-hours {
+    margin-top: 10px;
+}
+.edan-records .museum-title {
+    display: block;
+}
+.edan-records .museum-contact {
+    display: inline;
+    float: left;
+    vertical-align: bottom;
+    max-width: 40%;
+    margin: 10px 0 10px 20px;
+}

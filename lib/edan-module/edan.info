@@ -1,0 +1,14 @@
+;$Id$
+name = EDAN Web Services
+description = Provides an admin interface for configuring an EDAN connection.
+configure = admin/config/services/edanserver
+core = 7.x
+package = EDAN Web Services
+files[] = edan.module
+files[] = includes/EDANInterface.class.php
+files[] = tests/edan.test
+
+; Manually added package info, since we maintain the updates
+version = "7.x-2.9-beta"
+project = "edan"
+project status url = http://wsd.si.edu/release-history

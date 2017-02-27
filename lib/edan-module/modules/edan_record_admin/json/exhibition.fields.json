@@ -1,0 +1,638 @@
+{
+  "type": "exhibition",
+  "id": "dpt-5552-8103",
+  "url": "type:exhibition",
+  "content": {
+    "schema": {
+      "$schema": "http://json-schema.org/draft-04/schema#",
+      "id": "http://edan.si.edu/schema/exhibition",
+      "type": "object",
+      "properties": {
+        "content": {
+          "id": "http://edan.si.edu/schema/exhibition/content",
+          "type": "object",
+          "properties": {
+            "title": {
+              "id": "http://edan.si.edu/schema/exhibition/content/title",
+              "type": "string"
+            },
+            "full_description": {
+              "id": "http://edan.si.edu/schema/exhibition/content/full_description",
+              "type": "string"
+            },
+            "brief_description": {
+              "id": "http://edan.si.edu/schema/exhibition/content/brief_description",
+              "type": "string"
+            },
+            "sponsor": {
+              "id": "http://edan.si.edu/schema/exhibition/content/sponsor",
+              "type": "string"
+            },
+            "status": {
+              "id": "http://edan.si.edu/schema/exhibition/content/status",
+              "type": "string",
+              "status_id":
+              {
+                "id": "http://edan.si.edu/schema/exhibition/content/status/status_id",
+                "type": "string"
+              },
+              "status_text": {
+                "id": "http://edan.si.edu/schema/exhibition/content/status/status_text",
+                "type": "string"
+              }
+            },
+            "images": {
+              "id": "http://edan.si.edu/schema/exhibition/content/images",
+              "type": "object",
+              "properties": {
+                "image_100x100": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100",
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100/url",
+                      "type": "string"
+                    },
+                    "title": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100/title",
+                      "type": "string"
+                    },
+                    "alt": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100/alt",
+                      "type": "string"
+                    },
+                    "width": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100/width",
+                      "type": "string"
+                    },
+                    "height": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_100x100/height",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
+                },
+                "image_thumbnail": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail",
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail/url",
+                      "type": "string"
+                    },
+                    "title": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail/title",
+                      "type": "string"
+                    },
+                    "alt": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail/alt",
+                      "type": "string"
+                    },
+                    "width": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail/width",
+                      "type": "string"
+                    },
+                    "height": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_thumbnail/height",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
+                },
+                "image_main": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/images/image_main",
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_main/url",
+                      "type": "string"
+                    },
+                    "title": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_main/title",
+                      "type": "string"
+                    },
+                    "alt": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_main/alt",
+                      "type": "string"
+                    },
+                    "width": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_main/width",
+                      "type": "string"
+                    },
+                    "height": {
+                      "id": "http://edan.si.edu/schema/exhibition/content/images/image_main/height",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
+                }
+              }
+            },
+            "metadata": {
+              "id": "http://edan.si.edu/schema/exhibition/content/metadata",
+              "type": "object",
+              "properties": {
+                "keywords": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/metadata/keywords",
+                  "type": "string"
+                  },
+                "featured": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/metadata/featured",
+                  "type": "string"
+                },
+                "encyclopedia": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/metadata/encyclopedia",
+                  "type": "string"
+                },
+                "topic": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/topic",
+                  "type": "array",
+                  "items": [
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/topic/art",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/topic/design",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/topic/science",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/topic/kids",
+                      "type": "string"
+                    }
+                  ],
+                  "required": [
+                    "art",
+                    "design",
+                    "science"
+                  ]
+                },
+                "challenge": {
+                  "id": "http://edan.si.edu/schema/exhibition/content/challenge",
+                  "type": "array",
+                  "items": [
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/challenge/american_experience",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/challenge/biodiversity",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/challenge/universe",
+                      "type": "string"
+                    },
+                    {
+                      "id": "http://edan.si.edu/schema/exhibition/content/challenge/world_culture",
+                      "type": "string"
+                    }
+                  ],
+                  "required": [
+                    "american_experience",
+                    "biodiversity",
+                    "universe",
+                    "world_culture"
+                  ]
+                }
+              },
+              "required": [
+                "topic",
+                "challenge"
+              ]
+            }
+          },
+          "required": [
+            "title",
+            "images",
+            "metadata"
+          ]
+        },
+        "dates": {
+          "id": "http://edan.si.edu/schema/exhibition/dates",
+          "type": "object",
+          "properties": {
+            "opening_date": {
+              "id": "http://edan.si.edu/schema/exhibition/dates/opening_date",
+              "type": "string"
+            },
+            "opening_text": {
+              "id": "http://edan.si.edu/schema/exhibition/dates/opening_text",
+              "type": "string"
+            },
+            "closing_date": {
+              "id": "http://edan.si.edu/schema/exhibition/dates/closing_date",
+              "type": "string"
+            },
+            "closing_text": {
+              "id": "http://edan.si.edu/schema/exhibition/dates/closing_text",
+              "type": "string"
+            },
+            "comments": {
+              "id": "http://edan.si.edu/schema/exhibition/dates/comments",
+              "type": "string"
+            }
+          }
+        },
+        "location": {
+          "id": "http://edan.si.edu/schema/exhibition/location",
+          "type": "object",
+          "properties": {
+            "floor_number": {
+              "id": "http://edan.si.edu/schema/exhibition/location/floor_number",
+              "type": "string"
+            },
+            "location_in_museum": {
+              "id": "http://edan.si.edu/schema/exhibition/location/location_in_museum",
+              "type": "string"
+            }
+          }
+        },
+        "urls": {
+          "id": "http://edan.si.edu/schema/exhibition/urls",
+          "type": "object",
+          "properties": {
+            "exhibit_info_url": {
+              "id": "http://edan.si.edu/schema/exhibition/exhibition_url",
+              "type": "string"
+            },
+            "online_exhibit_url": {
+              "id": "http://edan.si.edu/schema/exhibition/online_exhibition_url",
+              "type": "string"
+            }
+          }
+        },
+        "reference": {
+          "id": "http://edan.si.edu/schema/exhibition/reference",
+          "type": "object",
+          "properties": {
+            "legacy_exhibition_id": {
+              "id": "http://edan.si.edu/schema/exhibition/reference/legacy_exhibition_id",
+              "type": "string"
+            },
+            "legacy_building": {
+              "id": "http://edan.si.edu/schema/exhibition/reference/legacy_building",
+              "type": "string"
+            },
+            "legacy_lastupdated": {
+              "id": "http://edan.si.edu/schema/exhibition/reference/legacy_lastupdated",
+              "type": "string"
+            },
+            "edan_museum_id": {
+              "id": "http://edan.si.edu/schema/exhibition/reference/edan_museum_id",
+              "type": "string"
+            },
+            "edan_unit_code": {
+              "id": "http://edan.si.edu/schema/exhibition/content/edan_unit_code",
+              "type": "string"
+            }
+          },
+          "required": [
+            "legacy_exhibition_id",
+            "edan_museum_id"
+          ]
+        },
+        "type": {
+          "id": "http://edan.si.edu/schema/exhibition/type",
+          "type": "string"
+        },
+        "uid": {
+          "id": "http://edan.si.edu/schema/exhibition/uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "dates",
+        "location",
+        "url",
+        "urls",
+        "reference",
+        "type",
+        "uid"
+      ]
+
+    },
+    "authoringForm": {
+      "exhibition_title": {
+        "field_type": "textfield",
+        "weight": 11,
+        "label": "Title",
+        "default": "",
+        "maxlength": "500"
+      },
+      "brief_description": {
+        "field_type": "text_format",
+        "weight": 12,
+        "label": "Brief Description",
+        "cols": 20,
+        "rows": 3
+      },
+      "full_description": {
+        "field_type": "text_format",
+        "weight": 13,
+        "label": "Full Description",
+        "cols": 50,
+        "rows": 8
+      },
+      "sponsor": {
+        "field_type": "textfield",
+        "weight": 11,
+        "label": "Legacy Sponsor",
+        "default": "",
+        "maxlength": "500"
+      },
+      "status_id": {
+        "field_type": "textfield",
+        "weight": 11,
+        "label": "Status ID",
+        "default": "",
+        "maxlength": "10"
+      },
+      "status_text": {
+        "field_type": "textfield",
+        "weight": 11,
+        "label": "Status Text",
+        "default": "",
+        "maxlength": "50"
+      },
+      "opening_date": {
+        "field_type": "textfield",
+        "weight": 14,
+        "label": "Opening Date",
+        "default": "",
+        "maxlength": "100"
+      },
+      "opening_text": {
+        "field_type": "textfield",
+        "weight": 16,
+        "label": "Open Date Text",
+        "default": "",
+        "maxlength": "100"
+      },
+      "opening_sort": {
+        "field_type": "textfield",
+        "weight": 14,
+        "label": "Opening Sort",
+        "default": "",
+        "maxlength": "100"
+      },
+      "closing_date": {
+        "field_type": "textfield",
+        "weight": 15,
+        "label": "Closing Date",
+        "default": "",
+        "maxlength": "100"
+      },
+      "closing_text": {
+        "field_type": "textfield",
+        "weight": 16,
+        "label": "Close Date Text",
+        "default": "",
+        "maxlength": "100"
+      },
+      "closing_sort": {
+        "field_type": "textfield",
+        "weight": 16,
+        "label": "Closing Sort",
+        "default": "",
+        "maxlength": "100"
+      },
+      "comments": {
+        "field_type": "textarea",
+        "weight": 16,
+        "label": "Non-public Comments",
+        "default": "",
+        "rows": "3",
+        "cols": "20"
+      },
+      "location_in_museum": {
+        "field_type": "textfield",
+        "weight": 17,
+        "label": "Location in Museum",
+        "default": "",
+        "maxlength": "500"
+      },
+      "floor_number": {
+        "field_type": "textfield",
+        "weight": 18,
+        "label": "Floor Number",
+        "maxlength": "10"
+      },
+      "record_ID": {
+        "field_type": "hidden"
+      },
+      "legacy_exhibition_id": {
+        "field_type": "textfield",
+        "weight": 19,
+        "label": "Legacy Exhibition ID",
+        "maxlength": "100"
+      },
+      "legacy_building": {
+        "field_type": "textfield",
+        "weight": 19,
+        "label": "Legacy Building",
+        "maxlength": "500"
+      },
+      "legacy_lastupdated": {
+        "field_type": "textfield",
+        "weight": 19,
+        "label": "Legacy Last Updated Date",
+        "maxlength": "500"
+      },
+      "edan_museum_id": {
+        "field_type": "textfield",
+        "weight": 19,
+        "label": "EDAN Museum ID",
+        "maxlength": "500"
+      },
+      "unit_code": {
+        "field_type": "textfield",
+        "weight": 20,
+        "label": "EDAN Unit Code",
+        "maxlength": "100"
+      },
+      "record_type": {
+        "field_type": "hidden",
+        "value": "exhibition"
+      },
+      "image_100x100_url": {
+        "field_type": "textfield",
+        "weight": 22,
+        "label": "Image 100x100 URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_100x100_alt": {
+        "field_type": "textfield",
+        "weight": 23,
+        "label": "Image 100x100 Alt",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_100x100_title": {
+        "field_type": "textfield",
+        "weight": 24,
+        "label": "Image 100x100 Title",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_thumbnail_url": {
+        "field_type": "textfield",
+        "weight": 25,
+        "label": "Thumbnail Image URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_thumbnail_alt": {
+        "field_type": "textfield",
+        "weight": 26,
+        "label": "Thumbnail Image Alt",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_thumbnail_title": {
+        "field_type": "textfield",
+        "weight": 27,
+        "label": "Thumbnail Image Title",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_main_url": {
+        "field_type": "textfield",
+        "weight": 28,
+        "label": "Main Image URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_main_alt": {
+        "field_type": "textfield",
+        "weight": 29,
+        "label": "Main Image Alt",
+        "maxlength": "500",
+        "default": ""
+      },
+      "image_main_title": {
+        "field_type": "textfield",
+        "weight": 30,
+        "label": "Main Image Title",
+        "maxlength": "500",
+        "default": ""
+      },
+      "url": {
+        "field_type": "textfield",
+        "weight": 33,
+        "label": "URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "exhibition_url": {
+        "field_type": "textfield",
+        "weight": 33,
+        "label": "Exhibition URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "online_exhibition_url": {
+        "field_type": "textfield",
+        "weight": 33,
+        "label": "Online Exhibition URL",
+        "maxlength": "500",
+        "default": ""
+      },
+      "keywords": {
+        "field_type": "textarea",
+        "weight": 33,
+        "label": "Keywords",
+        "cols": "20",
+        "rows": "3",
+        "default": ""
+      },
+      "featured": {
+        "field_type": "checkbox",
+        "weight": 43,
+        "label": "Featured",
+        "default": 0
+      },
+      "encyclopedia": {
+        "field_type": "checkbox",
+        "weight": 43,
+        "label": "Encyclopedia",
+        "default": 0
+      },
+      "topic_art": {
+        "field_type": "checkbox",
+        "weight": 40,
+        "label": "Topic- Art",
+        "default": 0
+      },
+      "topic_history": {
+        "field_type": "checkbox",
+        "weight": 41,
+        "label": "Topic- History",
+        "default": 0
+      },
+      "topic_science": {
+        "field_type": "checkbox",
+        "weight": 42,
+        "label": "Topic- Science",
+        "default": 0
+      },
+      "topic_kids": {
+        "field_type": "checkbox",
+        "weight": 43,
+        "label": "Topic- Kids",
+        "default": 0
+      },
+      "challenge_american_experience": {
+        "field_type": "checkbox",
+        "weight": 50,
+        "label": "Challenge- American Experience",
+        "default": 0
+      },
+      "challenge_biodiversity": {
+        "field_type": "checkbox",
+        "weight": 51,
+        "label": "Challenge- Biodiversity",
+        "default": 0
+      },
+      "challenge_universe": {
+        "field_type": "checkbox",
+        "weight": 52,
+        "label": "Challenge- Universe",
+        "default": 0
+      },
+      "challenge_world_culture": {
+        "field_type": "checkbox",
+        "weight": 53,
+        "label": "Challenge- World Culture",
+        "default": 0
+      }
+    },
+    "display": {
+      "full": {
+      "templateFormat": "mustache",
+      "templateData": ""
+    },
+      "mini": {
+      "templateFormat": "mustache",
+      "templateData": ""
+      }
+    }
+  },
+  "name": "exhibition",
+  "description": "Type definition for exhibition records.",
+  "is_public": true,
+  "status": 0,
+  "unit_code": "EDAN"
+}

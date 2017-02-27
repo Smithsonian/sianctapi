@@ -1,0 +1,409 @@
+<?php
+
+/**
+ * edan_custom_search.module
+ * Gives site admins a user interface for creating custom pages and blocks that use EDAN Search.
+ *
+ */
+
+/**
+ * Implements hook_menu()
+ */
+function edan_custom_search_menu() {
+  $items = array();
+
+  $items['admin/config/search/edan-custom-search-list'] = array(
+    'title' => 'EDAN Custom Search Configuration',
+    'description' => 'Create custom EDAN searches.',
+    'page callback' => 'edan_custom_searches_list',
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.inc',
+  );
+
+  $items['admin/config/search/edan-custom-search-edit'] = array(
+    'title' => 'EDAN Custom Search Configuration',
+    'description' => 'Edit custom search.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_custom_search_edit_form', 4),
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/admin.inc',
+  );
+
+  $items['admin/config/search/edan-custom-search-delete'] = array(
+    'title' => 'EDAN Custom Search Remove',
+    'description' => 'Delete custom search.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_custom_search_list_remove_form', 4),
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/admin.inc',
+  );
+
+  // get any custom searches that have a page
+  $custom_searches = variable_get('edan_custom_searches');
+  if(is_array($custom_searches)) {
+    foreach($custom_searches as $slug => $search_details) {
+      if(isset($search_details['menu_results_page']) && strlen($search_details['menu_results_page']) > 0
+        && isset($search_details['create_page']) && $search_details['create_page'] == 1) {
+        $path = $search_details['menu_results_page'];
+        $items[$path] = array(
+          'title' => $search_details['menu_results_title'],
+          //'title callback' => 'edan_custom_search_title_results',
+          'page callback' => 'edan_custom_search_menupage_results',
+          'page arguments' => array($slug),
+          'access callback' => TRUE,
+          'type' => MENU_CALLBACK,
+        );
+      }
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function edan_custom_search_block_info() {
+  $blocks = array();
+  $all_custom_searches = variable_get('edan_custom_searches');
+  if(is_array($all_custom_searches)) {
+    foreach($all_custom_searches as $slug => $search_details) {
+
+      // only create a custom block if the user asked for it
+      if(isset($search_details['create_block']) && $search_details['create_block'] == 1) {
+        $title = isset($search_details['custom_results_title']) ? $search_details['custom_results_title'] : t('Custom Search');
+        $original_block_id = $block_id = 'ecs_' . trim(str_replace('-', '_', $slug), 18);
+
+        // make sure this block id doesn't exist:
+        $i = 0;
+        $tries = 0;
+        while (isset($blocks[$block_id]) && $i < 100) {
+          $block_id = $original_block_id . (string)$i;
+          $tries++;
+          $i++;
+        }
+        if($tries < 99) {
+          $blocks[$block_id] = array(
+            'info' => t('EDAN Custom Search: ' . $title),
+            'cache' => DRUPAL_NO_CACHE,
+          );
+        }
+        else {
+          // @todo - watchdog- we have 100 blocks with the same prefix!
+        }
+      }
+    }
+  }
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view()
+ */
+
+function edan_custom_search_block_view($delta = '') {
+  module_load_include('inc', 'edan_custom_search', 'includes/blocks');
+
+  $block = array();
+
+  // Derive the function name from $delta
+  // ecs_ prefix is for the search form, ecf_ is for the facets
+  $vals = explode('_', $delta, 2);
+  if(count($vals) == 2) {
+    //if($vals[0] == 'ecf') {
+    //  $block = edan_custom_search_blocks_facets($delta);
+    //}
+    //else
+    if($vals[0] == 'ecs') {
+      $block = edan_custom_search_blocks_search_form($delta);
+    }
+
+  }
+
+  return $block;
+}
+
+
+/**
+ * Implements hook_theme().
+ */
+function edan_custom_search_theme() {
+
+  $templates = array();
+
+  $templates['edan_custom_search_results'] = array(
+    'template' => 'edan-custom-search-results',
+    'variables' => array(
+      'numFound' => NULL,
+      'start' => NULL,
+      'docs' => array(),
+      'docs_raw' => array(),
+      'facets' => NULL,
+      'active_facets' => array(),
+      'facets_raw' => array(),
+      'active_facets_raw' => array(),
+      'tabs' => NULL,
+      'tabs_array' => array(),
+      'pager' => NULL,
+      'results_summary' => '',
+      'classes' => '',
+      'container_class' => '',
+      'results_class' => '',
+      'result_class' => '',
+    ),
+  );
+
+  $custom_searches = variable_get('edan_custom_searches');
+  if(isset($custom_searches) && is_array($custom_searches)) {
+    foreach($custom_searches as $slug => $search_details) {
+      $tpl_slug = str_replace(' ', '_', $slug);
+      $tpl_slug = str_replace('-', '_', $slug);
+
+      $templates['edan_custom_search_' . $tpl_slug . '_results'] = array(
+        'template' => 'edan-custom-search-' . $slug . '-results',
+        'variables' => array(
+          'numFound' => NULL,
+          'start' => NULL,
+          'docs' => array(),
+          'docs_raw' => array(),
+          'facets' => NULL,
+          'active_facets' => array(),
+          'facets_raw' => array(),
+          'active_facets_raw' => array(),
+          'tabs' => NULL,
+          'tabs_array' => array(),
+          'pager' => NULL,
+          'results_summary' => '',
+          'classes' => '',
+          'container_class' => '',
+          'results_class' => '',
+          'result_class' => '',
+        ),
+      );
+
+      // standard templates
+      $templates['edan_custom_search_facets'] = array(
+        'function' => 'edan_custom_search_facets',
+        'variables' => array(
+          'queries' => NULL,
+          'fields' => NULL,
+          'dates' => NULL,
+          'ranges' => NULL,
+        ),
+      );
+
+      $templates['edan_custom_search_active_facets'] = array(
+        'function' => 'edan_custom_search_active_facets',
+        'variables' => array(
+          'queries' => NULL,
+          'facets' => NULL,
+          'dates' => NULL,
+          'ranges' => NULL,
+        ),
+      );
+
+      // custom facet templates- function or template
+      $templates['edan_custom_search_' . $tpl_slug . '_facets'] = array(
+        'template' => 'edan_custom_search_' . $slug . '_facets',
+        'variables' => array(
+          'queries' => NULL,
+          'fields' => NULL,
+          'dates' => NULL,
+          'ranges' => NULL,
+        ),
+      );
+
+      $templates['edan_custom_search_' . $tpl_slug . '_active_facets'] = array(
+        'template' => 'edan_custom_search_' . $slug . '_active_facets',
+        'variables' => array(
+          'queries' => NULL,
+          'facets' => NULL,
+          'dates' => NULL,
+          'ranges' => NULL,
+        ),
+      );
+    }
+  }
+
+  return $templates;
+
+}
+
+
+/**
+ * Menupage callback
+ *
+ * @see edan_custom_search_menu()
+ */
+function edan_custom_search_menupage_results($slug) {
+
+  module_load_include('inc', 'edan_custom_search', 'includes/edan_custom_search');
+
+  # $default = '*:*', &$opts = array(), $slug
+  $args = _edan_custom_search_get_query($slug);
+  $args['facet'] = TRUE;
+
+  // Is this a new search?
+  $dq = drupal_get_query_parameters();
+  $is_fresh_search = count($dq) == 0; // was: (!isset($_GET['op']));  - but this doesn't work for things like clicking facet links
+
+  $default_online_visual_material = FALSE;
+
+  $custom_searches = variable_get('edan_custom_searches');
+
+  if(!isset($custom_searches[$slug])) {
+    return t('No custom search found!');
+  }
+
+  // set default params
+  $search_details = $custom_searches[$slug];
+  drupal_set_title( $search_details['menu_results_title']);
+
+  // set the args based on the admin's configuration
+  $search_params = isset($search_details['search_params']) ? $search_details['search_params'] : '';
+  $boost = isset($search_details['boost']) ? $search_details['boost'] : '';
+  $search_params_array = explode("\r\n", $search_params);
+
+  foreach ($search_params_array as $p) {
+    $param_data = explode('=', $p);
+    if (count($param_data) == 2) {
+      $k = $param_data[0];
+      $v = $param_data[1];
+      if ($k == 'q') {
+        if (isset($args['q']) && (strlen(trim($args['q'])) > 0)) { // && $args['q'] != '*:*') {
+          //$args[$k] = $args['q'];
+        }
+        else {
+          $args[$k] = $v;
+        }
+      }
+      elseif($k == 'fqs') {
+        // replace outer brackets and quotes
+        $fqs = substr(trim($v), 2, strlen(trim($v)) - 4);
+
+        // split the fqs
+        // first we have to encode the escaped quotes:
+        $fqs = str_replace('\"', '____', $fqs);
+
+        $fqs_array = explode('","', $fqs);
+        foreach($fqs_array as $fq) {
+          // re-encode escaped quotes
+          $args['fq'][] = str_replace('____', '"', $fq);
+        }
+      }
+    }
+  }
+  // add the boost if we have one
+  if(strlen($boost) > 0) {
+    $b = explode(',', $boost);
+
+    // RB 20161201 we used to append it to the q param like this but now we use the bq param.
+    // $args[$k] = '"' . $args['q'] . ' OR ' . $boost . '"';
+    $args['bq'] = $b; // was $boost
+  }
+
+  $form = array();
+  if(!isset($search_details['hide_search_form']) || $search_details['hide_search_form'] == 0) {
+    $f = drupal_get_form('edan_custom_search_search_form', $slug);
+    $form = render($f);
+  }
+
+  $opts = array(
+    'theme' => array('show_tabs' => isset($search_details['menu_results_tabs']) ? $search_details['menu_results_tabs'] : false),
+  );
+  // adding redirect code
+  $empty_msg = isset($search_details['results_empty_message']) ? $search_details['results_empty_message'] : '';
+  $redirect = isset($search_details['results_empty_redirect']) ? $search_details['results_empty_redirect'] : '';
+
+  //plainsearch = universal
+  $endpoint = isset($search_details['endpoint']) ? $search_details['endpoint'] : 'collections';
+  if($endpoint !== 'collections') {
+    $opts['plainsearch'] = true;
+  }
+
+  $template_which = isset($search_details['search_results_template']) ? $search_details['search_results_template'] : 'tpl_default';
+  $template_name = 'edan_custom_search_results';
+  if($template_which !== 'tpl_default') {
+    $template_name = 'edan_custom_search_' . str_replace('-', '_', $slug) . '_results';
+  }
+
+  //@todo- set other theme options
+
+  $content = _edan_custom_search_get_results($args, $opts, $template_name, $slug);
+  if(!empty($empty_msg) && strpos(trim($content), $empty_msg) !== FALSE && !empty($redirect)) {
+    drupal_goto($redirect, array('query' => array('results_empty' => 'true')));
+  }
+  else {
+    return $form . $content;
+  }
+
+}
+
+/**
+ * This will replace the current browse page form
+ */
+function edan_custom_search_search_form_prerender($form){
+  unset($form['form_token']);
+  unset($form['form_build_id']);
+  unset($form['form_id']);
+  return $form;
+}
+
+/**
+ * Implements hook_form().
+ */
+function edan_custom_search_search_form($form, &$form_state, $slug = NULL) {
+
+  $dq = drupal_get_query_parameters();
+
+  $path = current_path();
+
+  $form = array(
+    '#method' => 'get',
+    '#action' => url($path), // url(_edan_custom_search_variable_get($slug, 'menu_results_page')),
+    '#attributes' => array('class' => array('container-inline', 'edan-search-form')),
+    '#token' => FALSE,
+    '#pre_render' => array('edan_custom_search_search_form_prerender'),
+  );
+
+  if (isset($_GET['edan_fq'])) {
+    $form['edan_fq']['#tree'] = TRUE;
+    $i = 1;
+    $get_edan_fq = _edan_search_get_param('edan_fq', array());
+    if(!is_array($get_edan_fq)) {
+      $get_edan_fq = (array)$get_edan_fq;
+    }
+    foreach ($get_edan_fq as $fq) { // ($_GET['edan_fq'] as $fq) {
+      $form['edan_fq'][$i] = array(
+        '#type' => 'hidden',
+        '#value' => $fq,
+      );
+      $i++;
+    }
+  }
+
+  $form['custom_search_id'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $slug,
+  );
+
+  $form['edan_q'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Search Terms'),
+    '#default_value' => _edan_search_get_param('edan_q', ''), //isset($_GET['edan_q']) ? $_GET['edan_q'] : '',
+    '#required' => FALSE,
+  );
+
+  $form['actions'] = array(
+    '#type' => 'actions',
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search'),
+  );
+
+  return $form;
+}

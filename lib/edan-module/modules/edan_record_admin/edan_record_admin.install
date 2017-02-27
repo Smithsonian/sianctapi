@@ -1,0 +1,7 @@
+<?php
+/**
+ * Set default pathauto path for edan record admin.
+ */
+function edan_record_admin_update_7001() {
+  variable_set('pathauto_edan_record_admin_pattern', '[edan:edan_type]/[edan:edan_id]');
+}
