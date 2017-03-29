@@ -469,7 +469,7 @@ class SIANCTAPI {
       if ($countSpeciesnames>0 && trim($speciesnamesArray[0])) {
         $countSelectedLines = 0;
         $resultingObservationsForPid = '';
-        for($j=1;$j<=$countLines;$j++) {
+        for($j=0;$j<=$countLines;$j++) {
           $line = trim($lines[$j]);
           //fwrite($logfp, "\n[$datestamp] $this->app_id line $j: $line");
           $speciesFound = false;
