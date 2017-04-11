@@ -439,7 +439,7 @@ class SIANCTAPI {
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
     #$resultingObservations = 'Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, UnusedCol1, UnusedCol2, UnusedCol3';
-    $resultingObservations = 'Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, Actual Lat, Actual Lon, Feature type, Publish Date, Project Lat, Project Lon, Access Constraints';
+    $resultingObservations = 'Project, Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, Actual Lat, Actual Lon, Feature type, Publish Date, Project Lat, Project Lon, Access Constraints';
     $speciesnamesArray = str_getcsv($speciesNames);
     $countSpeciesnames=count($speciesnamesArray);
     if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
@@ -618,7 +618,7 @@ class SIANCTAPI {
   }
 
   function sianctapiGetFieldsAddedToCsvFromSolr($obstablePid) {
-    $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiFieldsAddedToCsv-CT2.xslt';
+    $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiFieldsAddedToCsv-CT3.xslt';
     $solrResult =$this->sianctapiGetProjectStructureMetadataFromSolr($params);
     $solrResult = trim($solrResult);
     return $solrResult;
