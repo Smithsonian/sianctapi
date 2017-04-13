@@ -327,9 +327,10 @@ class SIANCTAPI {
     $logfp = fopen('/tmp/project-structure-sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
     $solrUrl = $this->config['sianctapi_block_solr']; #FIX
-    $command = 'curl --silent "' . $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on" 2>&1';
-    fwrite($logfp, "\n[$datestamp] command: $command");
-    $solrResult = shell_exec($command);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $solrResult = curl_exec($ch);
     $datestamp = $this->datetimems();
     $logString = substr($solrResult,0,300);
     if (strlen($solrResult) > 300) $logString .= '...';
@@ -638,9 +639,11 @@ class SIANCTAPI {
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetDataFromFedora: params=$params ");
     $fedoraUrl = $this->config['sianctapi_block_fedora'];
     $fedoraUserPass = $this->config['sianctapi_block_fedora_userpass'];
-    $command = 'curl --silent -u ' . $fedoraUserPass . ' "' . $fedoraUrl . '/' . $params . '" 2>&1';
-    fwrite($logfp, "\n[$datestamp] $this->app_id command: $command");
-    $fedoraResult = shell_exec($command);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $fedoraUrl . '/' . $params);
+    curl_setopt($ch, CURLOPT_USERPWD, $fedoraUserPass);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $fedoraResult = curl_exec($ch);
     $datestamp = $this->datetimems();
     //fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$fedoraResult");
     $datestamp = $this->datetimems();
