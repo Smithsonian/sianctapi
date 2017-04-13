@@ -747,11 +747,11 @@ class SIANCTAPI {
         // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
         //echo count($columns);
         //echo '\n';
-        $begintime = trim($columns[6]);
-        $speciesname = trim($columns[8]);
+        $begintime = trim($columns[7]);
+        $speciesname = trim($columns[9]);
         $speciesname = trim($speciesname, '"');
         if ($speciesname and $begintime) {
-          $commonname = trim($columns[9]);
+          $commonname = trim($columns[10]);
           $commonname = trim($commonname, '"');
           if ( array_key_exists($speciesname, $speciesnames) ) {
             $countObs = $speciesnames[$speciesname][1];
@@ -822,12 +822,12 @@ class SIANCTAPI {
         // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
         //echo count($columns);
         //echo '\n';
-        $begintime = trim($columns[6]);
-        $speciesname = trim($columns[8]);
+        $begintime = trim($columns[7]);
+        $speciesname = trim($columns[9]);
         $speciesname = trim($speciesname, '"');
         fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpeciesOptionsJSON: speciesname= $speciesname      begintime= $begintime");
         if ($speciesname and $begintime) {
-          $commonname = trim($columns[9]);
+          $commonname = trim($columns[10]);
           $commonname = trim($commonname, '"');
           if ( array_key_exists($speciesname, $speciesnames) ) {
             $countObs = $speciesnames[$speciesname][1];
