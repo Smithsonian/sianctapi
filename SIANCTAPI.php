@@ -330,8 +330,8 @@ class SIANCTAPI {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_close($ch);
     $solrResult = curl_exec($ch);
+    curl_close($ch);
     $datestamp = $this->datetimems();
     $logString = substr($solrResult,0,300);
     if (strlen($solrResult) > 300) $logString .= '...';
