@@ -27,7 +27,7 @@ resultFile <- args[2]
 data <- read.csv(csvFile)
 
 #Remove all NA rows from the data set in the count column which eliminates the spaces
-data <- data[complete.cases(data[,14]),]
+data <- data[complete.cases(data$Count),]
 
 #removing all humans, and other inappropriate detections
 data.an <- subset(data, !Common.Name %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List"))
