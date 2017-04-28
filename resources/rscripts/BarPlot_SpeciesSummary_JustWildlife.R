@@ -8,7 +8,7 @@ resultFile <- args[2]
 #data <- read.csv("SampleAPIOutput.csv")
 data <- read.csv(csvFile)
 #Remove all NA rows from the data set in the count column which eliminates the spaces
-data <- data[complete.cases(data[,14]),]
+data <- data[complete.cases(data$Count),]
 #remove non-wildlife detections
 data.an <- subset(data, !Common.Name %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List","Unknown Animal"))
 data.an$Common.Name <- factor(data.an$Common.Name)

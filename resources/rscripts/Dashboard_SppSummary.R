@@ -13,7 +13,7 @@ resultFile <- args[2]
 #data <- read.csv("SampleAPIOutput.csv")
 data <- read.csv(csvFile)
 #Remove all NA rows from the data set in the count column which eliminates the spaces
-data <- data[complete.cases(data[,14]),]
+data <- data[complete.cases(data$Count),]
 #add column of row values of 1 for each sequence
 data$seq.count <- rep(1,nrow(data))
 #Reshape data for count and detections summary
