@@ -1,0 +1,26 @@
+/* stuff for EDAN image picker */
+.page-selector {
+    clear: both;
+    border-bottom: 1px solid #EFEFEF;
+    min-height: 41px;
+}
+
+#edit-main-image-upload-button {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.edan-search #edit-submit {
+    width: 22rem;
+    height: 62px;
+}
+
+.col-md-2 {
+    margin-bottom: 1.75rem;
+}
+
+.edan-search .select-button-container {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+

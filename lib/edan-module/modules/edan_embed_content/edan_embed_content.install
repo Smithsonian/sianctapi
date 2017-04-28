@@ -1,0 +1,56 @@
+<?php
+
+
+/**
+ * Implements hook_enable().
+ */
+function edan_embed_content_enable() {
+}
+
+/**
+ * Implements hook_install().
+ *
+ * Adds a text format.
+ */
+function edan_embed_content_install() {
+}
+
+
+/**
+ * Implements hook_uninstall().
+ *
+ *
+ */
+function edan_embed_content_uninstall() {
+
+}
+
+/**
+ * Implements hook_field_schema().
+ *
+ * Defines the database schema of the field, using the format used by the
+ * Schema API.
+ *
+ * The data we will store here is just one 500-character element, even
+ * though the widget presents the three portions separately.
+ *
+ * All implementations of hook_field_schema() must be in the module's
+ * .install file.
+ *
+ * @see http://drupal.org/node/146939
+ * @see schemaapi
+ * @see hook_field_schema()
+ * @ingroup field_example
+ */
+function edan_embed_content_field_schema($field) {
+  $columns = array(
+    'edan_record' => array('type' => 'varchar', 'length' => 500, 'not null' => FALSE),
+  );
+  $indexes = array(
+    'edan_record' => array('edan_record'),
+  );
+  return array(
+    'columns' => $columns,
+//    'indexes' => $indexes,
+  );
+}

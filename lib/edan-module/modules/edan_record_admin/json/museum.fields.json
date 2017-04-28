@@ -1,0 +1,558 @@
+{
+  "type": "museum",
+  "id": "dpt-5552-8103",
+  "url": "type:museum",
+  "content": {
+    "schema": {
+      "$schema": "http://json-schema.org/draft-04/schema#",
+      "id": "http://edan.si.edu/schema/museum",
+      "type": "object",
+      "properties": {
+        "place": {
+          "id": "http://edan.si.edu/schema/museum/place",
+          "type": "object",
+          "properties": {
+            "addressCountry": {
+              "id": "http://edan.si.edu/schema/museum/place/addressCountry",
+              "type": "string"
+            },
+            "addressLocality": {
+              "id": "http://edan.si.edu/schema/museum/place/addressLocality",
+              "type": "string"
+            },
+            "addressRegion": {
+              "id": "http://edan.si.edu/schema/museum/place/addressRegion",
+              "type": "string"
+            },
+            "postalCode": {
+              "id": "http://edan.si.edu/schema/museum/place/postalCode",
+              "type": "string"
+            },
+            "streetAddress": {
+              "id": "http://edan.si.edu/schema/museum/place/streetAddress",
+              "type": "string"
+            },
+            "geo": {
+              "id": "http://edan.si.edu/schema/museum/place/geo",
+              "type": "object",
+              "properties": {
+                "latitude": {
+                  "id": "http://edan.si.edu/schema/museum/place/geo/latitude",
+                  "type": "string"
+                },
+                "longitude": {
+                  "id": "http://edan.si.edu/schema/museum/place/geo/longitude",
+                  "type": "string"
+                }
+              }
+            },
+            "access": {
+              "id": "http://edan.si.edu/schema/museum/place/access",
+              "type": "object",
+              "properties": {
+                "metroBus": {
+                  "id": "http://edan.si.edu/schema/museum/place/access/metroBus",
+                  "type": "string"
+                },
+                "metroRail": {
+                  "id": "http://edan.si.edu/schema/museum/place/access/metroRail",
+                  "type": "string"
+                },
+                "parkingGarage": {
+                  "id": "http://edan.si.edu/schema/museum/place/access/parkingGarage",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": [
+            "addressCountry",
+            "streetAddress"
+          ]
+        },
+        "features": {
+          "id": "http://edan.si.edu/schema/museum/features",
+          "type": "object",
+          "properties": {
+            "accessibility": {
+              "id": "http://edan.si.edu/schema/museum/features/accessibility",
+              "type": "string"
+            },
+            "admission": {
+              "id": "http://edan.si.edu/schema/museum/features/admission",
+              "type": "string"
+            },
+            "bicycle": {
+              "id": "http://edan.si.edu/schema/museum/features/bicycle",
+              "type": "string"
+            },
+            "dining": {
+              "id": "http://edan.si.edu/schema/museum/features/dining",
+              "type": "string"
+            },
+            "lockers": {
+              "id": "http://edan.si.edu/schema/museum/features/lockers",
+              "type": "string"
+            },
+            "parking": {
+              "id": "http://edan.si.edu/schema/museum/features/parking",
+              "type": "string"
+            },
+            "public_wifi": {
+              "id": "http://edan.si.edu/schema/museum/features/public_wifi",
+              "type": "string"
+            }
+          },
+          "required": [
+            "accessibility",
+            "admission"
+          ]
+        },
+        "reference": {
+          "id": "http://edan.si.edu/schema/museum/reference",
+          "type": "object",
+          "properties": {
+            "edan_object_group_id": {
+              "id": "http://edan.si.edu/schema/museum/reference/edan_object_group_id",
+              "type": "string"
+            },
+            "trumba_sponsor_id": {
+              "id": "http://edan.si.edu/schema/museum/reference/trumba_sponsor_id",
+              "type": "string"
+            },
+            "trumba_vendor_id": {
+              "id": "http://edan.si.edu/schema/museum/reference/trumba_vendor_id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "accessibility",
+            "admission"
+          ]
+        },
+        "names": {
+          "id": "http://edan.si.edu/schema/museum/names",
+          "type": "object",
+          "properties": {
+            "acronymn": {
+              "id": "http://edan.si.edu/schema/museum/names/acronymn",
+              "type": "string"
+            },
+            "short_name": {
+              "id": "http://edan.si.edu/schema/museum/names/short_name",
+              "type": "string"
+            },
+            "unit": {
+              "id": "http://edan.si.edu/schema/museum/names/unit",
+              "type": "string"
+            },
+            "unit_category": {
+              "id": "http://edan.si.edu/schema/museum/names/unit_category",
+              "type": "string"
+            },
+            "organizational_parent": {
+              "id": "http://edan.si.edu/schema/museum/names/organizational_parent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "short_name",
+            "unit"
+          ]
+        },
+        "graphics": {
+          "id": "http://edan.si.edu/schema/museum/graphics",
+          "type": "object",
+          "properties": {
+            "icon": {
+              "id": "http://edan.si.edu/schema/museum/graphics/icon",
+              "type": "string"
+            },
+            "logo": {
+              "id": "http://edan.si.edu/schema/museum/graphics/logo",
+              "type": "string"
+            },
+            "image": {
+              "id": "http://edan.si.edu/schema/museum/graphics/image",
+              "type": "string"
+            },
+            "floor_plan": {
+              "id": "http://edan.si.edu/schema/museum/graphics/floor_plan",
+              "type": "string"
+            }
+          },
+          "required": [
+            "logo"
+          ]
+        },
+        "info": {
+          "id": "http://edan.si.edu/schema/museum/info",
+          "type": "object",
+          "properties": {
+            "mission_statement": {
+              "id": "http://edan.si.edu/schema/museum/info/mission_statement",
+              "type": "string"
+            },
+            "highlights": {
+              "id": "http://edan.si.edu/schema/museum/info/highlights",
+              "type": "array",
+              "items": []
+            },
+            "exhibitions": {
+              "id": "http://edan.si.edu/schema/museum/info/exhibitions",
+              "type": "array",
+              "items": []
+            },
+            "date": {
+              "id": "http://edan.si.edu/schema/museum/info/date",
+              "type": "string"
+            },
+            "openingHours": {
+              "id": "http://edan.si.edu/schema/museum/info/openingHours",
+              "type": "array",
+              "items": []
+            },
+            "category": {
+              "id": "http://edan.si.edu/schema/museum/info/category",
+              "type": "string"
+            }
+          },
+          "required": []
+        },
+        "contact": {
+          "id": "http://edan.si.edu/schema/museum/contact",
+          "type": "object",
+          "properties": {
+            "url": {
+              "id": "http://edan.si.edu/schema/museum/contact/url",
+              "type": "string"
+            },
+            "email": {
+              "id": "http://edan.si.edu/schema/museum/contact/email",
+              "type": "string"
+            },
+            "phone": {
+              "id": "http://edan.si.edu/schema/museum/contact/phone",
+              "type": "string"
+            }
+          }
+        },
+        "url": {
+          "id": "http://edan.si.edu/schema/museum/url",
+          "type": "string"
+        },
+        "type": {
+          "id": "http://edan.si.edu/schema/museum/type",
+          "type": "string"
+        },
+        "uid": {
+          "id": "http://edan.si.edu/schema/museum/uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "url",
+        "type",
+        "uid"
+      ]
+    },
+    "authoringForm": {
+      "acronymn": {
+        "field_type": "textfield",
+        "weight": 11,
+        "label": "Acronymn",
+        "default": "",
+        "maxlength": "255"
+      },
+      "short_name": {
+        "field_type": "textfield",
+        "weight": 12,
+        "label": "Short Name",
+        "default": "",
+        "maxlength": "255"
+      },
+      "unit": {
+        "field_type": "textfield",
+        "weight": 13,
+        "label": "Unit",
+        "default": "",
+        "maxlength": "255"
+      },
+      "unit_category": {
+        "field_type": "textfield",
+        "weight": 14,
+        "label": "Unit Category",
+        "default": "",
+        "maxlength": "255"
+      },
+      "organizational_parent": {
+        "field_type": "textfield",
+        "weight": 15,
+        "label": "Organizational Parent",
+        "default": "",
+        "maxlength": "255"
+      },
+
+      "icon": {
+        "field_type": "textfield",
+        "weight": 16,
+        "label": "Icon",
+        "default": "",
+        "maxlength": "255"
+      },
+      "logo": {
+        "field_type": "textfield",
+        "weight": 17,
+        "label": "Logo",
+        "default": "",
+        "maxlength": "255"
+      },
+      "image": {
+        "field_type": "textfield",
+        "weight": 18,
+        "label": "Image",
+        "default": "",
+        "maxlength": "255"
+      },
+      "floor_plan": {
+        "field_type": "textfield",
+        "weight": 19,
+        "label": "Floor Plan",
+        "default": "",
+        "maxlength": "255"
+      },
+      "mission_statement": {
+        "field_type": "textarea",
+        "weight": 20,
+        "label": "Mission Statement",
+        "default": "",
+        "cols": 20,
+        "rows": 3
+      },
+      "highlights": {
+        "field_type": "textarea",
+        "weight": 21,
+        "label": "Highlights",
+        "default": "",
+        "cols": 20,
+        "rows": 3
+      },
+      "exhibitions": {
+        "field_type": "textfield",
+        "weight": 22,
+        "label": "Exhibitions",
+        "maxlength": "100",
+        "default": "",
+        "multiple": "true"
+      },
+      "date": {
+        "field_type": "textfield",
+        "weight": 23,
+        "label": "Date",
+        "default": "",
+        "maxlength": "255"
+      },
+      "openingHours": {
+        "field_type": "textarea",
+        "weight": 24,
+        "label": "Hours of Operation",
+        "cols": 20,
+        "rows": 3
+      },
+      "category": {
+        "field_type": "textfield",
+        "weight": 25,
+        "label": "Category",
+        "default": "",
+        "maxlength": "255"
+      },
+      "url": {
+        "field_type": "textfield",
+        "weight": 26,
+        "label": "Url",
+        "default": "",
+        "maxlength": "255"
+      },
+      "email": {
+        "field_type": "textfield",
+        "weight": 27,
+        "label": "Email",
+        "default": "",
+        "maxlength": "255"
+      },
+      "phone": {
+        "field_type": "textfield",
+        "weight": 28,
+        "label": "Phone",
+        "default": "",
+        "maxlength": "255"
+      },
+
+      "addressCountry": {
+        "field_type": "textfield",
+        "weight": 29,
+        "label": "Country",
+        "default": "",
+        "maxlength": "2"
+      },
+      "addressLocality": {
+        "field_type": "textfield",
+        "weight": 30,
+        "label": "State or Locale",
+        "default": "",
+        "maxlength": "255"
+      },
+      "addressRegion": {
+        "field_type": "textfield",
+        "weight": 31,
+        "label": "City",
+        "default": "",
+        "maxlength": "255"
+      },
+      "postalCode": {
+        "field_type": "textfield",
+        "weight": 32,
+        "label": "Postal Code",
+        "default": "",
+        "maxlength": "255"
+      },
+      "streetAddress": {
+        "field_type": "textfield",
+        "weight": 33,
+        "label": "Street Address",
+        "default": "",
+        "maxlength": "512"
+      },
+      "latitude": {
+        "field_type": "textfield",
+        "weight": 34,
+        "label": "Latitude",
+        "default": "",
+        "maxlength": "10"
+      },
+      "longitude": {
+        "field_type": "textfield",
+        "weight": 35,
+        "label": "Longitude",
+        "default": "",
+        "maxlength": "10"
+      },
+      "metroBus": {
+        "field_type": "textfield",
+        "weight": 36,
+        "label": "Metrobus Access",
+        "maxlength": "255"
+      },
+      "metroRail": {
+        "field_type": "textfield",
+        "weight": 37,
+        "label": "Metrorail Access",
+        "maxlength": "255"
+      },
+      "parkingGarage": {
+        "field_type": "textfield",
+        "weight": 38,
+        "label": "Parking Garage",
+        "maxlength": "255"
+      },
+      "record_ID": {
+        "field_type": "hidden"
+      },
+      "museum": {
+        "field_type": "hidden"
+      },
+      "record_type": {
+        "field_type": "hidden",
+        "value": "museum"
+      },
+      "record_link": {
+        "field_type": "textfield",
+        "weight": 39,
+        "label": "Record Link",
+        "default": "",
+        "maxlength": "255"
+      },
+      "accessibility": {
+        "field_type": "textfield",
+        "weight": 40,
+        "label": "Accessibility",
+        "maxlength": "512",
+        "default": ""
+      },
+      "admission": {
+        "field_type": "textfield",
+        "weight": 41,
+        "label": "Admission",
+        "maxlength": "255"
+      },
+      "bicycle": {
+        "field_type": "textfield",
+        "weight": 42,
+        "label": "Bicycle",
+        "maxlength": "255"
+      },
+      "dining": {
+        "field_type": "textfield",
+        "weight": 43,
+        "label": "Dining",
+        "maxlength": "255"
+      },
+      "lockers": {
+        "field_type": "textfield",
+        "weight": 44,
+        "label": "Lockers",
+        "maxlength": "255"
+      },
+      "parking": {
+        "field_type": "list_boolean",
+        "weight": 45,
+        "label": "Parking"
+      },
+      "public_wifi": {
+        "field_type": "list_boolean",
+        "weight": 46,
+        "label": "Public Wifi"
+      },
+        "edan_object_group_id": {
+        "field_type": "textfield",
+        "weight": 51,
+        "label": "EDAN Story ID (Object Group)",
+        "maxlength": "255"
+      },    
+      "trumba_sponsor_id": {
+        "field_type": "textfield",
+        "weight": 51,
+        "label": "Trumba Sponsor ID",
+        "maxlength": "255"
+      },
+      "trumba_vendor_id": {
+        "field_type": "textfield",
+        "weight": 52,
+        "label": "Trumba Vendor ID",
+        "maxlength": "255"
+      },
+      "featured": {
+        "field_type": "list_boolean"
+      },
+      "active": {
+        "field_type": "list_boolean"
+      }
+    },
+    "display": {
+      "full": {
+      "templateFormat": "mustache",
+      "templateData": ""
+    },
+      "mini": {
+      "templateFormat": "mustache",
+      "templateData": ""
+      }
+    }
+  },
+  "name": "museum",
+  "description": "Type definition for museum records.",
+  "is_public": true,
+  "status": 0,
+  "unit_code": "EDAN"
+}

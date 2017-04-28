@@ -1,0 +1,69 @@
+.edan-search-form .form-actions {
+  display: block;
+  margin-top: 1px;
+}
+.edan-search ul.search-results {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+}
+.edan-search-results-with-facets {
+  float: left; /* LTR */
+  width: 60%;
+}
+.edan-search-result {
+  position: relative;
+  min-height: 130px;
+  overflow: hidden;
+  padding: 5px 10px;
+  background-color: #EFEFEF;
+}
+.edan-search-result.in-unit { background-color: transparent; }
+.edan-search-result .thumbnail {
+  max-width: 120px;
+  float: left; /* LTR */
+  overflow: hidden;
+}
+.edan-search-result .thumbnail img {
+  width: 100%;
+}
+.edan-search-result dl {
+  margin-left: 130px; /* LTR */
+}
+.edan-search-result.mini .edan-search-mini-toggle {
+  position: absolute;
+  top: 5px;
+  right: 5px; /* LTR */
+  cursor: pointer;
+}
+.edan-search-result.mini dl {
+  display: none;
+}
+.edan-search-result.mini dl.mini,
+.edan-search-result.mini.active dl {
+  display: block;
+}
+.edan-search-facets {
+  float: left; /* LTR */
+  width: 35%;
+  margin-left: 4.9%; /* LTR */
+}
+.edan-search-facet-list ul.root-facet-list,
+.edan-search-facet-list ul ul {
+  list-style-type: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+}
+.edan-search-facet-list .category {
+  font-weight: bold;
+}
+.edan-search-facet-list .facets {
+  margin-bottom: 1em;
+}
+.edan-search-facet-list .facet {
+  padding: .5em 0;
+  font-size: .9em;
+}
+
+

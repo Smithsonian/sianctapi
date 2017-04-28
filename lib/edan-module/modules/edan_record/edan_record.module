@@ -1,0 +1,354 @@
+<?php
+
+/**
+ * @file edan_record.module
+ * @version 0.3
+ *
+ * - Added new content/v1.1/content
+ */
+
+require_once(drupal_get_path('module', 'edan') . '/includes/EDANInterface.class.php');
+require_once(drupal_get_path('module', 'edan') . '/includes/EDANRecord.class.php');
+module_load_include('inc', 'edan', 'includes/edan');
+
+/**
+ * Implements hook_menu().
+ */
+function edan_record_menu() {
+  $items = array();
+
+  $items['admin/config/search/edan-record'] = array(
+    'title' => 'EDAN Record Configuration',
+    'description' => 'Configuration for EDAN record display.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_record_settings_form'),
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.inc',
+  );
+
+  $items['admin/config/search/edan-record/test'] = array(
+    'title' => 'Test EDAN Record Configuration',
+    'description' => 'Tests EDAN record display.',
+    'page callback' => '_edan_record_call_edan_test',
+    'page arguments' => array(),
+    'access arguments' => array('administer edan configuration'),
+  );
+
+  $base_path = _edan_record_variable_get('menu_record_page');
+  $c = count(explode('/', $base_path));
+  $items[$base_path] = array(
+    //'title' => 'EDAN Record', // TODO: Make configurable
+    'title callback' => '_edan_record_get_title',
+    'title arguments' => array(1),
+    'page callback' => 'edan_record_menupage',
+    'page arguments' => array($c),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function edan_record_theme() {
+  return array(
+    'edan_record_page' => array(
+      'template' => 'edan-record-page',
+      'variables' => array(
+        'docs' => array(),
+        'docs_raw' => array(),
+      ),
+    ),
+  );
+}
+
+
+/**
+ * Menu callback
+ */
+function edan_record_menupage($record_id = NULL) {
+
+  if (empty($record_id)) {
+    return MENU_NOT_FOUND;
+  }
+
+  $args['fq'] = array();
+
+  // Single-record search (for now)
+  $args['q'] = 'record_ID:"' . $record_id . '"';
+  $args['rows'] = 1;
+
+  // 2016-04-07 now we are potentially showing non-local records within the site
+  if(_edan_record_variable_get('show_within_site') != 1) {
+    $args['fq'] = array(_edan_search_local_units_for_solr());
+  }
+
+  $args['facet'] = FALSE;
+
+  $opts = array('variables' => array('field_order' => _edan_record_variable_get('field_order')));
+
+  //@todo RB chat with Andrew 3/24 - later we will call getContent and pass the type:edanmdm and id to retrieve just one record
+  #$results = _edan_search_get_results($args);
+  $results = _edan_search_execute_search($args);
+
+  // if we can't find an edanmdm record, try for one of our newer recs; change the query syntax
+  if(!isset($results['numFound']) || $results['numFound'] == 0) {
+    unset($args['q']);
+    // Single-record search (for now)
+    $args['fq'][] = 'id:' . $record_id;
+    $results = _edan_search_execute_search($args);
+  }
+
+  // TODO: Finish OO version and move this over to that code.
+  // This block reconciles the new format with the old format for results coming from
+  // the newer metadata/v1.0 endpoints
+  // v1.0 items, v1.1 rows
+  $results_rows = isset($results['rows']) ? $results['rows'] : $results['items'];
+  if (isset($results_rows) && is_array($results_rows)) {
+    $results['response']['numFound'] = $results['numFound'];
+    $results['response']['start'] = 0; // TODO: is the new format paged?
+    $results['response']['docs'] = array();
+    foreach($results_rows as $item) {
+      $results['response']['docs'][] = $item;//$item['content'];
+    }
+    unset($results['items']);
+    unset($results['rows']);
+  }
+
+  if (!isset($results['response']['numFound']) || $results['response']['numFound'] < 1) {
+    return MENU_NOT_FOUND;
+  }
+
+  // Set title and Bread Crumb
+  $edan_record = new EDAN\EDANRecord();
+  $edan_record->loadRecordJSON($results['response']['docs'][0]); // EDANRecord is expecting to find 'content' param
+  $edan_record_title = $edan_record->getTitle();
+//  drupal_set_title($edan_record_title);
+  //drupal_set_title($results['response']['docs'][0]['content']['descriptiveNonRepeating']['title']['content']);
+
+  // Vars for theme
+  $vars = array(
+    'docs' => _edan_search_process_rows($results['response']['docs'], $opts),
+    'docs_raw' => $results['response']['docs'],
+  );
+
+  if(module_exists('devel') && isset($_GET['dpm']) && user_access('access devel information')) {
+    dpm($results);
+    return $record_id;
+  }
+
+  if (isset($_GET['dump'])) {
+    return $record_id . ': <pre>' . var_export($results, TRUE) . '</pre>';
+  }
+  else {
+    return theme('edan_record_page', $vars);
+  }
+
+}
+
+/**
+ * Call EDAN
+ */
+function _edan_record_call_edan($what = '', $params = array(), $uri = '') {
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $uri = '';
+  $content_service_base = 'content/v1.1/'; //http://edantest.si.edu/content/v1.1/fileupload/*.htm
+
+  #$params['applicationId'] = $edan_app_id;
+
+  switch($what) {
+    case 'contentUrl':
+      /*
+      type
+      url
+      */
+	  $service = 'metadata/v1.1/metadata/search.htm'; // $content_service_base . 'content/contentUrl.htm';
+      $uri = drupal_http_build_query($params);
+      //$service = $content_service_base . 'content/getContent.htm';
+      //$uri = 'url=' . $params['record_type'] . ":" . $params['record_id'];
+    break;
+
+    # for test case
+    case 'objectlists':
+      /*
+      listName
+      */
+      $service = 'metadata/v1.1/metadata/getObjectLists.htm';
+      $params['applicationId'] = $edan_app_id;
+      $uri = drupal_http_build_query($params);
+    break;
+
+    default:
+      return FALSE;
+  }
+
+  $edan = new EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+  $info = '';
+  $results = $edan->sendRequest($uri, $service, FALSE, $info);
+
+  if (isset($_GET['dump'])) {
+    drupal_set_message('<pre>' . var_export($info, TRUE) . '</pre>');
+    drupal_set_message('<pre>' . var_export($results, TRUE) . '</pre>');
+  }
+
+  if ($info['http_code'] !== 200) {
+    drupal_set_message('Error: (EDAN status code ' . $info['http_code'] . ').');
+    return FALSE;
+  }
+
+  if (empty($results)) {
+    return FALSE;
+  } else if (is_string($results)) {
+    return json_decode($results, TRUE);
+  } else {
+    return FALSE;
+  }
+}
+
+/**
+ *
+ */
+function _edan_record_call_edan_test() {
+  // http://edantest.si.edu/content/v1.1/content/contentUrl.htm?type=damsmdm&url=AAA-jacqself00002-002320
+  // http://edantest.si.edu/content/v1.1/content/contentUrl.htm?type=edanrecord&url=siris_arc_35495
+
+  // metadata/v1.1/metadata/objectlists.htm?applicationId=OGMT_TEST&listName=OGMT_TEST:12:128
+  $tests = array(
+    array(
+      'type' => 'damsmdm',
+      'url'  => 'AAA-jacqself00002-002320',
+    ),
+    array(
+      'type' => 'edanrecord',
+      'url'  => 'siris_arc_35495',
+    ),
+    array(
+      'type' => '#metadata',
+      'listName' => 'OGMT_TEST:12:128',
+    )
+  );
+
+  $out = '';
+
+  foreach ($tests as $test) {
+    if ($test['type'] == '#metadata') {
+      $res = _edan_call_edan('getObjectlists', array('listName' => $test['listName']));
+    } else {
+      $res = _edan_call_edan('contentUrl', array('type' => $test['type'], 'url' => $test['url']));
+    }
+
+    $out .= '<pre>';
+    $out .= var_export($test, TRUE);
+    $out .= "\n\n";
+    $out .= var_export($res, TRUE);
+    $out .= '</pre><hr />' . "\n";
+  }
+
+  return $out;
+}
+
+
+/**
+ * Wrapper for variable_get()
+ *
+ * @see variable_get()
+ */
+function _edan_record_variable_get($key = NULL) {
+  $variables = &drupal_static(__FUNCTION__);
+
+  if (!isset($variables)) {
+    $defaults = _edan_record_variable_defaults();
+    $variables = variable_get('edan_record', $defaults);
+  }
+
+  if (!empty($key)) {
+    return isset($variables[$key]) ? $variables[$key] : NULL;
+  }
+
+  return $variables;
+}
+
+function _edan_record_variable_defaults($key = NULL) {
+  $defaults = array(
+    'menu_record_page' => 'object',
+    'field_order' => array('*'),
+    'show_within_site' => '1',
+  );
+
+  if (!empty($key) && isset($defaults[$key])) {
+    return $defaults[$key];
+  }
+
+  return $defaults;
+}
+
+/**
+ * Title callback for EDAN record.
+ * @return string The title for this record.
+ */
+function _edan_record_get_title($record_id) {
+
+  if (empty($record_id)) {
+    return '';
+  }
+
+  $args['fq'] = array();
+
+  // Single-record search (for now)
+  $args['q'] = 'record_ID:"' . $record_id . '"';
+
+  // 2016-04-07 now we are potentially showing non-local records within the site
+  if(_edan_record_variable_get('show_within_site') != 1) {
+    $args['fq'] = array(_edan_search_local_units_for_solr());
+  }
+
+  $args['facet'] = FALSE;
+
+  $opts = array('variables' => array('field_order' => _edan_record_variable_get('field_order')));
+
+  //@todo RB chat with Andrew 3/24 - later we will call getContent and pass the type:edanmdm and id to retrieve just one record
+  #$results = _edan_search_get_results($args);
+  $results = _edan_search_execute_search($args);
+
+  // if we can't find an edanmdm record, try for one of our newer recs; change the query syntax
+  if(!isset($results['numFound']) || $results['numFound'] == 0) {
+    unset($args['q']);
+    // Single-record search (for now)
+    $args['fq'][] = 'id:' . $record_id;
+    $results = _edan_search_execute_search($args);
+  }
+
+  // TODO: Finish OO version and move this over to that code.
+  // This block reconciles the new format with the old format for results coming from
+  // the newer metadata/v1.0 endpoints
+  // v1.0 items, v1.1 rows
+  $results_rows = isset($results['rows']) ? $results['rows'] : $results['items'];
+  if (isset($results_rows) && is_array($results_rows)) {
+    $results['response']['numFound'] = $results['numFound'];
+    $results['response']['start'] = 0; // TODO: is the new format paged?
+    $results['response']['docs'] = array();
+    foreach($results_rows as $item) {
+      $results['response']['docs'][] = $item;//$item['content'];
+    }
+    unset($results['items']);
+    unset($results['rows']);
+  }
+
+  if (!isset($results['response']['numFound']) || $results['response']['numFound'] < 1) {
+    return MENU_NOT_FOUND;
+  }
+
+  // Set title and Bread Crumb
+  $edan_record = new EDAN\EDANRecord();
+  $edan_record->loadRecordJSON($results['response']['docs'][0]); // EDANRecord is expecting to find 'content' param
+  $edan_record_title = $edan_record->getTitle();
+
+  return $edan_record_title;
+}

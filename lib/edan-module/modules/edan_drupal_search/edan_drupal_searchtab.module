@@ -1,0 +1,393 @@
+<?php
+/**
+ * Implements hook_menu().
+ */
+function edan_drupal_searchtab_menu() {
+  $items = array();
+
+  $items['admin/config/search/edan-searchtab'] = array(
+    'title' => 'EDAN Search Tab Configuration',
+    'description' => 'Configuration for EDAN Drupal search tab.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_searchtab_settings_form'),
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.inc',
+  );
+
+  //
+  /*
+  $base_path = _edan_search_variable_get('menu_results_page');
+  $c = count(explode('/', $base_path));
+  $items[$base_path] = array(
+    'title' => _edan_search_variable_get('searchtab_title'),
+    'title callback' => 'edan_search_title_results',
+    'page callback' => 'edan_search_menupage_results',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+  */
+
+  return $items;
+}
+
+/**
+ * Implements hook_search_info().
+ */
+function edan_drupal_searchtab_search_info() {
+  /*
+   * Define a custom search type.
+
+      This hook allows a module to tell search.module that it wishes to perform searches on content it defines
+      (custom node types, users, or comments for example) when a site search is performed.
+
+      In order for the search to do anything, your module must also implement hook_search_execute(),
+      which is called when someone requests a search on your module's type of content.
+
+      If you want to have your content indexed in the standard search index,
+      your module should also implement hook_update_index().
+
+      If your search type has settings, you can implement hook_search_admin() to add them to the search settings page.
+
+      You can use hook_form_FORM_ID_alter(), with FORM_ID set to 'search_form', to add fields to the search form
+      (see node_form_search_form_alter() for an example).
+
+      You can use hook_search_access() to limit access to searching,
+      and hook_search_page() to override how search results are displayed.
+
+      https://api.drupal.org/api/drupal/modules%21search%21search.api.php/function/hook_search_info/7.x
+      https://api.drupal.org/api/drupal/modules!search!search.api.php/function/hook_search_execute/7.x
+      https://api.drupal.org/api/drupal/modules%21search%21search.api.php/function/hook_search_preprocess/7.x
+      https://api.drupal.org/api/drupal/modules%21search%21search.api.php/function/hook_search_admin/7.x
+      https://api.drupal.org/api/drupal/modules%21search%21search.api.php/function/hook_search_page/7.x
+
+   */
+
+  $current_settings = variable_get('edan_search', NULL);
+  $searchtab_path = isset($current_settings['searchtab_results_page']) ? $current_settings['searchtab_results_page'] : 'edanresults';
+  $searchtab_title = isset($current_settings['searchtab_title']) ? $current_settings['searchtab_title'] : 'EDAN';
+
+  return array(
+    'title' => t($searchtab_title),
+    'path' => $searchtab_path, // 'edan' becomes /search/edan
+    'conditions_callback' => 'edan_drupal_searchtab_search_conditions',
+  );
+
+}
+
+function edan_drupal_searchtab_form_search_form_alter(&$form, &$form_state, $form_id) {
+
+  $args = arg();
+  if(count($args) < 2) {
+    return;
+  }
+
+  // hpham: testing $args[1] against $searchtab_path
+  $current_settings = variable_get('edan_search', NULL);
+  $searchtab_path = isset($current_settings['searchtab_results_page']) ? $current_settings['searchtab_results_page'] : 'edanresults';
+
+  if($args[0] !== 'search' || $args[1] !== $searchtab_path) {
+    return;
+  }
+
+
+  // most of this code is pinched from the search form in edan_search.module (edan_search_search_form)
+
+  $online_visual_material = FALSE;
+
+  if (isset($_GET['edan_fq'])) {
+    $form['edan_fq']['#tree'] = TRUE;
+    $i = 1;
+    $get_edan_fq = _edan_search_get_param('edan_fq', array());
+    if(!is_array($get_edan_fq)) {
+      $get_edan_fq = (array)$get_edan_fq;
+    }
+    foreach ($get_edan_fq as $fq) { // ($_GET['edan_fq'] as $fq) {
+      if ($fq == 'online_visual_material:true') {
+        $online_visual_material = TRUE;
+        continue;
+      }
+
+      $form['edan_fq'][$i] = array(
+        '#type' => 'hidden',
+        '#value' => $fq,
+      );
+      $i++;
+    }
+  }
+
+  // Online visual material checkbox
+  $form['online_media'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Only return results with online media'),
+    '#return_value' => "1",
+    '#default_value' => $online_visual_material
+  );
+
+  $form['#submit'][] = 'edan_drupal_searchtab_search_form_alter_submit';
+}
+
+/**
+ * Custom submit handler to pass the value of online_media to the search function.
+ */
+function edan_drupal_searchtab_search_form_alter_submit($form, &$form_state) {
+
+  $options = array();
+  if (isset($form_state['values']['online_media']) && $form_state['values']['online_media'] == '1') {
+    // Retrieve selection for online_media
+    //$form_state['values']['type'] = array_filter($form_state['values']['type']);
+    $options = array(
+      'query' => array(
+        'edan_fq[]' => 'online_visual_material:true'
+      )
+    );
+  }
+
+  $path = $form_state['redirect'];
+  drupal_goto($path, $options);
+}
+
+function edan_drupal_searchtab_search_page($results) {
+  $page_args = arg();
+  drupal_set_title(t('Search'));
+
+  $count_results = count($results);
+  if(count($results) > 0) {
+    $total_results = $results[0]['total_results'];
+  }
+  if($count_results > 0) {
+
+    $total_results = isset($results[0]['total_results']) ? $results[0]['total_results'] : $count_results;
+    $path = _edan_search_variable_get('menu_results_page');
+    $opts = array(
+      'query' => array(
+        'edan_local' => 1
+      )
+    );
+
+    $link = l(t('collection search and browse'), $path, $opts);
+    $prefix = ' <div class="edan-search-prefix">';
+    $prefix .= isset($page_args[2]) ? '<h2>'. t('Collection Search Results for %title', array('%title' => $page_args[2])) .'</h2>' : '';
+    $prefix .= '<p>'. t('Looking for something else? Try our advanced !link to filter your results.', array('!link' => $link));
+    $prefix .=  isset($results['data']['results_summary']) ? '<div class="edan-results-summary">'. $results['data']['results_summary'] .'</div>' : '';
+    $prefix .= '<div class="toggle-view"></div></div>';
+    $prefix .= '<div class="edan-search-wrapper '. variable_get('si_edan_default', 'list-view') .'">';
+  
+    $prefix .= '<ul class="search-results">';
+    $output['prefix']['#markup'] = $prefix;
+
+  foreach ($results as $entry) {
+    $output[] = array(
+      '#theme' => 'search_result',
+      '#result' => $entry,
+      '#module' => 'edan_drupal_searchtab',
+    );
+  }
+
+  // Pager
+  $pager_vars = array(
+    'parameters' => array(),
+  );
+  $rpp = _edan_search_variable_get('results_per_page');
+    pager_default_initialize($total_results, $rpp);
+  
+    $output['suffix']['#markup'] = '</ul></div>' . theme('pager', $pager_vars);
+  }
+  else {
+    $output = '<h2>' . _edan_search_variable_get('results_empty_message') .'</h2>';
+  }
+
+  return $output;
+
+}
+
+function edan_drupal_searchtab_search_execute($keys = NULL, $conditions = NULL) {
+
+  $args = _edan_search_get_query();
+  $args['facet'] = TRUE;
+  $args['rows'] = _edan_search_variable_get('results_per_page');
+  $get_page = _edan_search_get_param('page', NULL);
+  if (isset($_GET['page'])) { // $_GET['page'])) {
+    $args['start'] = $get_page * $args['rows']; // $_GET['page'] *
+  } else {
+    $args['start'] = 0;
+  }
+  $search_string = $keys;
+
+  $online_media = search_expression_extract($keys, 'online_media');
+
+  if(1 == $online_media) {
+    // online_visual_material:true
+    $args['fq'][] = 'online_visual_material:true';
+    $search_string = trim(str_replace('online_media:1', '', $keys));
+  }
+
+  $local_units = _edan_search_variable_get('local_units');
+  if(!empty( $local_units )) {
+    $local_units = _edan_search_local_units_for_solr();
+    $args['fq'][] = $local_units;
+  }
+
+  $args['q'] = urlencode($search_string);
+  //dpm($args);
+
+
+  $opts = array(
+    'theme' => array('show_tabs' => false) // 'show_tabs' => _edan_search_variable_get('menu_results_tabs'))
+  );
+
+  $results = _edan_drupal_searchtab_get_results($args, $opts);
+
+  return $results;
+}
+
+/**
+ * Provides search query conditions.
+ *
+ * This callback is invoked by search_view() to get an array of additional search conditions to pass to search_data().
+ * For example, a search module may get additional keywords, filters, or modifiers for the search from the query string.
+ */
+function edan_drupal_searchtab_search_conditions($keys) {
+  // https://api.drupal.org/api/drupal/modules%21search%21search.api.php/function/callback_search_conditions/7.x
+
+  $conditions = array();
+
+  if (!empty($_REQUEST['edan_q'])) {
+    $conditions['edan_q'] = $_REQUEST['edan_q'];
+  }
+  if (!empty($_REQUEST['edan_fq'])) {
+    $conditions['edan_fq'] = $_REQUEST['edan_fq'];
+  }
+  //if ($force_local = config('edan_drupal_searchtab.settings')->get('edan_local')) {
+  //  $conditions['edan_local'] = $force_local;
+  //}
+  return $conditions;
+
+}
+
+/**
+ * Gets search results back for a search.
+ *
+ */
+// give other modules the ability to theme results with their own template
+function _edan_drupal_searchtab_get_results($args = array(), &$opts = array()) {
+
+  if(empty($args)) {
+    return array();
+  }
+
+  $pager_params = array();
+  $querystring_args = drupal_get_query_parameters();
+  // Git 10b79b1e30
+  //if(isset($querystring_args['collections'])) {
+  //  //$opts['collections_search'] = TRUE;
+  if(array_key_exists('pageId', $args) || array_key_exists('objectGroupId', $args) || array_key_exists('plainsearch', $opts)) {
+    $results = _edan_search_execute_search($args, $opts);
+    //dpm("plain");
+  }
+  else {
+    $collections_results = _edan_search_execute_collectionssearch($args, $opts);
+    $results = $collections_results;
+    $results['response'] = $collections_results; // make it look like standard search results by putting it in the 'response' param
+  }
+//dpm($results);
+
+  // This block reconciles the new format with the old format for results coming from
+  // the newer metadata/v1.0 endpoints
+  // v1.0 items, v1.1 rows
+  $results_rows = isset($results['rows']) ? $results['rows'] : $results['items'];
+  if (isset($results_rows) && is_array($results_rows)) {
+    $results['response']['numFound'] = $results['numFound'];
+    $results['response']['start'] = 0; // TODO: is the new format paged?
+    $results['response']['docs'] = array();
+    foreach($results_rows as $item) {
+      $results['response']['docs'][] = $item;//$item['content'];
+    }
+    unset($results['items']);
+    unset($results['rows']);
+  }
+
+  if (!isset($results['response']['numFound']) || $results['response']['numFound'] == 0) {
+    return array();
+  }
+
+  return _transform_edan_results_to_search_results($results);
+}
+
+function _transform_edan_results_to_search_results($results) {
+
+  $new_results = array();
+
+  /*
+ * https://api.drupal.org/api/drupal/modules!search!search.api.php/function/hook_search_execute/7.x
+ * Return: An array of search results. To use the default search result display, each item should have the following keys':
+  'link': Required. The URL of the found item.
+  'type': The type of item (such as the content type).
+  'title': Required. The name of the item.
+  'user': The author of the item.
+  'date': A timestamp when the item was last modified.
+  'extra': An array of optional extra information items.
+  'snippet': An excerpt or preview to show with the result (can be generated with search_excerpt()).
+  'language': Language code for the item (usually two characters).
+ */
+//dpm($results);
+  foreach($results['docs'] as $r) {
+    $image = '';
+
+    $e = new \EDAN\EDANRecord();
+    $e->loadRecordJSON($r);
+
+    $images = $e->getImages();
+    if(isset($images['record_images']) && count($images['record_images']) > 0) {
+      $image = '<img src="' . $images['record_images'][0]['thumbnail'] . '" />';
+    }
+
+    $desc_array = array('timestamp' => $r['timestamp']);
+    if(isset($r['content']['freetext']['physicalDescription'])) {
+      foreach($r['content']['freetext']['physicalDescription'] as $d) {
+        $desc_array['description'] = $d['content'];
+      }
+    }
+
+    // contrib by Ha Pham 2016 Jan 05- provide separate title and uri
+    $url = NULL;
+    $title = isset($r['content']['descriptiveNonRepeating']['title']['content'])
+      ? $r['content']['descriptiveNonRepeating']['title']['content']
+      : $r['title'];
+
+    if(array_key_exists('descriptiveNonRepeating', $r['content']) ) {
+      $base_record_url = url(_edan_record_variable_get('menu_record_page'), array('absolute' => true, 'alias' => false ));
+      $local_units = (isset($opts['variables']['local_units'])) ? $opts['variables']['local_units'] : _edan_search_variable_get('local_units');
+
+      if (($base_record_url && (_edan_record_variable_get('show_within_site') == 1))
+        ||
+        ($base_record_url && in_array($r['content']['descriptiveNonRepeating']['unit_code'], $local_units))
+      ) {
+        $url = $base_record_url . '/' . $r['type'] . '/' . $r['content']['descriptiveNonRepeating']['record_ID'];
+      }
+      else if (isset($r['content']['descriptiveNonRepeating']['record_link'])) {
+        $url = $r['content']['descriptiveNonRepeating']['record_link'];
+      }
+    }
+
+    // finally, link the image if we have an image and a url
+    if(NULL !== $url && strlen(trim($image)) > 0) {
+      $image = '<a href="' . $url . '">' . $image . '</a>';
+    }
+
+    $new_results[] = array(
+      'link' => isset($url) ? url($url, array('absolute' => TRUE)) : '',
+      'type' => $r['type'],
+      'title' => $title,
+//      'user' => 'EDAN ' . $r['unitCode'] . ' ' . $r['type'],
+      'extra' => $desc_array,
+      'snippet' => $image,
+      'language' => 'en',
+      'full_record' => $r,
+      'date' => $r['timestamp'],
+      'total_results' => $results['numFound'],
+    );
+  }
+//dpm($new_results);
+  return $new_results;
+}

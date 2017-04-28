@@ -1,0 +1,120 @@
+<?php
+
+// edan.test
+// tests for EDAN calls
+
+ class EDANTestCase extends DrupalWebTestCase {
+
+   /**
+    * Creates a user with the give role.
+    * Thank you: https://gist.github.com/dmp1ce/3677218
+    **/
+   function drupalCreateUserWithRole($role) {
+     // Get all of the roles in the system.
+     $roles = user_roles();
+
+     // Find the index for the role we want to assign to the user.
+     $index = array_search($role, $roles);
+
+     // Get the permissions for the role.
+     $permissions = user_role_permissions(array(array_search($role, $roles) => $role));
+
+     // Create the user with the permissions.
+     $user = $this->drupalCreateUser(array_keys($permissions[$index]));
+
+     // Assign the role.
+     $user->roles[$index] = $role;
+
+     // Return the user we have created.
+     return user_save($user);
+   }
+
+  /*
+   * To make the test available to the Simpletest testing interface,
+   * we implement getInfo().
+   *
+   * This just provides the user interface information
+   * that will show up on the simpletest page after clearing the cache table.
+   */
+  public static function getInfo() {
+    // Note: getInfo() strings are not translated with t().
+    return array(
+      'name' => 'EDAN',
+      'description' => 'Tests EDAN connection.',
+      'group' => 'EDAN Web Services',
+    );
+  }
+
+   function setUp() {
+     parent::setUp('edan');
+
+     variable_set('edan_server_url', 'http://edan-new.si.edu/');
+     variable_set('edan_app_id', 'QUOTIENTPROD');
+     variable_set('edan_auth_key', 'a846922f298366c4a2c236215d28c33e622f3595');
+     variable_set('edan_tier_type', '1');
+
+     variable_set('clean_url', 1);
+
+     // Create non-admin user
+     $this->regular_user = $this->drupalCreateUserWithRole('authenticated user');
+
+     // Create an admin user
+     $this->admin_user = $this->drupalCreateUserWithRole('administrator');
+
+   }
+
+   function testEDANAccessControl() {
+
+     $edan_config_uri = 'admin/config/services/edanserver';
+
+     // try to access admin functions as anon user:
+     $this->drupalLogin($this->admin_user);
+     $this->drupalLogout();
+     $this->drupalGet($edan_config_uri);
+     $this->assertResponse(403);
+     $this->drupalLogout();
+
+     // try to access admin functions as regular user:
+     $this->drupalLogin($this->regular_user);
+     $this->drupalGet($edan_config_uri);
+     $this->assertResponse(403);
+     $this->drupalLogout();
+
+     // try to access admin functions as admin:
+     $this->drupalLogin($this->admin_user);
+     $this->drupalGet($edan_config_uri);
+     $this->assertResponse(200);
+     $this->drupalLogout();
+
+   }
+
+   // Tests configuring EDAN
+   function testEDANConfigure() {
+
+     $edan_config_uri = 'admin/config/services/edanserver';
+     // try to access admin functions as admin:
+     $this->drupalLogin($this->admin_user);
+     $this->drupalGet($edan_config_uri);
+     $this->assertResponse(200);
+
+     // change setting, save form
+     $edit = array(
+      'edan_server_url' => 'http://edan-new.si.edu/',
+      'edan_app_id' => 'QUOTIENTPROD123',
+      'edan_auth_key' => 'a846922f298366c4a2c236215d28c33e622f3595.',
+      'edan_tier_type' => 0, // tier type 1, not used
+     );
+     $this->drupalPost($edan_config_uri, $edit, t('Save configuration'));
+     $this->assertText('The configuration options have been saved.');
+
+     //above we set the API credentials to garbage- test to make sure the connection fails
+     //@todo
+
+     $this->drupalLogout();
+
+   }
+
+
+
+ }
+

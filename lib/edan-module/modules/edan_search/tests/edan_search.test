@@ -1,0 +1,139 @@
+<?php
+
+/**
+ * Tests EDAN Search and Record
+ */
+class EDANSearchTestCase extends DrupalWebTestCase {
+  private $admin_user;
+  private $regular_user;
+
+  /**
+   * Creates a user with the give role.
+   * Thank you: https://gist.github.com/dmp1ce/3677218
+   **/
+  function drupalCreateUserWithRole($role) {
+    // Get all of the roles in the system.
+    $roles = user_roles();
+
+    // Find the index for the role we want to assign to the user.
+    $index = array_search($role, $roles);
+
+    // Get the permissions for the role.
+    $permissions = user_role_permissions(array(array_search($role, $roles) => $role));
+
+    // Create the user with the permissions.
+    $user = $this->drupalCreateUser(array_keys($permissions[$index]));
+
+    // Assign the role.
+    $user->roles[$index] = $role;
+
+    // Return the user we have created.
+    return user_save($user);
+  }
+
+  public static function getInfo() {
+    return array(
+      'name' => 'EDAN Search',
+      'description' => 'Tests EDAN Search.',
+      'group' => 'EDAN Web Services',
+    );
+  }
+
+  function setUp() {
+
+    parent::setUp('edan_search');
+
+    variable_set('edan_server_url', 'http://edan-new.si.edu/');
+    variable_set('edan_app_id', 'QUOTIENTPROD');
+    variable_set('edan_auth_key', 'a846922f298366c4a2c236215d28c33e622f3595');
+    variable_set('edan_tier_type', '1');
+
+    variable_set('clean_url', 1);
+
+    // Create non-admin user
+    $this->regular_user = $this->drupalCreateUserWithRole('authenticated user');
+
+    // Create an admin user
+    $this->admin_user = $this->drupalCreateUserWithRole('administrator');
+
+  }
+
+  /**
+   * Tests access control for EDAN Search config
+   */
+  function testEDANSearchAccessControl() {
+
+    $edan_config_uri = 'admin/config/search/edan-search';
+
+    // try to access admin functions as anon user:
+    $this->drupalLogin($this->admin_user);
+    $this->drupalLogout();
+    $this->drupalGet($edan_config_uri);
+    $this->assertResponse(403);
+    $this->drupalLogout();
+
+    // try to access admin functions as regular user:
+    $this->drupalLogin($this->regular_user);
+    $this->drupalGet($edan_config_uri);
+    $this->assertResponse(403);
+    $this->drupalLogout();
+
+    // try to access admin functions as admin:
+    $this->drupalLogin($this->admin_user);
+    $this->drupalGet($edan_config_uri);
+    $this->assertResponse(200);
+    $this->drupalLogout();
+
+  }
+
+  // does 5 tests
+  // 1. search with no params
+  // 2. search using keyword 'test'
+  // 3. view record
+  // 4. search using ridiculously long keywords that are sure not to return results
+  // 5. search using malformed parameters
+  // 6. search using facets
+  function testEDANSearch() {
+    // q, start, rows, facet, fqs
+
+    // 1. search with no params
+    //as anon user view all search results
+    $this->drupalGet('search/edan');
+    $this->assertResponse(200);
+    $this->assertTitle('EDAN Search Results | Drupal'); //@todo- on a plain vanilla installation, yes.
+    // we should have "next" and "last" links
+    $this->assertText('next'); //@todo- totally dependent on the API credentials
+    $this->assertText('last'); //@todo- totally dependent on the API credentials
+
+    // 2. search using keyword 'test'
+    // pass some search params
+    // search/edan?edan_q=test&edan_local=1&edan_fq%5B%5D=online_visual_material%3Atrue&op=Search
+    $test_search = 'search/edan?edan_q=test&edan_local=1&' . urlencode('edan_fq[]=online_visual_material:true') . '&op=Search';
+    $this->drupalGet($test_search);
+    $this->assertResponse(200);
+    $this->assertFieldByName('edan_q', '', 'The search field exists on the page');
+    $this->assertText("Your search found");
+
+    // 3. view record
+    //view a record- click one of the links on that search results page
+    $this->clickLink('Testing Detente');
+    $this->assertResponse(200);
+    $this->assertTitle('Testing Detente');
+    $this->assertText("Data Source");
+    $this->assertText("Object number");
+
+    // 4. search using ridiculously long keywords that are sure not to return results
+    //@todo
+
+    // 5. search using malformed parameters
+    //@todo
+
+    // 6. search using facets
+    // http://localhost:8092/search/edan?edan_q=test&edan_fq[]=online_visual_material:true&edan_local=1&edan_fq[]=topic:%22Interior%22
+    //@todo
+
+
+  }
+
+}
+

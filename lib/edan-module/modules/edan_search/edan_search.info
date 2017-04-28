@@ -1,0 +1,15 @@
+name = EDAN MDS Search
+description = Allows you to theme and include EDAN MDS-based searches on your site.
+core = 7.x
+package = EDAN Web Services
+dependencies[] = edan
+dependencies[] = search
+configure = admin/config/search/edan-search
+stylesheets[all][] = edan-search.css
+scripts[] = edan-search.js
+files[] = tests/edan_search.test
+
+; Manually added package info, since we maintain the updates
+version = "7.x-2.9-beta"
+project = "edan"
+project status url = http://wsd.si.edu/release-history

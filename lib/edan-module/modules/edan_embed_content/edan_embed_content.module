@@ -1,0 +1,426 @@
+<?php
+
+/**
+ * edan_embed_content.module
+ */
+
+function edan_embed_content_menu() {
+  $items = array();
+
+  // for autocomplete
+  $items['edan_embed_autocomplete'] = array(
+    'page callback' => '_get_edan_embed_autocomplete',
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('access content'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function edan_embed_content_theme() {
+  return array(
+    'edan_embed_content_title_formatter' => array(
+      'template' => 'edan-embed-content-title-formatter',
+      'variables' => array(
+        'edan_id' => NULL,
+        'record_id' => NULL,
+        'thumbnail' => array(),
+        'title' => array(),
+        'content' => NULL,
+        'unit_code' => array(),
+        'doc' => array(),
+        'raw_json' => array(),
+        'node' => NULL,
+      ),
+    ),
+    'edan_embed_content_mini_formatter' => array(
+      'template' => 'edan-embed-content-mini-formatter',
+      'variables' => array(
+        'edan_id' => NULL,
+        'record_id' => NULL,
+        'thumbnail' => array(),
+        'title' => array(),
+        'content' => NULL,
+        'unit_code' => array(),
+        'doc' => array(),
+        'raw_json' => array(),
+        'node' => NULL,
+      ),
+    ),
+    'edan_embed_content_full_formatter' => array(
+      'template' => 'edan-embed-content-full-formatter',
+      'variables' => array(
+        'edan_id' => NULL,
+        'record_id' => NULL,
+        'thumbnail' => array(),
+        'title' => array(),
+        'content' => NULL,
+        'unit_code' => array(),
+        'doc' => array(),
+        'raw_json' => array(),
+        'node' => NULL,
+      ),
+    ),
+  );
+}
+
+
+/*
+ *
+  An EDAN record can be embedded in a piece of content by creating a text field in a content type,
+  and rendering the text field using EDAN Full or EDAN Teaser formatters.
+
+  When a piece of content that has an embedded EDAN record is rendered,
+  the EDAN record will be rendered, according to the custom field formatter.
+
+  http://www.metaltoad.com/blog/drupal-7-tutorial-creating-custom-formatters
+*/
+
+
+/**
+ * Implements hook_field_is_empty().
+ *
+ * hook_field_is_emtpy() is where Drupal asks us if this field is empty.
+ * Return TRUE if it does not contain data, FALSE if it does. This lets
+ * the form API flag an error when required fields are empty.
+ */
+function edan_embed_content_field_is_empty($item, $field) {
+  return empty($item['edan_record']);
+}
+
+/**
+ * Implements hook_field_info().
+ *
+ * Provides the description of the field.
+ */
+function edan_embed_content_field_info() {
+  return array(
+    // We name our field as the associative name of the array.
+    'edan_embed_content_edan_record' => array(
+      'label' => t('Embedded EDAN Record'),
+      'description' => t('Used to embed an EDAN record in your content.'),
+      'default_widget' => 'edan_embed_content_autocomplete',
+      'default_formatter' => 'edan_embed_content_mini_formatter',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ *
+ * This hook gives us a chance to validate content that's in our
+ * field. We're really only interested in the $items parameter, since
+ * it holds arrays representing content in the field we've defined.
+ * If it doesn't
+ * validate, we add our own error notification to the $errors parameter.
+ *
+ * @see edan_embed_content_field_widget_error()
+ */
+function edan_embed_content_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+  foreach ($items as $delta => $item) {
+    if (!empty($item['edan_record'])) {
+      //@todo - only valid if this record id exists for the specified unit codes and record types for the field
+    }
+  }
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ * This tells Drupal what fields it applies to and what settings are available.
+ */
+function edan_embed_content_field_formatter_info() {
+  return array(
+    'edan_embed_content_full_formatter' => array( //Machine name of the formatter
+      'label' => t('EDAN Record Full'),
+      'field types' => array('text', 'edan_embed_content_edan_record'), //This will only be available to text fields
+    ),
+    'edan_embed_content_mini_formatter' => array( //Machine name of the formatter
+      'label' => t('EDAN Record Teaser'),
+      'field types' => array('text', 'edan_embed_content_edan_record'), //This will only be available to text fields
+    ),
+    'edan_embed_content_title_formatter' => array( //Machine name of the formatter
+      'label' => t('EDAN Record Title'),
+      'field types' => array('text', 'edan_embed_content_edan_record'), //This will only be available to text fields
+    ),
+  );
+}
+
+
+function edan_embed_content_field_settings_form($field, $instance, $has_data) {
+
+  $settings = $field['settings'];
+
+  // get all record types, from EDAN
+  $options = _get_all_edan_record_types();
+
+  //Add radios for the record types
+  $form['record_types'] = array(
+    '#type'           => 'select',                           // Use a select box widget
+    '#multiple'       => true,
+    '#size'           => 16,
+    '#title'          => t('EDAN Record Types'),             // Widget label
+    '#description'    => t('Select record types that can be embedded. Leaving all de-selected means that all record types will be available.'), // Helper text
+    '#default_value'  => isset($settings['record_types']) ? $settings['record_types'] : array(),              // Get the value if it's already been set
+    '#required' => FALSE,
+    '#options'        => $options,
+  );
+  $form['unit_codes'] = array(
+    '#type'           => 'textarea',                        // Use a textbox
+    '#title'          => t('Unit Codes'),                      // Widget label
+    '#description'    => t('Put each unit code on a new line to restrict records to those provided by certain units. Leaving this field blank means that records from all units will be available.'),  // helper text
+    '#required' => FALSE,
+    '#default_value'  => isset($settings['unit_codes']) ? $settings['unit_codes'] : '',               // Get the value if it's already been set
+  );
+
+  return $form;
+}
+
+// render the provided object group
+function render_edan_record($edan_id, $format = 'edan_embed_content_mini_formatter') {
+
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $ei = new \EDAN\EdanInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+  $edan_record = new \EDAN\EDANRecord(NULL, $ei, $edan_id);
+
+  $edan_record_title = $edan_record->getTitle();
+
+  $template = 'edan_embed_content_mini_formatter';
+  if($format == 'edan_embed_content_full_formatter') {
+    $template = 'edan_embed_content_full_formatter';
+  }
+  elseif($format == 'edan_embed_content_title_formatter') {
+    $template = 'edan_embed_content_title_formatter';
+  }
+
+  $images = $edan_record->getImages();
+  $vars = array(
+    '#theme' => $template,
+    '#edan_id' => $edan_record->getId(),
+    '#record_id' => $edan_record->getRecordId(),
+    //'#url' => $page->uri,
+    '#thumbnail' => isset($images) && is_array($images) && isset($images['record_images']) && (count($images['record_images']) > 0) ? $images['record_images'][0] : '',
+    '#title' => $edan_record_title,
+    //'#description' => $description,
+    '#content' => $edan_record->getDescription(),
+    '#unit_code' => $edan_record->getUnitCode(),
+    '#doc' => $edan_record->getRecordData(),
+    '#raw_json' => $edan_record->getResultsJSON(),
+    '#node' => NULL,
+  );
+
+  $content = drupal_render($vars);
+  return $content;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ * This is the hook where we actually do the formatting.
+ */
+function edan_embed_content_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+
+  $elements = array(); // Initialize the var
+
+  $settings = $field['settings'];
+//@todo - only show if this record id exists for the specified unit codes and record types
+
+  foreach ($items as $delta => $item) {
+    $edan_id_val = isset($item['value']) ? trim($item['value']) : '';
+    $edan_id = isset($item['edan_record']) ? trim($item['edan_record']) : $edan_id_val;
+
+    // default
+    $elements[$delta]['#markup'] = '';
+
+    try {
+      // if found display the edan record
+      $edan_record_rendered = render_edan_record($edan_id, $display['type']);
+      $elements[$delta]['#markup'] = $edan_record_rendered;
+    }
+    catch(Exception $ex) {
+//@todo
+    }
+  }
+
+  return $elements;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ *
+ * Three widgets are provided.
+ * - A simple text-only widget where the user enters the EDAN id.
+ * - An autocomplete field that hits EDAN for matching records.
+ *
+ * These widget types get fleshed out in hook_field_widget_form.
+ *
+ * @see edan_embed_content_field_widget_form()
+ */
+function edan_embed_content_field_widget_info() {
+  return array(
+    'edan_embed_content_text' => array(
+      'label' => t('EDAN Record Text Field'),
+      'field types' => array('edan_embed_content_edan_record'), // reference edan_embed_content_field_info()
+    ),
+    'edan_embed_content_autocomplete' => array(
+      'label' => t('EDAN Record Autocomplete'),
+      'field types' => array('edan_embed_content_edan_record'), // reference edan_embed_content_field_info()
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ *
+ * hook_widget_form() is where Drupal tells us to create form elements for
+ * our field's widget.
+ *
+ * We provide one of three different forms, depending on the widget type of
+ * the Form API item provided.
+ *
+ * The 'field_example_colorpicker' and 'field_example_text' are essentially
+ * the same, but field_example_colorpicker adds a javascript colorpicker
+ * helper.
+ *
+ * field_example_3text displays three text fields, one each for red, green,
+ * and blue. However, the field type defines a single text column,
+ * rgb, which needs an HTML color spec. Define an element validate
+ * handler that converts our r, g, and b fields into a simulated single
+ * 'rgb' form element.
+ */
+function edan_embed_content_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+  $value = isset($items[$delta]['edan_record']) ? $items[$delta]['edan_record'] : '';
+
+  $widget = $element;
+  $widget['#delta'] = $delta;
+  $record_types_array = isset($field['settings']['record_types']) ? $field['settings']['record_types'] : array();
+  $unit_codes = isset($field['settings']['unit_codes']) ? $field['settings']['unit_codes'] : '';
+  $record_types = implode('+', $record_types_array);
+  $unit_codes = str_replace("\r\n", '+', $unit_codes);
+
+  switch ($instance['widget']['type']) {
+
+    case 'edan_embed_content_text':
+      $widget += array(
+        '#suffix' => '<div class="edan-embed"></div>',
+        '#attributes' => array('class' => array('edit-edan-embed')),
+        '#type' => 'textfield',
+        '#default_value' => $value,
+        '#size' => 60,
+        '#maxlength' => 500,
+      );
+      break;
+
+    case 'edan_embed_content_autocomplete':
+      $widget += array(
+        '#type' => 'textfield',
+        '#autocomplete_path' => 'edan_embed_autocomplete/' . $record_types . '/' . $unit_codes,
+        //@todo: provide content types and unit codes, if specified
+        '#default_value' => $value,
+      );
+      break;
+  }
+  $element['edan_record'] = $widget;
+  return $element;
+}
+
+// Used with CCK to provide an autocomplete for edan content
+function _get_edan_embed_autocomplete($record_types = "", $unit_codes = "", $search_term = "") {
+//@todo
+  $matches = array();
+  if ($search_term) {
+
+    $ec = get_edan_connection();
+    $service = 'metadata/v1.1/metadata/search.htm';
+
+    // restrict the edan record type based on the selected values for this field
+    //@note: if you're hitting this path from a browser window, you'll need to explode on a space instead of a plus
+    $record_types_array = strlen($record_types) > 0 ? explode('+', $record_types) : array();
+    $unit_codes_array =  strlen($unit_codes) > 0 ? explode('+', $unit_codes) : array();
+
+    $record_types_string = '';
+    if(count($record_types_array) > 0) {
+      $record_types_string = '"type:' . implode(' OR type:', $record_types_array) . '"';
+    }
+
+    $unit_codes_string = '';
+    if(count($unit_codes_array) > 0) {
+      $unit_codes_string = '"unit_code:' . implode(' OR unit_code:', $unit_codes_array) . '"';
+    }
+
+    $fqs = $record_types_string;
+    if(strlen($unit_codes_string) > 0) {
+      $fqs .= ', '. $unit_codes_string;
+    }
+
+    $params = array(
+      'q' => $search_term,
+      'rows' => 20,
+    );
+
+    if(strlen($fqs) > 0) {
+      $params['fqs'] = '[' . $fqs . ']';
+    }
+
+    $got_records = $ec->callEDAN($service, $params);
+    $results_json = $ec->getResultsJSON();
+    $errors = $ec->getErrors();
+
+//    @todo if(module_exists('devel') && user_acess()) {
+//      $tmp = $ec->getResultsRaw();
+//      watchdog('EDAN Embed Content', 'raw results: %results', array('%results' => $tmp));
+//    }
+
+    if(count($errors) == 0) {
+      // v1.0 items, v1.1 rows
+      $results_json_items = isset($results_json['rows']) ? $results_json['rows'] : $results_json['items'];
+      foreach($results_json_items as $idx => $record) {
+        $id = $record['id'];
+        $type = $record['type'];
+
+        if( $type== 'event') {
+          //dpm($record['content']['event_type']);
+          if(isset($record['content']['event_type'])) { $type = $record['content']['event_type']; }
+        }
+        $record_title = strlen($record['title']) > 50 ? substr($record['title'], 0, 50) . '...' : $record['title'];
+        $matches[$id] = $record_title .' (' . $record['unitCode'] . ' ' . $type . ') ';
+      }
+    }
+
+  }
+  drupal_json_output($matches);
+
+}
+
+function _get_all_edan_record_types() {
+
+  $ec = get_edan_connection();
+  $service = 'metadata/v1.1/metadata/getFacets.htm';
+  $params = array(
+    'q' => '*:*',
+    'field' => 'type',
+    'limit' => 100,
+  );
+
+  $options = array();
+  $ec->callEDAN($service, $params);
+  $results_json = $ec->getResultsJSON();
+  $errors = $ec->getErrors();
+
+  if(count($errors) == 0 && isset($results_json['facets']['type'])) {
+    foreach($results_json['facets']['type'] as $idx => $v) {
+      $facet_name = $v[0];
+      $options[$facet_name] = $facet_name;
+    }
+
+    asort($options);
+  }
+
+  return $options;
+}

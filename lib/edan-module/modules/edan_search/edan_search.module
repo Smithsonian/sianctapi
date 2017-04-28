@@ -1,0 +1,1979 @@
+<?php
+
+/**
+ * @file edan_search.module
+ *
+ * TODO:
+ * - See https://api.drupal.org/api/drupal/includes%21theme.inc/function/theme/7
+     Replace theme() calls with drupal_render()
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function edan_search_menu() {
+  $items = array();
+
+  $items['admin/config/search/edan-search'] = array(
+    'title' => 'EDAN Search Configuration',
+    'description' => 'Configuration for EDAN MDS based searches.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_search_settings_form'),
+    'access arguments' => array('administer edan configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.inc',
+  );
+
+  $base_path = _edan_search_variable_get('menu_results_page');
+  $c = count(explode('/', $base_path));
+  $items[$base_path] = array(
+    'title' => _edan_search_variable_get('menu_results_title'),
+    'title callback' => 'edan_search_title_results',
+    'page callback' => 'edan_search_menupage_results',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function edan_search_block_info() {
+  $blocks['search_form'] = array(
+    'info' => t('EDAN Search: Search Form'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['facets'] = array(
+    'info' => t('EDAN Search: Facets'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view()
+ */
+function edan_search_block_view($delta = '') {
+  module_load_include('inc', 'edan_search', 'includes/blocks');
+
+  // Derive the function name from $delta
+  $func = 'edan_search_blocks_' . $delta;
+
+  if (function_exists($func)) {
+    $block = $func($delta);
+  } else {
+    $block = array();
+  }
+
+  return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function edan_search_theme() {
+  return array(
+    'edan_search_results' => array(
+      'template' => 'edan-search-results',
+      'variables' => array(
+        'numFound' => NULL,
+        'start' => NULL,
+        'docs' => array(),
+        'docs_raw' => array(),
+        'facets' => NULL,
+        'active_facets' => array(),
+        'facets_raw' => array(),
+        'active_facets_raw' => array(),
+        'tabs' => NULL,
+        'tabs_array' => array(),
+        'pager' => NULL,
+        'results_summary' => '',
+        'classes' => '',
+        'container_class' => '',
+        'results_class' => '',
+        'result_class' => '',
+        'search_form' => '',
+      ),
+    ),
+    'edan_search_facets' => array(
+      'function' => 'edan_search_facets',
+      'variables' => array(
+        'queries' => NULL,
+        'fields' => NULL,
+        'dates' => NULL,
+        'ranges' => NULL,
+      ),
+    ),
+    'edan_search_active_facets' => array(
+      'function' => 'edan_search_active_facets',
+      'variables' => array(
+        'queries' => NULL,
+        'facets' => NULL,
+        'dates' => NULL,
+        'ranges' => NULL,
+      ),
+    ),
+  );
+}
+
+/**
+ * Title callback
+ *
+ * @see edan_search_menu()
+ */
+function edan_search_title_results() {
+  return _edan_search_variable_get('menu_results_title');
+}
+
+/**
+ * Menupage callback
+ *
+ * @see edan_search_menu()
+ */
+function edan_search_menupage_results() {
+
+  $args = _edan_search_get_query();
+  $args['facet'] = TRUE;
+
+  // Is this a new search?
+  $dq = drupal_get_query_parameters();
+  $is_fresh_search = count($dq) == 0; // was: (!isset($_GET['op']));  - but this doesn't work for things like clicking facet links
+  $default_online_visual_material = _edan_search_variable_get('default_to_online_media');
+
+  // if this is a new search (no query params yet)
+  // and if this site is configured to default to showing results having online visual media
+  if($is_fresh_search && $default_online_visual_material) {
+    // and if online media only isn't set yet, set it and redirect to the search page
+    if(!isset($args['fq']) || !is_array($args['fq']) || !in_array('online_visual_material:true', $args['fq'])) {
+      // we use current_path() because the search might be used from pages other than the default search page
+      $base_path = '/' . current_path(); // _edan_search_variable_get('menu_results_page');
+      $query_args['edan_fq[]'] = 'online_visual_material:true';
+      drupal_goto($base_path, array('query' => $query_args));
+    }
+  }
+
+  drupal_set_title( _edan_search_variable_get('menu_results_title') );
+
+  $f = drupal_get_form('edan_search_search_form');
+  $form = render($f);
+
+  $opts = array(
+    'theme' => array('show_tabs' => _edan_search_variable_get('menu_results_tabs'))
+  );
+
+  // adding redirect code
+  $empty_msg = _edan_search_variable_get('results_empty_message');
+  $redirect = _edan_search_variable_get('results_empty_redirect');
+
+  $content = _edan_search_get_results($args, $opts);
+  if(strpos(trim($content), $empty_msg) !== FALSE && !empty($redirect)) {
+    drupal_goto($redirect, array('query' => array('results_empty' => 'true')));
+   }
+   else {
+    return $form . $content;
+  }
+
+}
+
+/**
+ * This will replace the current browse page form
+ */
+function edan_search_search_form_prerender($form){
+  unset($form['form_token']);
+  unset($form['form_build_id']);
+  unset($form['form_id']);
+  return $form;
+}
+
+/**
+ * Implements hook_form().
+ */
+function edan_search_search_form($form, &$form_state) {
+  // Local units
+  $local_units = _edan_search_local_units_for_solr();
+
+  $online_visual_material = FALSE;
+  $dq = drupal_get_query_parameters();
+  $is_fresh_search = count($dq) == 0; // was (!isset($_GET['op'])); // Is this a new search?
+  $default_online_visual_material = _edan_search_variable_get('default_to_online_media');
+
+  $form = array(
+    '#method' => 'get',
+    '#action' => url(_edan_search_variable_get('menu_results_page')),
+    '#attributes' => array('class' => array('container-inline', 'edan-search-form')),
+    '#token' => FALSE,
+    '#pre_render' => array('edan_search_search_form_prerender'),
+  );
+
+  if (isset($_GET['edan_fq'])) {
+    $form['edan_fq']['#tree'] = TRUE;
+    $i = 1;
+    $get_edan_fq = _edan_search_get_param('edan_fq', array());
+    if(!is_array($get_edan_fq)) {
+      $get_edan_fq = (array)$get_edan_fq;
+    }
+    foreach ($get_edan_fq as $fq) { // ($_GET['edan_fq'] as $fq) {
+      if ($fq == $local_units) {
+        continue; // skip local units
+      }
+      if ($fq == 'online_visual_material:true') {
+        $online_visual_material = TRUE;
+        continue;
+      }
+
+      $form['edan_fq'][$i] = array(
+        '#type' => 'hidden',
+        '#value' => $fq,
+      );
+      $i++;
+    }
+  }
+
+  $form['edan_q'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Search Terms'),
+    '#default_value' => _edan_search_get_param('edan_q', ''), //isset($_GET['edan_q']) ? $_GET['edan_q'] : '',
+    '#required' => FALSE,
+  );
+
+  $form['actions'] = array(
+    '#type' => 'actions',
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search'),
+  );
+
+  // there is a default setting for the local units checkbox
+  // we want to use this ONLY when the search form is first loaded
+  // we don't want to set the default after the user searches
+
+  // problem: if the checkbox edan_local is un-checked, it won't be in _GET
+  // but if the form has been submitted, we will have more than one item in the $_GET array
+  // so use count($_GET) to see if we should use the default setting rather than the searched-for setting
+
+  $op = array_key_exists('op', $_GET) ? filter_xss($_GET['op']) : '';
+
+  $edan_local_from_GET = array_key_exists('edan_local', $_GET) ? filter_xss($_GET['edan_local']) : 0;
+  // if a search has been executed, use the value (or lack thereof) from the executed search
+  // if no search has been executed but the default is to select local units, select it
+  $edan_local = (strtolower($op) == 'search')
+    ? $edan_local_from_GET
+    : _edan_search_variable_get('default_to_local_units');
+
+  $local_units = _edan_search_variable_get('local_units');
+  $get_unit_name = _edan_search_variable_get('unit_name');
+  $unit_name = !empty($get_unit_name) ? $get_unit_name : $local_units;
+  $menu_limit_search_to_unit_checkbox = _edan_search_variable_get('menu_limit_search_to_unit_checkbox');
+
+  // Limit Search to @unitName checkbox
+  if(!empty( $local_units )) {
+
+    // If the limit search to unit checkbox is set to be hidden, set it to hidden with a default value of 1.
+    if(empty($menu_limit_search_to_unit_checkbox)) {
+      $type = 'hidden';
+      $default_value = 1;
+    } else {
+      $type = 'checkbox';
+      $default_value = $edan_local;
+    }
+
+    $unit_name_string = is_array($unit_name) ? implode(',', $unit_name) : $unit_name; // so t() won't gen error
+    $form['edan_local'] = array(
+      '#type' => $type,
+      '#title' => t('Limit Search to @unitName', array('@unitName' => $unit_name_string)),
+      '#default_value' => $default_value,
+    );
+  }
+
+  // Online visual material checkbox
+  $default_to_online_media_checkbox_text = _edan_search_variable_get('default_to_online_media_checkbox_text');
+  $form['edan_fq[]'] = array(
+    '#type' => 'checkbox',
+    '#title' => t($default_to_online_media_checkbox_text),
+    '#return_value' => "online_visual_material:true",
+    '#default_value' => ($online_visual_material || ($is_fresh_search && $default_online_visual_material))
+  );
+
+  return $form;
+}
+
+/**
+ * Theme function
+ * @see edan_search_theme().
+ */
+function edan_search_facets($facets_raw) {
+
+  $content = '';
+
+  $querystring_args = drupal_get_query_parameters();
+  // Git 10b79b1e30
+  //$collections_extra = isset($querystring_args['collections']) ? '&collections' : '';
+
+  // $facets_raw is the array generated by edan_search_facets_raw()
+  if (!empty($facets_raw) && is_array($facets_raw)) {
+    $content .= '<div class="edan-search-facet-list"><ul class="root-facet-list">';
+    foreach ($facets_raw as $field => $vals) {
+      if(is_array($facets_raw[$field]) && isset($facets_raw[$field]['facet_label'])) {
+        $_name = (strlen($facets_raw[$field]['facet_label']) > 0) ? $facets_raw[$field]['facet_label'] : $field;
+        // fields with periods in them cause issues with the js; replace with underscores
+        $field_clean = str_replace('.', '_', $field);
+        $content .= "\n" . '<li><a href="#' . $field_clean . '" class="category">' . $_name . '</a> <ul id="facet-' . $field_clean . '" class="facets">';
+        if(is_array($vals)) {
+          foreach ($vals as $key => $els) {
+            if(strlen($key) > 0 && is_array($els)) {
+              $l = (!empty($els['url']) ? '&' : '') . 'edan_fq[]=' . $field . ':&quot;' . urlencode($key) . '&quot;';
+              $l = '<a href="' . $els['url'] . $l . '">' . $key . '</a>';
+              $content .= "\n" . '<li class="facet">' . $l . ' <span>' . $els['count'] . '</span></li>';
+            }
+          }
+        } // if we have some items for this facet
+
+        $content .= "\n" . '</ul></li>';
+      } // only show the facet if it has a label; ok if label is empty
+    }
+    $content .= "\n" . '</ul></div>';
+  }
+
+  return $content;
+}
+
+function edan_search_facets_raw($vars) {
+
+  /* provides an array of facets, modified according to settings in the admin UI, meaning
+    1. re-ordered
+    2. only the specified facets, removing any in the explicit 'remove' box
+    3. renamed
+  */
+
+  $facets_raw = array();
+
+  // TODO: Add Dates, Ranges, Queries
+  // TODO: Add "base_url" var for linking things up
+
+
+  // Field name replacements
+  //20150126 RB Ed M. asked for re-ordering facets
+  // re-order $vars['fields'] based on the order of $facet_labels
+  $facet_labels = _edan_search_variable_get('facet_replacements');
+  $facets_to_hide = _edan_search_variable_get('facets_hide');
+
+  if(NULL == $facets_to_hide || !is_array($facets_to_hide)) {
+    // show all by default
+    $facets_to_hide = array();
+  }
+
+  if (empty($facet_labels) || !is_array($facet_labels)) {
+    $facets_raw = $vars['fields'];
+  }
+  else {
+    if (!empty($vars['fields']) && is_array($vars['fields'])) {
+
+      // if facet order is specified, re-order accordingly
+      foreach ($facet_labels as $field_key => $field_nicename) {
+        // exclude any facets in the explicit 'remove facet' box
+        if(array_key_exists($field_key, $vars['fields']) && !in_array($field_key, $facets_to_hide)) {
+          $_label = (isset($facet_labels[$field_key])) ? $facet_labels[$field_key] : $field_key;
+          $facets_raw[$field_key] = $vars['fields'][$field_key];
+          $facets_raw[$field_key]['facet_label'] = $_label;
+        }
+      }
+
+      // now add any remaining fields which we might not have renamed
+      foreach($vars['fields'] as $field_key => $vals) {
+        if(!array_key_exists($field_key, $facets_raw) && !in_array($field_key, $facets_to_hide)) {
+          $facets_raw[$field_key] = $vals;
+          $facets_raw[$field_key]['facet_label'] = $field_key;
+        }
+      }
+    } // if we have some fields/facets
+  }
+
+  return $facets_raw;
+}
+
+
+/**
+ * Theme function
+ * @see edan_search_theme().
+ */
+function edan_search_active_facets($vars) {
+  $content = '';
+  $facet_labels = _edan_search_variable_get('facet_replacements');
+
+  // Get the current URL
+  $uri = _edan_args_to_query($vars['args']);
+  #$content .= '<li>' . $uri . '</li>';
+  #$content .= '<li>' . var_export($vars['args'], TRUE) . '</li>';
+
+  // Ref, 1 val is a string; multiple vals are an array
+  //"fq":["topic:\\"Numismatics\\"","object_type:\\"Coins (money)\\""]
+
+  // Local units
+  $local_units = _edan_search_local_units_for_solr();
+
+  // Query/Q
+  #if (isset($vars['args']['q']) && isset($vars['queries']) && !empty($vars['queries'])) {
+  if (isset($vars['args']['q'])) {
+    $new_args = $vars['args'];
+    unset($new_args['q']);
+    $new_uri = _edan_args_to_query($new_args);
+    #$content .= '<li><a href="?' . $new_uri . '">' . $vars['queries'] . '</a></li>';
+
+    // only show the search term as a facet if this is not a fixed list of objects shown for an Object Group
+    if(!isset($new_args['objectGroupId']) || empty($new_args['objectGroupId']) ) {
+      if ($vars['args']['q'] != '*:*') {
+        $content .= '<li class="search-term"><a href="?' . $new_uri . '"  title="Click to remove filter">' . t('search term:') . ' "' . $vars['args']['q'] . '"</a></li>';
+      }
+    }
+
+  }
+
+  // Facets/FQs
+  #if (isset($vars['args']['fq']) && isset($vars['facets'])) {
+  if (isset($vars['args']['fq'])) {
+    // If there is only one FQ this will come back as a string so we make it an array here
+    #if (is_string($vars['facets'])) {
+    #  $vars['facets'] = array($vars['facets']);
+    #}
+
+    // Loop over the existing facets
+    #foreach ($vars['facets'] as $fq) {
+    foreach ($vars['args']['fq'] as $fq) {
+      // Skip local units and set as
+      if ($fq == $local_units) {
+        $new_uri = _edan_args_to_query($vars['args']);
+        $new_uri = str_replace('&edan_local=1', '', $new_uri);
+        $content .= '<li class="local-unit"><a href="?' . $new_uri . '"  title="Click to remove filter">' . t('@unitName only', array('@unitName' => _edan_search_variable_get('unit_name'))) . '</a></li>';
+        continue;
+      }
+
+      $new_args = $vars['args']; // Fresh copy of args
+      $i = array_search($fq, $new_args['fq']);
+
+      if (FALSE === $i) {
+        continue; // Weird
+      } else {
+        unset($new_args['fq'][$i]);
+      }
+      $new_uri = _edan_args_to_query($new_args);
+      $t = explode(':', $fq, 2);
+      $p = count($t) > 1 ? $t[1] : '';
+      $class = drupal_html_class($t[0]);
+      if($t[0] == 'online_visual_material') {
+        $p = 'online media';
+      }
+      elseif(strtolower($p) == '"yes"') {
+        // displaying "Yes" for a selected facet isn't very useful; in this case show the facet name
+        $raw_p = $t[0];
+        // rename if necessary
+        $p = isset($facet_labels[$raw_p]) ? $facet_labels[$raw_p] : $raw_p;
+      }
+      $content .= '<li class="'. $class .'"><a href="?' . $new_uri . '" title="Click to remove filter" >' . $p . '</a></li>';
+    }
+  }
+
+  if (!empty($content)) {
+    $facet_remove_message = strlen(_edan_search_variable_get('facet_remove_message')) > 0
+    ? t(_edan_search_variable_get('facet_remove_message'))
+    : t('Remove facets below:');
+    return '<div class="edan-search-facet-list"><div class="facet-remove-message">' . $facet_remove_message . '</div><ul>' . $content . '</ul></div>';
+  }
+}
+
+function edan_search_active_facets_raw($vars) {
+
+  $facets_raw = array('facets' => array());
+
+  // Get the current URL
+  $uri = _edan_args_to_query($vars['args']);
+
+  // Ref, 1 val is a string; multiple vals are an array
+  //"fq":["topic:\\"Numismatics\\"","object_type:\\"Coins (money)\\""]
+
+  // Local units
+  $local_units = _edan_search_local_units_for_solr();
+
+  // Query/Q
+  #if (isset($vars['args']['q']) && isset($vars['queries']) && !empty($vars['queries'])) {
+  if (isset($vars['args']['q'])) {
+    $new_args = $vars['args'];
+    unset($new_args['q']);
+    $new_uri = _edan_args_to_query($new_args);
+    #$content .= '<li><a href="?' . $new_uri . '">' . $vars['queries'] . '</a></li>';
+
+    // only show the search term as a facet if this is not a fixed list of objects shown for an Object Group
+    if(!isset($new_args['objectGroupId']) || empty($new_args['objectGroupId']) ) {
+      if ($vars['args']['q'] != '*:*') {
+        $facets_raw['facets']['search_term'] = array(
+          'facet_title' => 'search term:' . $vars['args']['q'],
+          'uri' => '?' . $new_uri,
+        );
+      }
+    }
+
+  }
+
+  // Facets/FQs
+  #if (isset($vars['args']['fq']) && isset($vars['facets'])) {
+  if (isset($vars['args']['fq'])) {
+    // If there is only one FQ this will come back as a string so we make it an array here
+    #if (is_string($vars['facets'])) {
+    #  $vars['facets'] = array($vars['facets']);
+    #}
+
+    // Loop over the existing facets
+    #foreach ($vars['facets'] as $fq) {
+    foreach ($vars['args']['fq'] as $fq) {
+      // Skip local units and set as
+      if ($fq == $local_units) {
+        $new_uri = _edan_args_to_query($vars['args']);
+        $new_uri = str_replace('&edan_local=1', '', $new_uri);
+
+        $facets_raw['facets']['unit_name'] = array(
+          'facet_title' => t('@unitName only', array('@unitName' => _edan_search_variable_get('unit_name'))),
+          'uri' => '?' . $new_uri,
+        );
+        continue;
+      }
+
+      $new_args = $vars['args']; // Fresh copy of args
+      $i = array_search($fq, $new_args['fq']);
+
+      if (FALSE === $i) {
+        continue; // Weird
+      } else {
+        unset($new_args['fq'][$i]);
+      }
+      $new_uri = _edan_args_to_query($new_args);
+      $t = explode(':', $fq, 2);
+      $p = count($t) > 1 ? $t[1] : '';
+      if($t[0] == 'online_visual_material') {
+        $p = 'online media';
+      }
+
+      $facets_raw['facets'][$t[0]] = array(
+        'facet_title' => $p,
+        'uri' => '?' . $new_uri,
+      );
+    }
+  }
+
+  if (count($facets_raw) > 0) {
+    $facet_remove_message = strlen(_edan_search_variable_get('facet_remove_message')) > 0
+      ? t(_edan_search_variable_get('facet_remove_message'))
+      : t('Remove facets below:');
+    $facets_raw['facet_remove_message'] = $facet_remove_message;
+  }
+
+  return $facets_raw;
+
+}
+
+/**
+ * Applies formatting and normalizes the facets.
+ */
+function _edan_search_process_facets($facets, $args) {
+  $out = array();
+
+  $uri = _edan_args_to_query($args);
+
+  // TODO: Dates, Ranges, Queries
+
+  if (isset($facets) && is_array($facets)) {
+    foreach ($facets as $field => $vals) {
+      if (count($vals) < 1 || $field == 'docFldUsed') {
+        continue;
+      }
+
+      $out['fields'][$field] = _edan_search_process_facets_fields($vals, $uri);
+    }
+  }
+
+  return $out;
+}
+
+function _edan_search_process_facets_fields($fields, $uri = '') {
+  $out = array();
+
+  if (isset($fields) && is_array($fields)) {
+    /*for ($i = 0; $i < count($fields); $i=$i+2) {
+      $out[$fields[$i]] = array('url' => '?' . $uri, 'count' => $fields[$i+1]);
+    }*/
+    foreach($fields as $fld) {
+      $out[$fld[0]] = array('url' => '?' . $uri, 'count' => $fld[1]);
+    }
+  }
+
+  return $out;
+}
+
+/**
+ * Applies formatting to the rows in a search result.
+ */
+function _edan_search_process_rows($docs, &$opts = array()) {
+  $show_remaining = $include_record_id = FALSE;
+  $requested_fields = (isset($opts['variables']['field_order'])) ? $opts['variables']['field_order'] : _edan_search_variable_get('field_order');
+  $local_units = (isset($opts['variables']['local_units'])) ? $opts['variables']['local_units'] : _edan_search_variable_get('local_units');
+
+  // Are we showing the remaining fields when supplied with a list of them?
+  if (empty($requested_fields) || in_array('*', $requested_fields)) {
+    $show_remaining = TRUE;
+  }
+
+  // Should we copy the record_id to freetext?
+  if (in_array('record_ID', $requested_fields)) {
+    $include_record_id = TRUE;
+  }
+
+  // Is the site running the record module
+  if (module_exists('edan_record')) {
+    $base_record_url = url(_edan_record_variable_get('menu_record_page'), array('absolute' => true, 'alias' => false ));
+  } else {
+    $base_record_url = FALSE;
+  }
+
+
+  if (in_array('0', $requested_fields)) {
+    foreach ($docs as $i => $doc) {
+      $docs[$i]['freetext'] = array();
+    }
+  }
+  else {
+    $app_id = variable_get('edan_app_id');
+    $this_unit_codes = _get_unitCodes_from_applicationId($app_id);
+
+    foreach ($docs as $i => $_doc) {
+
+      $er = new \EDAN\EDANRecord();
+      $er->loadRecordJSON($_doc);
+      $doc_images = $er->getImages();
+
+      $doc = isset($_doc['content']) ? $_doc['content'] : $_doc; // Map to content
+      $dnr = array_key_exists('descriptiveNonRepeating', $doc) ? $doc['descriptiveNonRepeating'] : array();
+      if(empty($dnr)) {
+        // set it back to _doc for newer content types
+        $doc = $_doc;
+      }
+
+      //@todo: base record url, description, image
+
+      // default, in case we don't have descriptiveNonRepeating
+      $title = $er->getTitle();
+      $docs[$i]['#title'] = $title;
+      $record_id = $er->getRecordId();
+      $docs[$i]['images'] = isset($doc_images['record_images']) ? $doc_images['record_images'] : array();
+      $docs[$i]['id'] = $er->getId();
+
+      $description_array = $er->getDescription();
+      $docs[$i]['description'] = $description_array['description'];
+      $docs[$i]['teaser'] = $description_array['teaser'];
+
+      $record_type = $er->getRecordType();
+      $docs[$i]['record_type'] = $record_type;
+      $docs[$i]['type'] = $record_type;
+
+      $unit_code = $er->getUnitCode();
+      $docs[$i]['unit_code'] = $unit_code;
+      if (in_array($unit_code, $local_units)) {
+        $docs[$i]['flags']['in_unit'] = TRUE;
+      }
+
+      // get the path/link for this EDAN record, based on this site's configuration for this record type
+      // edanmdm:
+      $url = '';
+      switch($record_type) {
+        case 'edanmdm':
+          if (($base_record_url && (_edan_record_variable_get('show_within_site') == 1))
+            ||
+            ($base_record_url && in_array($unit_code, $local_units))) {
+            $url = $base_record_url . '/' . $record_id;
+          }
+          else if (isset($doc['descriptiveNonRepeating']['record_link'])) {
+            $url = $doc['descriptiveNonRepeating']['record_link'];
+          }
+          else if (isset($doc['record_link'])) {
+            $url = $doc['record_link'];
+          }
+          break;
+        case'objectgroup':
+          if(module_exists('ogmt')) {
+            // don't create a link if this is not an OG owned by my unit code
+            // and if (external OGs are not enabled or this external OG is not included on my site)
+            $external_object_groups = variable_get('ogmt_external_groups');
+
+            if(empty($this_unit_codes) || !in_array($unit_code, $this_unit_codes)) {
+              if(1 != _ogmt_variable_get('external_ogs') && !array_key_exists($docs[$i]['id'], $external_object_groups)) {
+              continue;
+            }
+            }
+
+            // build href to use alias configured in pathauto, or our default pattern
+            $content_pattern = _get_default_objectgroup_path_pattern();
+
+            $og_type_id = isset($doc['content']['groupType']) ? $doc['content']['groupType'] : '';
+            $objectgroup_type = _get_objectgrouptype_by_id($og_type_id);
+            if(module_exists('pathauto')) {
+              // it's ok if $objectgroup_type is blank; we'll get the default if so
+              $og_type = pathauto_cleanstring($objectgroup_type);
+              $content_pattern = pathauto_pattern_load_by_entity('ogmt', $og_type, LANGUAGE_NONE);
+            }
+            $content_pattern_array = explode('/', $content_pattern);
+            foreach($content_pattern_array as $k => $v) {
+              switch($v) {
+                case '[ogmt:ogmt_id]':
+                  $content_pattern_array[$k] = $docs[$i]['id'];
+                  break;
+                case '[ogmt:ogmt_type]':
+                  $content_pattern_array[$k] = strlen($og_type) > 0 ? $og_type : _ogmt_variable_get('menu_base_pages');
+                  break;
+                case '[ogmt:url]':
+                  $content_pattern_array[$k] = str_replace('objectgroup:', '', $doc['url']);
+                  break;
+              }
+            }
+            if(strlen($content_pattern_array[$k]) == '') {
+              unset($content_pattern_array[$k]);
+            }
+            $url = '/' . implode('/', $content_pattern_array);
+
+          } // only if the ogmt module is installed
+          break;
+        default:
+          // all other records, check the settings for edan record admin
+          if(module_exists('edan_record_admin')) {
+            //@todo
+          }
+          break;
+      }
+
+      //if(count($dnr) > 0) {
+      // contrib by Ha Pham 2016 Jan 05- provide separate title and uri
+      $link = '';
+      if(!isset($record_id)) {
+        $record_id = isset($doc['descriptiveNonRepeating']['record_ID']) ? $doc['descriptiveNonRepeating']['record_ID'] : '';
+      }
+
+      // Make the title linkable
+      $docs[$i]['#title_plain'] = $title;
+      if(isset($url) && strlen(trim($url)) > 0) {
+        $docs[$i]['#title'] = l($title, $url);
+        $link = drupal_parse_url($url);
+      }
+      else {
+        $docs[$i]['#title'] = $title;
+      }
+      $docs[$i]['#title_link'] = $link;
+
+      // Copy the record id into freetext
+      if ($include_record_id) {
+        $doc['freetext']['record_ID'] = array(
+          array(
+            'content' => $record_id,
+            'label' => 'record_ID'
+          )
+        );
+      }
+
+      if(isset($doc['descriptiveNonRepeating']['unit_code'])) {
+        if (in_array($doc['descriptiveNonRepeating']['unit_code'], $local_units)) {
+          $docs[$i]['flags']['in_unit'] = TRUE;
+        }
+      }
+      elseif(isset($doc['unit_code'])) {
+        if (in_array($doc['unit_code'], $local_units)) {
+          $docs[$i]['flags']['in_unit'] = TRUE;
+        }
+      }
+
+      //}
+
+      $new_ft = array(); // Holds the current working row
+
+      // Freetext reordering
+      $used_fields = array();
+      foreach ($requested_fields as $rfield) {
+        if (isset($doc['freetext'][$rfield])) {
+          _edan_search_replace_labels($doc['freetext'][$rfield]);
+          $new_ft[$rfield] = $doc['freetext'][$rfield];
+          $used_fields[] = $rfield;
+        }
+      }
+
+      if ($show_remaining && isset($doc['freetext'])) {
+        foreach ($doc['freetext'] as $field => $vals) {
+          if (!in_array($field, $used_fields)) {
+            _edan_search_replace_labels($vals);
+            $new_ft[$field] = $vals;
+          }
+        }
+      }
+
+      // Add in options
+      if (isset($opts['lists'])) {
+        if (array_key_exists('url', $_doc) && in_array($_doc['url'], $opts['lists'])) {
+          $docs[$i]['flags']['in_list'] = TRUE;
+        }
+        else {
+          // $_doc['url'] might be: edanmdm:nmnhbotany123456
+          // $opts['lists'] only has values like: nmnhbotany123456
+          if(array_key_exists('url', $_doc)) {
+          $t = explode(':', $_doc['url'], 2);
+          if(count($t) == 2) {
+            if (isset($t[1]) && in_array($t[1], $opts['lists'])) {
+              $docs[$i]['flags']['in_list'] = TRUE;
+            }
+          }
+        }
+      }
+      }
+
+      // Update $docs with the new row
+      $docs[$i]['content']['freetext'] = $new_ft;
+    }
+  }
+
+  return $docs;
+}
+
+/**
+ * Replaces the label if one is available.
+ * TODO: This can be optimized as a callback/array walk
+ */
+function _edan_search_replace_labels(&$vals) {
+  if (empty($vals)) {
+    return;
+  }
+
+  if (!isset($GLOBALS['edan_search']['replacement_labels'])) {
+    $lr = _edan_search_variable_get('label_replacements');
+    $arr = array();
+    foreach ($lr as $k => $v) {
+      $arr[ strtoupper($k) ] = $v;
+    }
+    $GLOBALS['edan_search']['replacement_labels'] = $arr;
+  }
+
+  /*
+  array(1) {
+    [0]=> array(2) {
+      ["content"]=> string(9) "Ethnology"
+      ["label"]=> string(5) "Topic"
+    }
+  }
+  */
+
+  foreach ($vals as $key => $val) {
+    if (isset($val['label'])) {
+      $upper = strtoupper($val['label']);
+      if (isset($GLOBALS['edan_search']['replacement_labels'][$upper])) {
+        $vals[$key]['label'] = $GLOBALS['edan_search']['replacement_labels'][$upper];
+      }
+    }
+  }
+}
+
+/**
+ * Gets search results back for a search.
+ *
+ * TODO: Fix theme() usage
+ */
+// give other modules the ability to theme results with their own template
+function _edan_search_get_results($args = array(), &$opts = array(), $template_name='edan_search_results') {
+  // TODO: Arg validation?
+
+  if(empty($args)) {
+    return '';
+  }
+
+  $content = '';
+  $pager_params = array();
+  $rpp = (isset($opts['variables']['results_per_page'])) ? $opts['variables']['results_per_page'] : _edan_search_variable_get('results_per_page');
+  $args['rows'] = $rpp;
+
+  $querystring_args = drupal_get_query_parameters();
+  // Git 10b79b1e30
+  if(array_key_exists('pageId', $args) || array_key_exists('objectGroupId', $args)
+    || array_key_exists('plainsearch', $opts) || array_key_exists('universal', $args)) {
+    $results = _edan_search_execute_search($args, $opts);
+  }
+  else {
+    $collections_results = _edan_search_execute_collectionssearch($args, $opts);
+    $results = $collections_results;
+    $results['response'] = $collections_results; // make it look like standard search results by putting it in the 'response' param
+  }
+
+  // This block reconciles the new format with the old format for results coming from
+  // the newer metadata/v1.0 endpoints
+  $results_rows = isset($results['rows']) ? $results['rows'] : $results['items'];
+  if (isset($results_rows) && is_array($results_rows)) {
+    $results['response']['numFound'] = $results['numFound'];
+    $results['response']['start'] = 0; // TODO: is the new format paged?
+    $results['response']['docs'] = array();
+    foreach($results_rows as $item) {
+      $results['response']['docs'][] = $item;//$item['content'];
+    }
+    unset($results['items']);
+    unset($results['rows']);
+    $results['response']['rows'] = $results['response']['docs'];
+  }
+
+  if (!isset($results['response']['numFound']) || $results['response']['numFound'] == 0) {
+    $content = (isset($opts['variables']['results_empty_message'])) ? $opts['variables']['results_empty_message'] : _edan_search_variable_get('results_empty_message');
+
+    // Set up our theme vars
+    $vars = array(
+      'numFound' => 0,
+      'start' => 0,
+      'docs' => array(),
+      'docs_raw' => array(),
+      'tabs' => NULL,
+      'tabs_array' => array(),
+      'facets' => NULL,
+      'active_facets' => NULL,
+      'facets_raw' => NULL,
+      'active_facets_raw' => NULL,
+      'pager' => NULL,
+      'container_class' => 'edan-search-results',
+      'results_summary' => '',
+      'results_class' => '',
+      'result_class' => '',
+      'listType' => -1, // default to no list type
+    );
+    // Tabs
+    if (isset($opts['theme']['show_tabs']) && $opts['theme']['show_tabs'] === TRUE) {
+      $tab_data = _edan_search_get_tabs($args, $opts, $results['numFound']);
+      $vars['tabs'] = $tab_data['tabs'];
+      $vars['tabs_array'] = $tab_data['tabs_array'];
+    }
+
+    if (isset($opts['theme']['custom_callback']) && function_exists($opts['theme']['custom_callback'])) {
+      $func = $opts['theme']['custom_callback'];
+      $content .= $func($vars, $opts);
+    } else {
+      $content .= theme($template_name, $vars); // was edan_search_results
+    }
+
+  }
+  else { // if we got some results
+
+    // v1.1 uses rows, v1.0 uses items
+    //$rows = isset($results['response']['rows']) ? $results['response']['rows'] : $results['response']['items'];
+    $rows = $results_rows;
+
+    // Set up our theme vars
+    $vars = array(
+      'numFound' => $results['response']['numFound'],
+      'start' => $results['response']['start'],
+      'docs' => _edan_search_process_rows($rows, $opts),
+      'docs_raw' => $rows,
+      'tabs' => NULL,
+      'tabs_array' => array(),
+      'facets' => NULL,
+      'active_facets' => NULL,
+      'facets_raw' => NULL,
+      'active_facets_raw' => NULL,
+      'pager' => NULL,
+      'container_class' => 'edan-search-results',
+      'results_summary' => '',
+      'results_class' => '',
+      'result_class' => '',
+      'listType' => -1, // default to no list type
+    );
+
+    if(isset($opts['listType'])) {
+      $vars['listType'] = $opts['listType'] == 1 ? 1 : 0; // 0 = records, 1 = saved search
+    }
+
+    // Facet mode determines how/if we handle facets
+    $facet_mode = (isset($opts['variables']['facets'])) ? $opts['variables']['facets'] : _edan_search_variable_get('facets');
+
+    // Add active facets
+    $vars['active_facets'] = theme(
+      'edan_search_active_facets',
+      array(
+        'args' => $args,
+        'queries' => NULL,// Old: (isset($results['responseHeader']['params']['q'])) ? $results['responseHeader']['params']['q'] : '',
+        'facets' => NULL,// Old: (isset($results['responseHeader']['params']['fq'])) ? $results['responseHeader']['params']['fq'] : '',
+      )
+    );
+
+    $vars['active_facets_raw'] = edan_search_active_facets_raw(array(
+        'args' => $args,
+        'queries' => NULL,// Old: (isset($results['responseHeader']['params']['q'])) ? $results['responseHeader']['params']['q'] : '',
+        'facets' => NULL,// Old: (isset($results['responseHeader']['params']['fq'])) ? $results['responseHeader']['params']['fq'] : '',
+      )
+    );
+
+    // Add facets if they're being shown in the tpl
+    if ($facet_mode != 'none') {
+      if (isset($results['facets']) && !empty($results['facets'])) {
+
+        // get the raw facets:
+        $vars['facets_raw'] = edan_search_facets_raw(_edan_search_process_facets($results['facets'], $args));
+
+        // pass raw facets to the theming function:
+        $themed_facets = theme('edan_search_facets', $vars['facets_raw']);
+
+        if ($facet_mode == 'tpl') {
+          $vars['container_class'] = 'edan-search-results-with-facets';
+          $vars['facets']  = (!isset($opts['theme']['hide_active_facets']) || $opts['theme']['hide_active_facets'] !== TRUE) ? $vars['active_facets'] . "\n" : '';
+          $vars['facets'] .= $themed_facets;
+        } else if ($facet_mode == 'block') {
+          $GLOBALS['edan_search']['facet_block_content']  = (!isset($opts['theme']['hide_active_facets']) || $opts['theme']['hide_active_facets'] == TRUE) ? $vars['active_facets'] . "\n" : '';
+          $GLOBALS['edan_search']['facet_block_content'] .= $themed_facets;
+        }
+      }
+    }
+
+    // Add "Mini fields" if set
+    $mf = (isset($opts['variables']['mini_fields'])) ? $opts['variables']['mini_fields'] : _edan_search_variable_get('mini_fields');
+    $mfactive = (bool) (!empty($mf));
+
+    if ($mfactive) {
+      drupal_add_js(array('edan_search' => array('mini_fields' => ($mf))), 'setting');
+    }
+
+    // Tabs
+    if (isset($opts['theme']['show_tabs']) && $opts['theme']['show_tabs'] === TRUE) {
+      $tab_data = _edan_search_get_tabs($args, $opts, $results['numFound']);
+      $vars['tabs'] = $tab_data['tabs'];
+      $vars['tabs_array'] = $tab_data['tabs_array'];
+    }
+
+    // Pager
+    $pager_vars = array(
+      'parameters' => $pager_params,
+    );
+
+    pager_default_initialize($results['response']['numFound'], $rpp);
+    $vars['pager'] = theme('pager', $pager_vars);
+
+    // TODO: Update this to use a consolidated class array, just need a way to override
+    if (isset($opts['theme']['results_class_add'])) {
+      $vars['results_class'] .= ' ' . $opts['theme']['results_class_add'];
+    }
+    if (isset($opts['theme']['result_class_add'])) {
+      $vars['result_class'] .= ' ' . $opts['theme']['result_class_add'];
+    }
+
+    // Add the results summary
+    $rcm = (isset($opts['variables']['results_count_message'])) ? $opts['variables']['results_count_message'] : _edan_search_variable_get('results_count_message');
+    $vars['results_summary'] = t($rcm, array('@count' => number_format($results['numFound'])));
+
+    // Theme results
+    if (isset($opts['theme']['custom_callback']) && function_exists($opts['theme']['custom_callback'])) {
+      $func = $opts['theme']['custom_callback'];
+      $content = $func($vars, $opts);
+    } else {
+      $content = theme($template_name, $vars); // was edan_search_results
+    }
+
+    // if the OGMT settings specify that we should show the search form
+    // and if the number of objects is > the results per page
+    // show the search form
+    if(array_key_exists('objectGroupId', $args)) {
+      //if($vars['numFound'] > count($vars['docs'])) {
+        $show_search_box = _ogmt_variable_get('search_box');
+        if(NULL !== $show_search_box && TRUE == $show_search_box) {
+          $form = drupal_get_form('edan_search_search_form');
+
+          // you can change the title of a checkbox
+          //$form['edan_fq[]']['#title'] = t('Custom Label Here.');
+
+          // you can default to local unit like this, and then hide the checkbox
+          unset($form['edan_local']);
+
+          // make sure the form redirects to the current page
+          $form['#action'] = '/' . current_path();
+
+          $vars['search_form'] = $form; // render($form);
+
+          // if you want to add additional facets, see the form_alter function above
+          $content = render($form) . $content;
+
+        } // if we're supposed to show the search box
+      //} // if we have more than 1 page of values
+    } // if we're searching for a particular objectGroupId
+
+  } // if we got some results
+
+  return $content;
+}
+
+/**
+ * Returns tabs used to display different result counts.
+ */
+function _edan_search_get_tabs($args = array(), &$opts = array(), $count = 0) {
+  $local_units = _edan_search_local_units_for_solr();
+  $local_units_only = in_array($local_units, $args['fq']);
+
+  $local_class = $all_class = $og_class = ''; // $collections_class = '';
+  foreach($args['fq'] as $k => $v) {
+    if($v == 'type:objectgroup') {
+      $og_class = ' class="active"';
+      unset($args['fq'][$k]);
+    }
+  }
+
+  $new_args = $args;
+  $new_args['fq'][] = $local_units;
+  $local_href = _edan_args_to_query($new_args);
+  $all_href = str_replace('&edan_local=1', '', _edan_args_to_query($args));
+
+  //$all_count = $local_count = $count;
+  $og_count = 0;
+  $tab_ogs = _edan_search_variable_get('menu_results_tab_objectgroups');
+  $og_results = array();
+
+  // New search: we need to query for the tab we're not active on to get a count
+  $new_args = $args;
+  $new_args['rows'] = 1;
+  $new_args['facet'] = FALSE;
+
+  $args['rows'] = 1;
+
+  // Process extra search and add classes
+  // Git 10b79b1e30
+  if($og_class == '') {
+    if ($local_units_only) {
+      $local_class = ' class="active"';
+    }
+    else {
+      $querystring_args = drupal_get_query_parameters();
+      // Git 10b79b1e30
+      //if(_edan_search_variable_get('menu_results_collections_tab') == 1 && isset($querystring_args['collections'])) {
+      //  $collections_class = ' class="active"';
+      //}
+      //else {
+      $all_class = ' class="active"';
+      //}
+    }
+  }
+
+  // Local search count
+  if (!in_array($local_units, $args['fq'])) {
+    $new_args['fq'][] = $local_units;
+  }
+
+  // All search count- make sure we remove fq for localunits from the args, if it exists
+  $i = NULL;
+  foreach($args['fq'] as $k => $v) {
+    if($v== $local_units) {
+      $i=$k;
+      break;
+    }
+  }
+  if(NULL !== $i) {
+    unset($args['fq'][$i]);
+  }
+
+  // Git 10b79b1e30
+  // if passing a pageId or objectGroupId, we are forced to use the Universal Search
+  if(array_key_exists('pageId', $new_args) || array_key_exists('objectGroupId', $new_args)
+    || array_key_exists('plainsearch', $opts) ) {
+    $local_results = _edan_search_execute_search($new_args, $opts);
+    $all_results = _edan_search_execute_search($args, $opts);
+  }
+  else {
+    // $local_results ?
+    //$all_results = _edan_search_execute_search($new_args, $opts);
+    $local_results = _edan_search_execute_collectionssearch($new_args, $opts);
+    $all_results = _edan_search_execute_collectionssearch($args, $opts);
+
+    // $local = filter_input(INPUT_GET, 'edan_local', FILTER_SANITIZE_STRING);
+    // $local_results = _edan_search_execute_collectionssearch($new_args, $opts);
+    // $local_count = (isset($local_results['numFound'])) ? $local_results['numFound'] : 0;
+    // $all_results = empty($local) ? _edan_search_execute_collectionssearch($args, $opts) : array();
+  }
+
+  if($tab_ogs) {
+    $new_args['fq'][] = 'type:objectgroup';
+    foreach($new_args['fq'] as $k => $v) {
+      if($v == 'online_visual_material:true') {
+        unset($new_args['fq'][$k]);
+      }
+    }
+    $og_results = _edan_search_execute_search($new_args, $opts);
+  }
+  //dpm($new_args);
+  //dpm($og_results);
+
+  $og_count = (isset($og_results['numFound'])) ? $og_results['numFound'] : 0;
+  $local_count = (isset($local_results['numFound'])) ? $local_results['numFound'] : 0;
+  $all_count = (isset($all_results['numFound'])) ? $all_results['numFound'] : 0;
+
+  $tabs_array = array();
+  $tab_order = _edan_search_variable_get('menu_results_tab_order');
+
+  $content = '<div class="tabs"><ul class="tabs primary">';
+  if($tab_order == 1) {
+    $tabs_array[] = array('type' => 'museum', 'title' => t('Museum Collections'), 'link' => $local_href,
+      'tab' => '<a href="?' . $local_href . '">' . t('Museum Collections') . ' (' . $local_count . ')</a>',
+    'count' => $local_count, 'class' => $local_class);
+    $tabs_array[] = array('type' => 'smithsonian', 'title' => t('All Smithsonian Collections'), 'link' => $all_href,
+      'tab' => '<a href="?' . $all_href . '">' . t('All Smithsonian Collections') . ' (' . $all_count . ')</a>',
+    'count' => $all_count, 'class' => $all_class);
+
+    $content .= '<li' . $local_class . '><a href="?' . $local_href . '">' . t('Museum Collections') . ' (' . $local_count . ')</a></li>';
+    $content .= '<li' . $all_class . '><a href="?' . $all_href . '">' . t('All Smithsonian Collections') . ' (' . $all_count . ')</a></li>';
+  }
+  else {
+    $tabs_array[] = array('type' => 'smithsonian', 'title' => t('All Smithsonian Collections'), 'link' => $all_href,
+      'tab' => '<a href="?' . $all_href . '">' . t('All Smithsonian Collections') . ' (' . $all_count . ')</a>',
+    'count' => $all_count, 'class' => $og_class);
+    $tabs_array[] = array('type' => 'museum', 'title' => t('Museum Collections'), 'link' => $local_href,
+      'tab' => '<a href="?' . $local_href . '">' . t('Museum Collections') . ' (' . $local_count . ')</a>',
+    'count' => $local_count, 'class' => $all_class);
+
+    $content .= '<li' . $all_class . '><a href="?' . $all_href . '">' . t('All Smithsonian Collections') . ' (' . $all_count . ')</a></li>';
+    $content .= '<li' . $local_class . '><a href="?' . $local_href . '">' . t('Museum Collections') . ' (' . $local_count . ')</a></li>';
+  }
+
+  if($tab_ogs) {
+    $og_args = _edan_args_to_query($new_args);
+    $tabs_array[] = array('type' => 'objectgroups', 'title' => t('Related Object Groups'), 'link' => $og_args,
+      'tab' => '<a href="?' . $og_args  . '">' . t('Related Object Groups') . ' (' . $og_count . ')</a>',
+    'count' => $og_count, 'class' => $og_class);
+    $content .= '<li' . $og_class . '><a href="?' .  $og_args  . '">' . t('Related Object Groups') . ' (' . $og_count . ')</a></li>';
+  }
+
+  // Git 10b79b1e30
+  /*
+    if(_edan_search_variable_get('menu_results_collections_tab') == 1) {
+      //$opts['collections_search'] = TRUE;
+      $collections_results = _edan_search_execute_collectionssearch($new_args, $opts);
+      $collections_count = (isset($collections_results['numFound'])) ? $collections_results['numFound'] : 0;
+      $content .= '<li' . $collections_class . '><a href="?' . $all_href . '&collections">' . t('Collections Results') . ' (' . $collections_count . ')</a></li>';
+    }
+
+   */
+  $content .= '</ul></div>';
+
+  return array('tabs' => $content, 'tabs_array' => $tabs_array);
+  //return $content;
+}
+
+/**
+ * Gets the current edan_q
+ */
+function _edan_search_get_query($default = '*:*', &$opts = array()) {
+  $arr = array();
+
+  $arr['q'] = _edan_search_get_param('edan_q', $default); //  isset($_GET['edan_q']) ? $_GET['edan_q'] : $default;
+
+  // Added sort (ghalusa - 2016-09-12)
+  $arr['sort'] = _edan_search_get_param('sort', NULL);
+
+  $arr['rows'] = (isset($opts['variables']['results_per_page'])) ? $opts['variables']['results_per_page'] : _edan_search_variable_get('results_per_page');
+  $get_page = _edan_search_get_param('page', NULL);
+  if (isset($get_page)) { // $_GET['page'])) {
+    $arr['start'] = $get_page * $arr['rows']; // $_GET['page'] *
+  } else {
+    $arr['start'] = 0;
+  }
+
+  $arr['type'] = _edan_search_get_param('edan_type'); // isset($_GET['edan_type']) ? $_GET['edan_type'] : NULL;
+
+  /*
+  // From URL
+  $arr['rows'] = filter_input(INPUT_GET, 'edan_rows', FILTER_VALIDATE_INT, array(FILTER_NULL_ON_FAILURE));
+  $arr['start'] = filter_input(INPUT_GET, 'edan_start', FILTER_VALIDATE_INT, array(FILTER_NULL_ON_FAILURE));
+  */
+
+  // universal search?
+  if (isset($_GET['universal'])) {
+    $arr['universal'] = TRUE;
+  }
+
+  // FQs
+  $fqs = array();
+
+  // A special FQ: unit code
+  $get_edan_local = _edan_search_get_param('edan_local');
+  if (isset($get_edan_local) && $get_edan_local == '1') {
+  //if (isset($_GET['edan_local']) && $_GET['edan_local'] == '1') {
+    $fqs[] = _edan_search_local_units_for_solr();
+  }
+
+  /*
+  // Original handling: edan_fq=1&edan_fq=2
+  $raw = explode('&', $_SERVER['QUERY_STRING']);
+  foreach ($raw as $fq) {
+    if (strpos($fq, '=')) {
+      list($name, $value) = explode('=', $fq);
+      $name = urldecode($name);
+      $value = urldecode($value);
+      if ($name == 'edan_fq') {
+        $fqs[] = $value;
+      }
+    }
+  }
+  */
+
+  // New handling: php native arrays: edan_fq[]=1&edan_fq[]=2
+  $get_edan_fq = _edan_search_get_param('edan_fq', array());
+
+  if (isset($get_edan_fq)) {
+    if (!is_array($get_edan_fq)) {
+      $_GET['edan_fq'] = array($get_edan_fq);
+      $get_edan_fq = array($get_edan_fq);
+    }
+    foreach ($get_edan_fq as $fq) {
+      $fqs[] = $fq;
+      if(strpos($fq, 'type:') !== FALSE) {
+        // we have to use universal search if a record type is specified
+        $arr['universal'] = TRUE;
+      }
+    }
+  }
+  /*
+  if (isset($_GET['edan_fq'])) {
+    if (!is_array($_GET['edan_fq'])) {
+      $_GET['edan_fq'] = array($_GET['edan_fq']);
+    }
+
+    foreach ($_GET['edan_fq'] as $fq) {
+      $fqs[] = $fq;
+    }
+  }
+  */
+
+  $arr['fq'] = $fqs;
+
+  return $arr;
+}
+
+/**
+ * Converts an EDAN args array to a Drupal-compatibile URL string. Note that this does not
+ * use Drupal's l/url functions due to EDAN's handling of arrays.
+ */
+function _edan_args_to_query($args = array()) {
+  $str = '';
+
+  if (isset($args['q'])) {
+    $str .= '&edan_q=' . filter_xss($args['q']);
+  }
+
+  // Local Units
+  $local_units = _edan_search_local_units_for_solr();
+  $local = FALSE;
+
+  if (isset($args['fq'])) {
+    foreach ($args['fq'] as $fq) {
+      if ($fq == $local_units) {
+        $local = TRUE;
+        continue;
+      }
+
+      if (strpos($fq, ':') !== FALSE) {
+        list($name, $value) = explode(':', $fq, 2);
+        $_fq = $name . ':' . urlencode($value);
+        $str .= '&edan_fq[]=' . $_fq;
+      }
+    }
+  }
+
+  // TODO: we'll probably change the local handling
+  $get_edan_local = _edan_search_get_param('edan_local');
+  //if ($local === TRUE || (isset($_GET['edan_local']) && $_GET['edan_local'] == 1)) {
+  if ($local === TRUE || (isset($get_edan_local) && $get_edan_local == 1)) {
+    $str .= '&edan_local=1';
+  }
+
+  return trim($str, '&');
+}
+
+/**
+ * Executes an EDAN search
+ *
+ * @see EDANInterface()
+ */
+function _edan_search_execute_search($args, &$opts = array()) {
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+  // $filter = array('online_visual_material:true','record_ID:saam_1997.108.62');
+  $filter = array();
+
+  $uri = "wt=json";
+  $uri_facets = '';
+
+  if (isset($args['q'])) {
+    $uri .= '&q=' . urlencode(str_replace(' ', '+', $args['q']));
+  }
+
+  if (isset($args['rows'])) {
+    $uri .= '&rows=' . $args['rows'];
+  }
+
+  if (isset($args['start'])) {
+    $uri .= '&start=' . $args['start'];
+  }
+
+  // Added sort (ghalusa - 2016-09-23)
+  if (isset($args['sort'])) {
+    $uri .= '&sort=' . urlencode($args['sort']);
+  }
+
+  if (isset($args['type'])) {
+    $uri .= '&type=' . $args['type'];
+  }
+  else {
+    // use defaults
+    $record_type = _edan_search_variable_get('record_type');
+    if(strlen(trim($record_type)) > 0) {
+      //was only this: $args['fq'][] = 'type:' . $record_type;
+      // use specified record type(s)
+      // record types are separated by spaces in the admin UI
+      $record_type_array = explode(' ', $record_type);
+      // connect them with ORs
+      $record_type = 'type:' . implode(' OR type:', $record_type_array);
+      $args['fq'][] = $record_type;
+    }
+  }
+
+  // iter of fq array
+  $_fqs = array();
+  if (isset($args['fq'])) {
+    foreach ($args['fq'] as $fq) {
+      if (strpos($fq, ':') !== FALSE) {
+        list($name, $value) = explode(':', $fq, 2);
+        #$uri .= '&fq=' . $name . ':' . urlencode($value);
+        $_fqs[] = $name . ':' . $value;
+      }
+    }
+  }
+
+  if (!empty($_fqs)) {
+   $uri .= '&fqs=' . urlencode(json_encode($_fqs));
+  }
+
+  // Lists
+  if (isset($args['listid'])) {
+    $uri .= 'qt=myListSearch&sl.id=' . $args['listid'];
+  }
+
+  // Facets
+  if (isset($args['facet']) && $args['facet'] === TRUE) {
+    $uri_facets .= '&facet=true';
+    #$uri_facets .= '&facet.mincount=1';
+    #$uri_facets .= '&facet.limit=25';
+
+    // Added facet.field (ghalusa - 2016-09-23)
+    if (isset($args['facet.field'])) {
+      $uri .= '&facet.field=' . $args['facet.field'];
+    }
+
+    // Added facet.mincount (ghalusa - 2016-09-23)
+    if (isset($args['facet.mincount'])) {
+      $uri .= '&facet.mincount=' . $args['facet.mincount'];
+    }
+
+    // Added facet.limit (ghalusa - 2016-09-23)
+    if (isset($args['facet.limit'])) {
+      $uri .= '&facet.limit=' . $args['facet.limit'];
+    }
+  }
+
+  // NEW:
+  // http://edantest.si.edu/metadata/v1.1/metadata/objectlists.htm?applicationId=OGMT_TEST&listName=OGMT_TEST:12:128
+  // http://edantest.si.edu/metadata/v1.1/metadata/objectlists.htm?applicationId=OGMT_TEST&listName=OGMT_TEST:12:133
+  // Can also accept objectGroupUrl and pageUrl
+  // Supports listType=0 and listType=1
+
+  /*
+  start,rows,q
+  facet=bool
+  fqs=json->array("topic:Monkey")
+  */
+
+  // Object Group Id
+  if (isset($args['objectGroupId'])) { //  && (!isset($args['q']) || empty($args['q']) || $args['q'] == '*:*' ) ) {
+
+    /* */
+    $uri .= '&objectGroupId=' . $args['objectGroupId'];
+    if (isset($args['pageId'])) {
+      $uri .= '&pageId=' . $args['pageId'];
+    }
+    /**/
+
+    /*
+    $list_name = $edan_app_id . ':' . $args['objectGroupId'];
+    if (isset($args['pageId'])) {
+      $list_name .= ':' . $args['pageId'];
+    } else {
+      $list_name .= ':0';
+    }
+    $uri .= '&listName=' . $list_name;
+    */
+
+    // RB 20161111 - AG says do not pass applicationId
+    //$uri .= '&applicationId=' . $edan_app_id;
+
+    /*
+    objectListingMetadata
+    /ogmt/webservices/objectListingMetadata.htm?objectGroupId=12
+    objectListingMetadata with metadata...
+    /ogmt/webservices/objectListingMetadata.htm?objectGroupId=12&facet=true.
+    */
+    #$service = 'ogmt/webservices/objectListingMetadata.htm';
+    if (isset($opts['variables']['admin_lists']) && $opts['variables']['admin_lists'] === TRUE) {
+      $service = 'ogmt/v1.1/adminogmt/getObjectListingMetadata.htm';
+    }
+    else {
+
+
+      if(isset($args['unitCode'])) {
+        // we might be passing the unitCode, for an objectgroup that doesn't correspond to this website's unit code
+        $uri .= '&unitCode=' . $args['unitCode'];
+      }
+      $service = 'metadata/v1.1/metadata/getObjectLists.htm';
+
+      // if the user is attempting to search within an object group or object group page,
+      // and the OG or OG page has saved items (listType = 0)
+      if($opts['listType'] == 0) {
+        if(isset($args['q'])  && trim($args['q']) !== '' && $args['q'] !== '*:*') {
+          // we have to get all of the object ids and pass those to our search, if we want to search within the saved objects
+
+          // 1. get all of the object IDs for this list
+          // we'll query metadata/getObjectLists.htm to get the object IDs from 'items'
+          $info = '';
+          $first_uri = 'objectGroupId=' . $args['objectGroupId'];
+          if (isset($args['pageId'])) {
+            $first_uri .= '&pageId=' . $args['pageId'];
+          }
+          if (isset($args['unitCode'])) {
+            $first_uri .= '&unitCode=' . $args['unitCode'];
+          }
+
+          // we only need og ID, page ID, and unitCode params:
+          $service = 'metadata/v1.1/metadata/getObjectLists.htm';
+          $results = $edan->sendRequest($first_uri, $service, FALSE, $info);
+          $json_results = json_decode($results, TRUE);
+
+          // 1a. safeguard: if > 200 saved objects, this URL + query might be too big
+          if(isset($json_results['items']) && count($json_results['items']) < 200) {
+            $og_listitems = $json_results['items'];
+
+            // 2. create a special q value, using the query term(s) and our object IDs
+            $q = $args['q'] . ' AND (' . (implode(' OR ', $json_results['items'])) . ')';
+            $fqs = '"!type:objectlists"';
+            $uri_array = explode('&', $uri);
+            $new_uri_array = array();
+            $q_exists = $fq_exists = FALSE;
+            foreach($uri_array as $u) {
+              $u_parts = explode('=', $u);
+              if(count($u_parts) == 2) {
+                if($u_parts[0] == 'q') {
+                  $u_parts[1] = urlencode($q);
+                  $q_exists = TRUE;
+                }
+                elseif($u_parts[0] == 'fqs') {
+                  $tmp = urldecode($u_parts[1]);
+                  $tmp = substr($tmp, 1, strlen($tmp) - 2);
+                  $u_parts[1] = '[' . urlencode($tmp . ',' . $fqs) . ']';
+                  $fq_exists = TRUE;
+                }
+              }
+              $u2 = implode('=', $u_parts);
+              $new_uri_array[] = $u2;
+            }
+            if(!$q_exists) {
+              $new_uri_array['q'] = urlencode($q);
+            }
+            if(!$fq_exists) {
+              $new_uri_array['fqs'] = '[' . urlencode($fqs) . ']';
+            }
+
+            //dpm($new_uri_array);
+            $uri = implode('&', $new_uri_array);
+            //dpm($uri);
+            /*
+             * q=Young AND (nmah_690815 OR nmah_690829 OR nmah_690244 OR nmah_690245 OR nmah_690241 OR nmah_690242)
+              fqs=["!type:objectlists"]
+              facet=true.
+             */
+            $service = 'metadata/v1.1/metadata/search.htm';
+          }
+
+        }
+      } // only for saved individual objects, not for saved search
+
+    } // not admin lists
+
+    if (isset($args['facet']) && $args['facet'] === TRUE) {
+      $uri .= '&facet=true';
+    }
+    else {
+      $uri .= '&facet=false';
+    }
+    $uri_facets = ''; // Clear
+  }
+  else {
+    $service = 'metadata/v1.1/metadata/search.htm'; //metadataService';
+  }
+
+  // Add facets
+  $uri .= $uri_facets;
+
+  #$uri = 'type=damsmdm&url=AAA-jacqself00002-002320';
+  #$service = 'content/v1.1/content/contentUrl.htm';
+  $info = '';
+  $results = $edan->sendRequest($uri, $service, FALSE, $info);
+//dpm($uri);
+//dpm($service);
+//dpm($results);
+  $edan_debug = _edan_search_variable_get('debug');
+  if($edan_debug) {
+    watchdog('EDAN Debug',
+      '%service?%uri <br /><br />Results<br />%results',
+      array(
+        '%service' => $service,
+        '%uri' => $uri,
+        '%results' => $results,
+      ),
+      WATCHDOG_DEBUG);
+  }
+
+  if(module_exists('devel') && isset($_GET['dpm']) && user_access('access devel information')) {
+    dpm($uri);
+    dpm($info);
+    dpm(json_decode($results, TRUE));
+  }
+  if (_edan_search_can_dump() || isset($opts['dump'])) {
+    drupal_set_message('<pre>' . var_export($service . '?' . urldecode($uri), TRUE) . '</pre>');
+    drupal_set_message('<pre>' . var_export($info, TRUE) . '</pre>');
+    drupal_set_message('<pre>' . var_export($results, TRUE) . '</pre>');
+  }
+
+  if (!empty($info) && $info['http_code'] != 200) {
+    drupal_set_message('An error occurred when contacting the EDAN API. (' . $info['http_code'] . ').');
+    watchdog('EDAN',
+      'HTTP Error %err: %service?%uri <br /><br />Results<br />%results',
+      array(
+        '%err' => $info['http_code'],
+        '%service' => $service,
+        '%uri' => urldecode($uri),
+        '%results' => $results,
+      ),
+      WATCHDOG_WARNING);
+    return FALSE;
+  }
+
+  // cheesy-ass workaround because admin endpoints use 'items' and public endpoints use rows
+  $return_results = json_decode($results, TRUE);
+
+  //dpm($return_results);
+  if ($service == 'ogmt/v1.1/adminogmt/getObjectListingMetadata.htm') {
+    $return_results['rows'] = $return_results['items'];
+    unset($return_results['items']);
+  }
+
+  //dpm($uri);
+  //dpm($service);
+  //dpm($return_results);
+
+  return $return_results;
+}
+
+/**
+ * Executes an EDAN search
+ *
+ * @see EDANInterface()
+ */
+function _edan_search_execute_collectionssearch($args, &$opts = array()) {
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+  // $filter = array('online_visual_material:true','record_ID:saam_1997.108.62');
+  $filter = array();
+
+  $uri = "wt=json";
+  $uri_facets = '';
+
+  if (isset($args['q'])) {
+    $uri .= '&q=' . urlencode(str_replace(' ', '+', $args['q']));
+  }
+
+  if (isset($args['rows'])) {
+    $uri .= '&rows=' . $args['rows'];
+  }
+
+  if (isset($args['start'])) {
+    $uri .= '&start=' . $args['start'];
+  }
+
+  // Added sort (ghalusa - 2016-09-12)
+  if (isset($args['sort'])) {
+    $uri .= '&sort=' . urlencode($args['sort']);
+  }
+
+  // Added facet.field (ghalusa - 2016-09-22)
+  if (isset($args['facet.field'])) {
+    $uri .= '&facet.field=' . $args['facet.field'];
+  }
+
+  // Added facet.mincount (ghalusa - 2016-09-22)
+  if (isset($args['facet.mincount'])) {
+    $uri .= '&facet.mincount=' . $args['facet.mincount'];
+  }
+
+  // Added facet.limit (ghalusa - 2016-09-22)
+  if (isset($args['facet.limit'])) {
+    $uri .= '&facet.limit=' . $args['facet.limit'];
+  }
+
+/*  if (isset($args['type'])) {
+    $uri .= '&type=' . $args['type'];
+  }
+  else {
+    // use defaults
+    $record_type = _edan_search_variable_get('record_type');
+    if(strlen(trim($record_type)) > 0) {
+      // use specified record type
+      $args['fq'][] = 'type:' . $record_type;
+    }
+  }
+*/
+  // iter of fq array
+  $_fqs = array();
+  if (isset($args['fq'])) {
+    foreach ($args['fq'] as $fq) {
+      if (strpos($fq, ':') !== FALSE) {
+        list($name, $value) = explode(':', $fq, 2);
+        #$uri .= '&fq=' . $name . ':' . urlencode($value);
+        $_fqs[] = $name . ':' . $value;
+      }
+    }
+  }
+  if (!empty($_fqs)) {
+    $uri .= '&fqs=' . urlencode(json_encode($_fqs));
+  }
+
+  // Facets
+  if (isset($args['facet']) && $args['facet'] === TRUE) {
+    $uri_facets .= '&facet=true';
+    #$uri_facets .= '&facet.mincount=1';
+    #$uri_facets .= '&facet.limit=25';
+
+    if (!isset($args['facet.field']) || empty($args['facet.field'])) {
+      #$uri_facets .= '&facet.field=data_source&facet.field=topic&facet.field=object_type&facet.field=date&facet.field=place&facet.field=name&facet.field=culture&facet.field=language';
+    }
+  }
+
+  // iter of bq array
+  if (isset($args['bq'])) {
+    foreach($args['bq'] as $bq) {
+      $uri .= '&bq=' . urlencode($bq);
+    }
+  }
+
+  /*
+  start,rows,q
+  facet=bool
+  fqs=json->array("topic:Monkey")
+  */
+
+  // -> metadata/search.htm has more than just type=edanmdm records
+  $service = 'metadata/v1.1/collections/search.htm';
+
+  // Add facets
+  $uri .= $uri_facets;
+
+  #$uri = 'type=damsmdm&url=AAA-jacqself00002-002320';
+  #$service = 'content/v1.1/content/contentUrl.htm';
+  $info = '';
+  $results = $edan->sendRequest($uri, $service, FALSE, $info);
+//dpm($service . '?' . $uri);
+//dpm($args);
+//dpm($results);
+  $edan_debug = _edan_search_variable_get('debug');
+  if($edan_debug) {
+    watchdog('EDAN Debug',
+      '%service?%uri <br /><br />Results<br />%results',
+      array(
+        '%service' => $service,
+        '%uri' => $uri,
+        '%results' => $results,
+      ),
+      WATCHDOG_DEBUG);
+  }
+
+  if(module_exists('devel') && isset($_GET['dpm']) && user_access('access devel information')) {
+    dpm($uri);
+    dpm($info);
+    dpm(json_decode($results, TRUE));
+  }
+  if (_edan_search_can_dump() || isset($opts['dump'])) {
+
+    dumper($uri,0);
+    $backtrace = debug_backtrace();
+    dumper($backtrace[1]['function'],0);
+
+    drupal_set_message('<pre>' . var_export($service . '?' . urldecode($uri), TRUE) . '</pre>');
+    drupal_set_message('<pre>' . var_export($info, TRUE) . '</pre>');
+    drupal_set_message('<pre>' . var_export($results, TRUE) . '</pre>');
+  }
+
+  if (!empty($info) && $info['http_code'] != 200) {
+    drupal_set_message('An error occurred when contacting the EDAN API. (' . $info['http_code'] . ').');
+    watchdog('EDAN',
+      'HTTP Error %err: %service?%uri <br /><br />Results<br />%results',
+      array(
+        '%err' => $info['http_code'],
+        '%service' => $service,
+        '%uri' => urldecode($uri),
+        '%results' => $results,
+      ),
+      WATCHDOG_WARNING);
+    return FALSE;
+  }
+
+  $return_results = json_decode($results, TRUE);
+
+  return $return_results;
+//  return json_decode($results, TRUE);
+  }
+
+
+/**
+ * Gets the local units and returns a Solr appropriate string.
+ *
+ * @return NULL on failure; string otherwise
+ */
+function _edan_search_local_units_for_solr() {
+  $arr = _edan_search_variable_get('local_units');
+
+  // Remove empty values from the array.
+  // Added by ghalusa - 2016-09-12
+  $keys = array_keys($arr,"");
+  foreach($keys as $k)
+    unset($arr[$k]);
+
+  //s:11:"local_units";a:2:{i:0;s:3:"NPG";i:1;s:6:"NPGCAP";}
+
+  if (!empty($arr)) {
+    //dpm('edan_search says unit_code:("' . implode('" OR "', $arr) . '")');
+    return 'unit_code:' . implode(' OR unit_code:', $arr);
+    //return 'unit_code:("' . implode('" OR "', $arr) . '")';
+  }
+
+  return NULL;
+}
+
+/**
+ * Wrapper for variable_get()
+ *
+ * @see variable_get()
+ */
+function _edan_search_variable_get($key = NULL) {
+  $variables = &drupal_static(__FUNCTION__);
+
+  if (!isset($variables)) {
+    $defaults = _edan_search_variable_defaults();
+    $variables = variable_get('edan_search', $defaults);
+  }
+
+  if (!empty($key)) {
+    return isset($variables[$key]) ? $variables[$key] : NULL;
+  }
+
+  return $variables;
+}
+
+function _edan_search_variable_defaults($key = NULL) {
+  $defaults = array(
+    'menu_results_page' => 'search/edan',
+    'menu_results_title' => 'EDAN Search Results',
+    'menu_results_tabs' => TRUE,
+    'menu_results_tab_order' => TRUE,
+    'menu_results_tab_objectgroups' => FALSE,
+    'results_per_page' => 10,
+    'results_count_message' => 'Your search found @count result(s).',
+    // added results_empty_redirect variable
+    'results_empty_redirect' => '',
+    'results_empty_message' => 'Your search found no results.',
+    'field_order' => array('*'),
+    'label_replacements' => array(),
+    'mini_fields' => array(),
+    'facets' => 'tpl',
+    'facet_replacements' => array(
+      'data_source' => 'data source',
+      'online_media_type' => 'online media type',
+      'object_type' => 'object type',
+      'online_visual_material' => 'online visual material',
+      'unit_code' => 'unit code',
+      'onPhysicalExhibit' => 'on exhibition',
+    ),
+    'default_to_local_units' => TRUE,
+    'default_to_online_media' => TRUE,
+    'facets_hide' => array(
+
+    ),
+    'record_type' => 'edanmdm',
+    'local_units' => array(),
+    'unit_name' => '',
+    'debug' => FALSE,
+    'default_to_online_media_checkbox_text' => t('Only return results with online media')
+  );
+
+  if (!empty($key) && isset($defaults[$key])) {
+    return $defaults[$key];
+  }
+
+  return $defaults;
+}
+
+function _edan_search_can_dump() {
+  if (isset($_GET['dump'])) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+function _edan_search_get_param($name, $default = NULL) {
+  if (!isset($_GET[$name])) {
+    return $default;
+  } else {
+    if(is_array($_GET[$name])) {
+      $arr = array();
+      foreach($_GET[$name] as $key => $value) {
+        $newkey = filter_xss($key);
+        $val = $value;
+
+        $newvalue = filter_xss($val);
+
+        // fqs are weird; we can't encode ampersands
+        if($name == 'edan_fq') {
+          $newvalue = str_replace('&amp;', '&', $newvalue);
+        }
+
+        $newvalue = str_replace('&#62;', '', $newvalue);
+        $newvalue = str_replace('&#60;', '', $newvalue);
+        $newvalue = str_replace('--', '', $newvalue);
+        $arr[$newkey] = $newvalue;
+      }
+      return $arr;
+    }
+    else {
+      // 20160707 removed FILTER_FLAG_ENCODE_HIGH because it breaks diacritical characters.
+      $newvalue = filter_input(INPUT_GET, $name, FILTER_SANITIZE_SPECIAL_CHARS); //, FILTER_FLAG_ENCODE_HIGH);
+      $newvalue = str_replace('&#62;', '', $newvalue);
+      $newvalue = str_replace('&#60;', '', $newvalue);
+      $newvalue = str_replace('--', '', $newvalue);
+      return $newvalue;
+    }
+  }
+}

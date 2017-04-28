@@ -1,0 +1,129 @@
+.page-selector {
+  clear: both;
+  border-bottom: 1px solid #EFEFEF;
+  min-height: 41px;
+}
+
+#edit-main-image-upload-button {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.edan-files #edit-submit {
+  width: 22rem;
+  height: 62px;
+}
+
+.col-md-2 {
+  margin-bottom: 1.75rem;
+}
+
+.edan-files .select-button-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+#object-group-edit-form, #build-objects-left {
+    display: inline-block;
+    max-width: 60%;
+    float: left;
+}
+.content #object-group-edit-ui #object-group-edit-form.full-width {
+    max-width: 100%;
+}
+#object-group-pages-form {
+    max-width: 35%;
+    float: right;
+    border: 1px solid #C9CAC4;
+    display: block;
+    padding: 20px;
+    margin-right: 2px;
+    border-radius: 8px;
+}
+#object-group-view-objects-build #build-objects-right {
+    max-width: 35%;
+    float: right;
+    display: block;
+    padding: 20px;
+    margin-right: 2px;
+    border-radius: 8px;
+}
+#build-objects-right #current-facets {
+    border: 1px solid #C9CAC4;
+    padding: 10px;
+}
+#build-objects-right #object-list {
+    float: right;
+    border: 1px solid #C9CAC4;
+    background-color: rgb(149, 197, 138);
+    padding: 10px;
+    margin-top: 20px;
+    min-width: 300px;
+    min-height: 100px;
+}
+#object-group-view-saved {
+    background-color: rgb(149, 197, 138);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.page-links {
+    float: right;
+}
+.page-links a {
+    margin-left: 6px;
+}
+.content #object-group-view-objects-info,
+.content #object-group-view-objects-build,
+.content #object-group-edit-ui,
+.content #object-group-page-edit-ui {
+    border: 1px solid #C9CAC4;
+    clear: both;
+    display: block;
+    padding: 20px;
+    margin-right: 2px;
+    border-radius: 8px 0 8px 8px;
+    overflow: auto;
+}
+ul.tabs.primary.object-groups {
+    height: 3.2em;
+}
+
+/* custom stuff for object list view */
+a.tabledrag-handle.view-objects {
+    float: left;
+    min-width: 30px;
+    min-height: 24px;
+    padding: 0;
+    margin: 20px 0 0 0;
+}
+a.tabledrag-handle.view-objects:hover {
+    cursor: move;
+}
+#object-group-view-objects-results a.tabledrag-handle.view-objects .handle {
+    height: 24px;
+    width: 24px;
+}
+
+#object-group-view-objects-info #object-group-view-objects-results .edan-row dl {
+    margin: 0 0 10px 170px
+}
+#object-group-view-objects-build .edan-row .listitem-add {
+    float: left;
+    padding: 0 10px;
+}
+#object-group-view-objects-results .listitem-delete input[type="checkbox"],
+#object-group-view-objects-build .listitem-add input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+ul.search-results li.edan-search-result.in-list {
+    background-color: rgb(149, 197, 138);
+}
+ul.search-results li.edan-search-result {
+    list-style-type: none;
+}
+.form-item.form-type-checkbox.form-item-edan-fq-,
+.form-item.form-type-checkbox.form-item-edan-local {
+    display:block;
+}

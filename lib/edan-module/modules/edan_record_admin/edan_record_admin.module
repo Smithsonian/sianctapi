@@ -1,0 +1,1660 @@
+<?php
+
+//@todo or what?
+if(module_exists('ogmt')) {
+  $epath = drupal_get_path('module', 'edan');
+  require_once(DRUPAL_ROOT . '/' . $epath . "/includes/EDANInterface.class.php");
+
+  $mpath = drupal_get_path('module', 'ogmt');
+  require_once(DRUPAL_ROOT . '/' . $mpath . "/includes/EDANObjectGroup.class.php");
+}
+
+$erapath = drupal_get_path('module', 'edan_record_admin');
+require_once(DRUPAL_ROOT . '/' . $erapath . "/includes/edan_record_admin.pathauto.inc");
+require_once(DRUPAL_ROOT . '/' . $erapath . "/includes/edan_record_admin.tokens.inc");
+
+/**
+ * Implements hook_menu().
+ */
+function edan_record_admin_menu() {
+
+  // The record form
+  $schema_types = _edan_record_admin_schema_types();
+  foreach($schema_types as $schema_type) {
+    $items['edan/' . $schema_type] = array(
+      'title' => 'EDAN Record',
+      'description' => 'Create and manage EDAN records.',
+      'page callback' => 'edan_record_admin_manage',
+      'page arguments' => array(1, 2, 3, 4),
+      'access arguments' => array('edit edan ' . $schema_type . ' content'),
+      'type' => MENU_CALLBACK
+    );
+  }
+
+  // The page for viewing a record or records.
+  // If Pathauto is installed, look for a pattern there.
+  // If no Pathauto pattern, use the default of [schematype]/[recorduri]
+  foreach($schema_types as $schema_type) {
+    $base_path_pattern = _get_default_path_pattern();
+    $path_has_unique_field = TRUE;
+
+    $data = array();
+    $data['[edan:edan_type]'] = $schema_type;
+    $data['[edan:edan_id]'] = '%'; // 'edan-id-1234234234';
+    $data['[edan:url]'] = '%'; // 'edan-uri';
+
+    if(module_exists('pathauto')) {
+      $base_path_pattern = pathauto_pattern_load_by_entity('edan_record_admin', $schema_type, LANGUAGE_NONE);
+      //$new_path = pathauto_create_alias('edan_record_admin', 'return', $schema_type, $data, $schema_type, LANGUAGE_NONE);
+    }
+
+    $base_path_pattern_array = explode('/', $base_path_pattern);
+    foreach($base_path_pattern_array as $k => $v) {
+      $base_path_pattern_array[$k] = (array_key_exists($v, $data)) ? $data[$v] : $v;
+    }
+    $new_path = implode('/', $base_path_pattern_array);
+
+    if(strlen(trim($new_path)) > 0) {
+      if(!strpos($new_path, '%')) {
+        $path_has_unique_field = FALSE;
+      }
+      else {
+        // remove ending % params
+        //@todo
+      }
+    }
+    $c = count($base_path_pattern_array);
+    $items[$new_path] = array(
+      'title' => 'EDAN Record',
+      'description' => 'View EDAN record.',
+      'page callback' => 'edan_record_admin_view_record',
+      'page arguments' => array(),
+      'access arguments' => array('access content'),
+      'type' => MENU_CALLBACK
+    );
+
+    // add all arguments from our path
+    for($i = 0; $i < $c; $i++) {
+      $idx = count($items[$new_path]['page arguments']);
+      $items[$new_path]['page arguments'][$idx] = $idx;
+    }
+    // add the schema type last - we need this to view the record, and it might not be in the path
+    $items[$new_path]['page arguments']['[edan:edan_type]'] = $schema_type;
+  }
+
+  // The records list
+  $items['edan/records'] = array(
+    'title' => t('EDAN Records'),
+    'description' => t('View EDAN records.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_record_admin_view_records_form', 2, 3),
+    'access arguments' => array('administer edan content'),
+    'type' => MENU_NORMAL_ITEM
+  );
+
+  // Module settings
+  $items['admin/config/search/edan_record'] = array(
+    'title' => t('EDAN Record Administration Settings'),
+    'description' => t('Manage configurations for the EDAN Record module.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edan_record_admin_admin_form'),
+    'access arguments' => array('configure edan record admin'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function edan_record_admin_permission() {
+  $permissions_array = array(
+    'configure edan record admin' => array(
+      'title' => t('Configure EDAN Record Admin module'),
+    ),
+    'administer edan content' => array(
+    'title' => t('Administer EDAN content'),
+  )
+  );
+
+  $schema_types = _edan_record_admin_schema_types();
+  foreach($schema_types as $schema_type) {
+    $permissions_array['edit edan ' . $schema_type . ' content'] = array(
+      'title' => t('Administer EDAN @schema_type records', array('@schema_type' => $schema_type)),
+    );
+  }
+
+  return $permissions_array;
+}
+
+function edan_record_admin_theme() {
+  $templates = array (
+    'edan_record_event_admin_form' => array(
+      'render element' => 'form',
+      'template' => 'edan-record-event-admin-form', // template file edan_record_event_admin.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'form' => array(),
+      'arguments' => array(),
+      'edan_record_id' => '',
+      'schema_type' => 'event',
+    ),
+    'edan_record_museum_admin_form' => array(
+      'render element' => 'form',
+      'template' => 'edan-record-museum-admin-form', // template file edan_record_museum_admin.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'form' => array(),
+      'arguments' => array(),
+      'schema_type' => 'museum',
+    ),
+    'edan_event_page' => array(
+      'template' => 'edan-event-page', // template file edan_event_page.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'variables' => array(
+        'content' => array(),
+        'title' => '',
+        'facility_content' => array(),
+        'edan_record_id' => '',
+        'schema_type' => 'event',
+        'edit_link' => '',
+      ),
+    ),
+    'edan_events_page' => array(
+      'template' => 'edan-events-page', // template file edan_events_page.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'variables' => array(
+        'content' => array(),
+        'schema_type' => 'event',
+        'edit_link' => '',
+      ),
+    ),
+    'edan_events_block' => array(
+      'template' => 'edan-events-block', // template file edan_events_block.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'variables' => array(
+        'content' => array(),
+        'schema_type' => 'event',
+        'edit_link' => '',
+      ),
+    ),
+
+    'edan_museum_page' => array(
+      'template' => 'edan-museum-page', // template file edan_museum_page.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'variables' => array(
+        'content' => array(),
+        'title' => '',
+        'exhibition_content' => array(),
+        'imax_content' => array(),
+        'edan_record_id' => '',
+        'schema_type' => 'museum',
+        'edit_link' => '',
+      ),
+    ),
+    'edan_museums_page' => array(
+      'template' => 'edan-museums-page', // template file edan_museums_page.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'variables' => array(
+        'content' => array(),
+        'schema_type' => 'museum',
+        'edit_link' => '',
+      ),
+    ),
+    'edan_museums_block' => array(
+      'template' => 'edan-museums-block',
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'arguments' => array(
+        'content' => array(),
+        'schema_type' => 'museum',
+      ),
+    ),
+    'edan_record_concept_admin_form' => array(
+      'render element' => 'form',
+      'template' => 'edan-record-concept-admin-form', // template file edan_record_concept_admin.tpl.php
+//      'path' => drupal_get_path('module', 'edan_record_admin') . '/templates',
+      'form' => array(),
+      'arguments' => array(),
+      'edan_record_id' => '',
+      'schema_type' => 'concept',
+    ),
+  );
+  return $templates;
+}
+
+/**
+ * EDAN Content Types
+ */
+function _edan_record_admin_available_schema_types() {
+  $content_types = array(
+    '3d_box',
+    'concept',
+    'event',
+    'museum',
+    'ecr'
+  );
+  return $content_types;
+}
+
+/*
+ * Returns the actual schema types in use on this site.
+ */
+function _edan_record_admin_schema_types() {
+  $edan_record_schema_types = variable_get('edan_record_admin_schema_types', '');
+  $edan_record_schema_types_array = explode(',', $edan_record_schema_types);
+  $available_types = _edan_record_admin_available_schema_types();
+  // belt and suspenders
+  foreach($edan_record_schema_types_array as $k => $v) {
+    if(!in_array($v, $available_types)) {
+      unset($edan_record_schema_types_array[$k]);
+    }
+  }
+  return $edan_record_schema_types_array;
+}
+
+/**
+ * EDAN record view records callback
+ *
+ * @param  string  $edan_schema_type  The EDAN schema type- concept, event, museum, etc.
+ *
+ * @return  string  The page HTML generated by the theme() function
+ *
+ */
+function edan_record_admin_view_records_form($form, &$form_state, $edan_schema_type = NULL) {
+
+  $options = array();
+  $_types = _edan_record_admin_schema_types();
+
+  if(NULL !== $edan_schema_type && strlen($edan_schema_type) > 0 && !in_array($edan_schema_type, $_types)) {
+    drupal_set_message(t("Unknown EDAN Record type:") . " " . $edan_schema_type, 'error');
+    return $form;
+  }
+
+  // List of schema types for filtering and filtering validation
+  $schema_options = array();
+  foreach($_types as $t) {
+    $schema_options[$t] = $t;
+  }
+ // $selected_type = '';
+  $filtered_by_schema_type = FALSE;
+  if (strlen($edan_schema_type)) {
+    $filtered_by_schema_type = TRUE;
+    $record_values = _edan_records_load($edan_schema_type);
+  }
+  else {
+    $record_values = _edan_records_load();
+  }
+
+  // Build table rows
+  if (!empty($record_values)) {
+    foreach ($record_values as $k => $row) {
+
+      $record_id = $row['id'];
+      $schema_type = (isset($row['type']) ? $row['type'] : '');
+      $options[$record_id] = array(
+        'schema_record' => array(),
+        'schema_type' => $schema_type,
+      );
+
+      $destination = drupal_get_destination();
+      $operations = array(
+        'edit' => array(
+          'title' => t('edit'),
+          'href' => '/edan/' . $schema_type . '/' . $record_id . '/edit',
+          'query' => $destination,
+        ),
+        'delete' => array(
+          'title' => t('delete'),
+          'href' => '/edan/' . $schema_type . '/' . $record_id . '/delete',
+          'query' => $destination,
+        ),
+      );
+      $options[$record_id]['operations'] = array(
+        'data' => array(
+          '#theme' => 'links',
+          '#links' => $operations,
+          '#attributes' => array('class' => array('links', 'inline')),
+        ),
+      );
+
+      // build href to use alias configured in pathauto, or our default pattern
+      $edan_record_data = array(
+        'edan_id' => $record_id,
+        'edan_type' => $schema_type,
+        'url' => isset($row['url']) ? $row['url'] : '',
+      );
+      $view_path = _get_path_for_edan_record($schema_type, $edan_record_data);
+
+      $options[$record_id]['schema_record'] = array(
+        'data' => array(
+          '#type' => 'link',
+          '#title' => $row['title'],
+          '#href' => '/' . $view_path, // $schema_type . '/' . $record_id,
+        ),
+      );
+
+    }
+  }
+
+  // Table header
+  $header = array(
+    'schema_record' => array('data' => t('Title'), 'field' => 'schema_record'),
+    'schema_type' => array('data' => t('Record Type'), 'field' => 'schema_type'),
+    'operations' => array('data' => t('Operations')),
+  );
+  // with a query-powered tableselect, we would ordinarily set the sort field info here
+  // but since we're passing sort into to the API call above, we don't mess with it.
+
+  // Add filtering
+  $form['filters'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Filters'),
+    '#attributes' => array('class' => array('container-inline')),
+  );
+
+  if(count($_types) > 0) {
+    $form['filters']['schema_type'] = array(
+      '#type' => 'select',
+      '#title' => 'Record Type',
+      '#options' => array('' => 'Select a Type') + $schema_options,
+      '#default_value' => (true == $filtered_by_schema_type ? $edan_schema_type : ''),
+      '#suffix' => '&nbsp;&nbsp;&nbsp;&nbsp;',
+    );
+  }
+
+  $form['filters']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Filter'),
+  );
+
+  if($filtered_by_schema_type) {
+    $form['add_link'] = array(
+      '#type' => 'markup',
+      '#markup' => l('Add new', '/edan/' . $edan_schema_type . '/add', array('attributes' => array('title' => 'add new ' . $edan_schema_type))),
+    );
+  }
+
+  // Add table
+  $form['schema_records'] = array(
+    '#type' => 'tableselect',
+    '#header' => $header,
+    '#options' => $options,
+    '#empty' => t('No content available.'),
+    '#attributes' => array(),
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_submit().
+ */
+function edan_record_admin_view_records_form_submit($form, &$form_state) {
+
+  // get the schema type hidden in the form
+  $schema_type = isset($form_state['values']['schema_type']) ? $form_state['values']['schema_type'] : null;
+  if(null != $schema_type) {
+    $form_state['redirect'] = '/edan/records/' . $schema_type;
+  }
+
+}
+
+/**
+ * EDAN record manage callback
+ *
+ * @param  string  $edan_schema_type  The EDAN schema type- concept, event, museum, etc.
+ * @param  string  $edan_record_id  The record ID, or 'new'
+ * @param  string  $action  The action- 'save', 'delete' or NULL; NULL value results in viewing the edit form
+ *
+ * @return  string  The form HTML generated by the theme() function
+ *
+ */
+function edan_record_admin_manage($edan_schema_type = NULL, $edan_record_id = NULL, $action = NULL) {
+
+  $edan_schema_types = _edan_record_admin_schema_types();
+  if(NULL == $edan_schema_type || count($edan_schema_types) == 0 || !in_array($edan_schema_type, $edan_schema_types)) {
+    return MENU_NOT_FOUND;
+  }
+
+  $this_record_id = $edan_record_id;
+  $this_action = $action;
+
+  if(NULL !== $edan_record_id && $edan_record_id == 'add') {
+    $this_action = 'add';
+    $this_record_id = NULL;
+  }
+  elseif(NULL !== $edan_record_id && (NULL == $action || strlen(trim($action)) == 0)) {
+    // when viewing a record our path is like /edan/museum/[RECORD_ID]
+    $this_action = 'view';
+  }
+
+  $acceptable_actions = array('add', 'delete', 'edit', 'view');
+  if(NULL == $this_action || !in_array($this_action, $acceptable_actions)) {
+    return MENU_NOT_FOUND;
+  }
+
+  // final test- if we're trying to delete, edit or view without a record id, bomb
+  if(NULL == $this_record_id && ($this_action == 'delete' || $this_action == 'edit' || $this_action == 'view')) {
+    return MENU_NOT_FOUND;
+  }
+
+  if($this_action == 'delete') {
+    // Build the form
+    $form = drupal_get_form('edan_record_admin_delete_form', $edan_schema_type,  $this_record_id);
+  }
+  elseif($this_action  == 'view') {
+  //@todo- this is interesting, we need to dynamically figure out which param to use to pass the record_id
+    return(edan_record_admin_view_record($edan_schema_type, $this_record_id));
+  }
+  elseif($this_action  == 'edit' || $this_action  == 'add') {
+    // Build the form
+    $form = drupal_get_form('edan_record_admin_manage_form', $edan_schema_type,  $this_record_id);
+    // if the template doesn't exist for this schema type, it gets ignored
+    $form['#theme'] = 'edan_record_' . $edan_schema_type . '_admin_form';
+  }
+
+  // customize the title
+  $uc_action = NULL == $this_action ? 'Create' : ucwords($this_action);
+  $uc_schema_type = ucwords($edan_schema_type);
+  drupal_set_title($uc_action . " " . $uc_schema_type);
+
+  // render the form
+  return $form;
+}
+
+/*
+ * Some or most of these params might be NULL.
+ * The last non-NULL param will be the schema type.
+ */
+function edan_record_admin_view_record($param0 = NULL, $param1 = NULL, $param2 = NULL, $param3 = NULL, $param4 = NULL, $param5 = NULL) {
+
+  $edan_schema_type = NULL;
+  $last_param_pos = NULL;
+
+  // the last parameter gives us the schema type
+  for($i = 5; $i > -1; $i--) {
+    $tmp = ${'param' . $i};
+    if(NULL !== $tmp) {
+      $edan_schema_type = $tmp;
+      $last_param_pos = $i;
+      break;
+    }
+  }
+
+  // the second-to-last parameter will be 'all' if we're viewing all of the records of this edan content type
+  $all_indicator = '';
+  if($last_param_pos > 0) {
+    $i = $last_param_pos - 1;
+    $all_indicator = ${'param' . $i};
+  }
+
+  // If the schema_type is NULL or not available, fail right away.
+  $edan_schema_types = _edan_record_admin_schema_types();
+  if(NULL == $edan_schema_type || count($edan_schema_types) == 0 || !in_array($edan_schema_type, $edan_schema_types)) {
+    return MENU_NOT_FOUND;
+  }
+
+  // If pathauto is in use, the params we get may not be in the order we expect.
+  // Get the order and type of the incoming parameters according to pathauto, or according to our default pattern.
+  // Set the values we need based on the resulting params.
+  $incoming_pattern = _get_default_path_pattern();
+  if(module_exists('pathauto')) {
+    $incoming_pattern = pathauto_pattern_load_by_entity('edan_record_admin', $edan_schema_type, LANGUAGE_NONE);
+  }
+
+  $incoming_params = explode('/', $incoming_pattern);
+  // These are possible values which are unique per record. We need at least one.
+  $unique_keys = array(
+    '[edan:edan_id]',
+    '[edan:url]',
+  );
+
+  $existing_unique_keys = array_intersect($unique_keys, $incoming_params);
+  if(count($existing_unique_keys) < 1) {
+    // we don't have a unique id to use to find this record
+    // return with error
+    drupal_set_message('Fatal error: edan_record_admin_view_record() cannnot find a unique identifier for this record. The Pathauto pattern for this alias must include ID, URL, or Title.', 'error');
+    return '';
+  }
+
+  // defaults:
+  $edan_record_id = NULL;
+  $edan_record_uri = NULL;
+
+  foreach($existing_unique_keys as $k => $key_name) {
+    $arr_pos = array_keys($incoming_params, $key_name);
+    foreach($arr_pos as $vk => $vk_value) {
+      if($vk < 5) { // because we have only 5 possible variables
+        $tmp = ${'param' . $vk_value};
+        switch($key_name) {
+          case '[edan:edan_id]':
+            $edan_record_id = $tmp;
+            break;
+          case '[edan:url]':
+            $edan_record_uri = $edan_schema_type . ':' . $tmp;
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  }
+
+  if($all_indicator == 'all') {
+    return(edan_record_admin_view_records($edan_schema_type));
+  }
+  else {
+
+    if (NULL !== $edan_record_id) {
+      $edan_record = _edan_record_view_load($edan_record_id);
+    }
+    elseif (NULL !== $edan_record_uri) {
+      $edan_record = _edan_record_view_load($edan_record_id, 'uri', $edan_record_uri);
+    }
+    $edan_record['record_type'] = $edan_schema_type;
+
+    $vars = array(
+      'content' => $edan_record,
+      'title' => $edan_record['title'],
+      'edan_record_id' => $edan_record_id,
+      'schema_type' => $edan_schema_type,
+      'edit_link' => '/edan/' . $edan_schema_type . '/' . $edan_record_id . '/edit',
+    );
+
+    drupal_add_css(
+      drupal_get_path('module', 'edan_record_admin') . '/css/edan_record_admin.css',
+      array('group' => CSS_THEME, 'type' => 'file', 'weight' => 91)
+    );
+
+    // for events we want to also pass the location info
+    if($edan_schema_type == 'event') {
+      $facility_id = isset($edan_record['location']['extended']['facet_edan_facility_id'])
+      ? $edan_record['location']['extended']['facet_edan_facility_id'] : false;
+
+      if(false == $facility_id) {
+        $facility_id = isset($edan_record['field_edan_facility_id']) && strlen($edan_record['field_edan_facility_id']) > 0
+          ? $edan_record['field_edan_facility_id'] : false;
+      }
+
+      if($facility_id) {
+        $facility_record = _edan_record_view_load($facility_id);
+        $vars['facility_content'] = $facility_record;
+      }
+    }
+    elseif($edan_schema_type == 'museum') {
+      $facility_id = $edan_record['id'];
+      $exhibition_records = _edan_records_view_load('event', $facility_id, 'exhibition');
+      $imax_records = _edan_records_view_load('event', $facility_id, 'imax-movie');
+      $vars['exhibition_content'] = $exhibition_records;
+      $vars['imax_content'] = $imax_records;
+    }
+
+    $record_title = isset($edan_record['title']) ? $edan_record['title'] : '';
+    drupal_set_title($record_title);
+
+    if(module_exists('devel') && isset($_GET['dpm']) && user_access('access devel information')) {
+      dpm($edan_record);
+      return theme('edan_' . $edan_schema_type . '_page', $vars);
+    }
+    else if (isset($_GET['dump'])) {
+      return $edan_record_id . ': <pre>' . var_export($edan_record, TRUE) . '</pre>';
+    }
+    else {
+      return theme('edan_' . $edan_schema_type . '_page', $vars);
+    }
+  }
+}
+
+function edan_record_admin_view_records($edan_schema_type = NULL) {
+
+  $edan_schema_types = _edan_record_admin_schema_types();
+  if(NULL == $edan_schema_type || count($edan_schema_types) == 0 || !in_array($edan_schema_type, $edan_schema_types)) {
+    return MENU_NOT_FOUND;
+  }
+
+  $rows = _edan_records_load($edan_schema_type);
+  $edan_records = array();
+  foreach($rows as $row) {
+    $record_id = $row['id'];
+    $record = _edan_record_view_load($record_id);
+    $edan_records[$record_id] = $record; // $record['content'];
+  }
+
+  $vars = array(
+    'content' => $edan_records,
+    'schema_type' => $edan_schema_type,
+  );
+
+  drupal_add_css(
+    drupal_get_path('module', 'edan_record_admin') . '/css/edan_record_admin.css',
+    array('group' => CSS_THEME, 'type' => 'file', 'weight' => 91)
+  );
+
+  drupal_set_title("");
+  //@todo- plural is by only adding an s- might have to get more creative with template names?
+  if(module_exists('devel') && isset($_GET['dpm']) && user_access('access devel information')) {
+    dpm($edan_records);
+    return theme('edan_' . $edan_schema_type . 's_page', $vars);
+  }
+  else if (isset($_GET['dump'])) {
+    return '<pre>' . var_export($edan_records, TRUE) . '</pre>';
+  }
+  else {
+    return theme('edan_' . $edan_schema_type . 's_page', $vars);
+  }
+
+}
+
+/**
+ * Form for creating and editing a record.
+ * @param $form
+ * @param $form_state
+ * @param null $edan_schema_type  The schema type such as museum, exhibition, or concept.
+ * @param null $edan_record_id  The ID of this museum, exhibition or concept.
+ * @return mixed
+ */
+function edan_record_admin_manage_form($form, &$form_state, $edan_schema_type = NULL, $edan_record_id = NULL) {
+
+  // make sure we have a valid schema type and valid record id
+  $edan_schema_types = _edan_record_admin_schema_types();
+  if(NULL == $edan_schema_type || count($edan_schema_types) == 0 || !in_array($edan_schema_type, $edan_schema_types)) {
+    return $form;
+  }
+
+  // use record id to get EDAN record, populate the form
+  $record_values = _edan_record_load($edan_record_id);
+
+  if(NULL !== $edan_record_id) {
+    //$view_link_text = l(t('View ') . ' ' . $edan_schema_type, '/edan/' . $edan_schema_type . '/' . $edan_record_id, array('attributes' => array('title' => t('view record'))));
+    $edan_record_data = array('edan_id' => $edan_record_id, 'edan_type' => $edan_schema_type, 'url' => $record_values['url']);
+    $view_link_text = l(t('View ') . ' ' . $edan_schema_type,
+      _get_path_for_edan_record($edan_schema_type, $edan_record_data),
+      array('attributes' => array('title' => t('view record'))));
+    $form['view_link'] = array(
+      '#weight' => 0,
+      '#type' => 'markup',
+      '#markup' => $view_link_text,
+    );
+  }
+
+  // Get the authoringForm json data.
+  $fields = _edan_record_schema_load($edan_schema_type, TRUE);
+  _edan_record_admin_add_fields($fields, $record_values, $form, $form_state);
+  // Set a submit handler manually because the default submit handler
+  // gets overridden by the system_settings_form() submit handler.
+  //$form['#submit'][] = 'edan_record_admin_form_submit';
+
+  drupal_add_css(
+    drupal_get_path('module', 'edan_record_admin') . '/css/edan_record_admin.css',
+    array('group' => CSS_THEME, 'type' => 'file', 'weight' => 91)
+  );
+  // drupal_add_library('system','ui.dialog');
+  // drupal_add_library('system','ui.tabs');
+  unset($form['options']['promote']);
+  unset($form['options']['sticky']);
+
+  // hook_form_alter cannot be used to hide the 'URL path settings' fieldset
+  // since the fieldset is added in path_form_alter, which runs after node_form_alter.
+  // To get around this, use #after_build.
+  //$form['#after_build'][] = '_form_after_build';
+
+
+  $form['schema_type'] = array(
+    '#type' => 'hidden',
+    '#value' => $edan_schema_type,
+  );
+
+//  $form['#submit'] = array("edan_record_admin_manage_form_submit_handler");
+
+  // Provide a submit button.
+  $form['actions'] = array(
+    '#weight' => 500,
+  );
+
+  $form['#submit'][] = 'edan_record_admin_manage_form_submit_handler';
+
+  $form['actions']['save'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+  );
+
+  // for existing records, show delete button
+  if(NULL != $edan_record_id) {
+    $form['record_ID']['#value'] = $edan_record_id;
+
+    $form['actions']['delete'] = array(
+      '#type' => 'submit',
+      '#value' => 'Delete',
+    );
+  }
+
+  return $form;
+}
+
+function edan_record_admin_manage_form_submit_handler($form, &$form_state) {
+
+  // get the schema type hidden in the form
+  $schema_type = isset($form_state['values']['schema_type']) ? $form_state['values']['schema_type'] : '';
+  if(strlen($schema_type) < 1) {
+    //@todo fail and watchdog
+  }
+  //@todo check for valid schema type
+
+  $record_id = isset($form_state['values']['record_ID']) ? $form_state['values']['record_ID'] : '';
+  $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
+  $trigger_element = isset($form_state['triggering_element']) ? $form_state['triggering_element']['#value'] : '';
+  if(strlen($op) < 1) {
+    //@todo fail
+  }
+  elseif($op == 'Delete' && $op == $trigger_element) {
+    // redirect to delete confirmation
+    $form_state['redirect'] = '/edan/' . $schema_type . '/' . $record_id . '/delete';
+  }
+  elseif($op == 'Save' && $op == $trigger_element) {
+    // Load the record definition for this schema_type.
+    $fields = _edan_record_schema_load($schema_type, TRUE);
+
+    // Generate JSON from the form values.
+    $values_array = array();
+    foreach($form_state['values'] as $input_key => $input_value) {
+
+      // if !array_key_exists then
+      //unset($form_state['input'][$input_key]);
+      if(array_key_exists($input_key, $fields)) {
+        // Process arrays of data.
+        if(is_array($input_value)) {
+          // Process dates for EDAN.
+          if(array_key_exists('month', $input_value)) {
+            $date_string = $input_value['year'] . '-' . sprintf("%02d", $input_value['month']) .  '-' . sprintf("%02d", $input_value['day']);
+            //$form_state['input'][$input_key] = $date_string;
+            $values_array[$input_key] = $date_string;
+          }
+          // Process full_html.
+          if(array_key_exists('format', $input_value)) {
+            //$form_state['input'][$input_key] = $input_value['value'];
+            $values_array[$input_key] = $input_value['value'];
+          }
+        }
+        else {
+          $values_array[$input_key] = $input_value;
+        }
+      }
+    }
+
+    // submit the change- do editContent or createContent depending.
+
+    /*
+     * Add or edit a record.
+     */
+    $content_json = urlencode(json_encode($values_array));
+
+    // content/v1.0/admincontent/createContent.htm
+    // content/v1.0/admincontent/editContent.htm
+    $title = get_title_for_schematype($schema_type, $values_array);
+
+    if(NULL == $record_id || strlen($record_id) < 1 ) {
+      $endpoint = "content/v1.0/admincontent/createContent.htm";
+      $uri = 'type=' . urlencode($schema_type) . '&title=' . urlencode($title) . '&content=' . $content_json;
+      //dpm($content_json);
+      //$uri = 'type=3d_box&title=' . urlencode($title) . '&content=' . $content_json . $record_id;
+    }
+    else {
+      // edit content
+      $endpoint = "content/v1.0/admincontent/editContent.htm";
+      $uri = 'id=' . $record_id . '&type=' . urlencode($schema_type) . '&title=' . urlencode($title) . '&content=' . $content_json;
+    }
+    $info = '';
+
+    $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+    $edan_auth_key = variable_get('edan_auth_key', '');
+    $edan_tier_type = variable_get('edan_tier_type', '0');
+    $edan_app_id = variable_get('edan_app_id', '');
+
+    $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+    $send_request = $edan->sendRequest(
+      $uri
+      ,$endpoint
+      ,FALSE
+      ,$info
+    );
+
+    $result = json_decode($send_request, TRUE);
+
+    // Need to figure out what action to take if there's an error.
+    if(empty($result['error'])) {
+      $data = $result;
+      $form_state['redirect'] = '/edan/records/' . $schema_type;
+      drupal_set_message("Record saved.");
+    }
+    else {
+      drupal_set_message('EDAN error:' . $result['error'], 'error');
+    }
+    //@todo
+
+    //@todo when endpoints are ready do a getSchema() then validate() then createContent()
+    /*
+    $response = _edan_call_edan('validate', array(
+        'type' => 'type:' . $schema_type,
+        'content' =>  json_encode($values_array, JSON_PRETTY_PRINT | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS),
+      )
+    );
+    //@todo test successful validation
+
+    $response = _edan_call_edan('createContent',
+      array('type' => 'type:' . $schema_type,
+        'title' => '',
+        'content' => json_encode($values_array, JSON_PRETTY_PRINT | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS)
+      )
+    );
+    */
+    //@todo test $response and report on success/fail
+  }
+}
+
+function edan_record_admin_delete_form($form, &$form_state, $edan_schema_type = NULL, $edan_record_id = NULL) {
+
+  if(NULL == $edan_schema_type || NULL == $edan_record_id) {
+    return MENU_NOT_FOUND;
+  }
+  //@todo test schema type and record id
+
+  //@todo- test to make sure this record_id exists; if not, redirect to list of content
+  //@todo 404 if try to edit or delete a non-existent record id
+
+
+  $form = array();
+  $form['record_ID'] = array(
+    '#type' => 'hidden',
+    '#value' => $edan_record_id,
+  );
+
+  $form['schema_type'] = array(
+    '#type' => 'hidden',
+    '#value' => $edan_schema_type,
+  );
+
+  $form['message'] = array(
+    '#type' => 'markup',
+    '#markup' => '<p>' . t('Are you sure you want to the @schema_type record with id @record_id?' . '</p>',
+        array('@schema_type' => $edan_schema_type, '@record_id' => $edan_record_id)),
+    '#weight' => 0,
+  );
+
+  $form['actions']['delete'] = array(
+    '#type' => 'submit',
+    '#value' => 'Delete',
+    '#weight' => 10,
+  );
+  $form['actions']['cancel'] = array(
+    '#type' => 'submit',
+    '#value' => 'Cancel',
+    '#weight' => 20,
+  );
+
+  return $form;
+
+}
+
+/**
+ * Implements hook_submit().
+ */
+function edan_record_admin_delete_form_submit($form, &$form_state) {
+
+  // get the schema type hidden in the form
+  $schema_type = isset($form_state['values']['schema_type']) ? $form_state['values']['schema_type'] : '';
+  if(strlen($schema_type) < 1) {
+    //@todo fail and watchdog
+  }
+  //@todo check for valid schema type
+
+  $uc_schema_type = ucwords($schema_type);
+  $record_id = isset($form_state['values']['record_ID']) ? $form_state['values']['record_ID'] : '';
+
+  if($form_state['values']['op'] == 'Cancel') {
+    $form_state['redirect'] = '/edan/' . $schema_type . '/' . $record_id . '/edit';
+    return;
+  }
+
+  $response = _edan_call_edan('releaseContent',
+    array( #'type' => 'type:' . $schema_type,
+      'type' => $schema_type,
+      'id' => $record_id,
+    )
+  );
+
+  //@todo test $response and report on success/fail
+  //dpm($response);
+
+  if(isset($response['message']) && $response['message'] == 'content released') {
+    drupal_set_message($uc_schema_type . " was deleted.");
+  }
+  else {
+    //@todo
+    $form_state['redirect'] = '/edan/' . $schema_type . '/' . $record_id . '/edit';
+  }
+
+}
+
+function edan_record_admin_admin_form() {
+  $form = array();
+  $options = array();
+  $checked = array();
+
+  // Get all of the schema types.
+  $available_types = _edan_record_admin_available_schema_types();
+  $our_types = _edan_record_admin_schema_types();
+
+  if(count($available_types) > 0) {
+    // Create the options and checked arrays.
+    $i = 0;
+    foreach($available_types as $value) {
+      // Options
+      $options[] = ucwords($value);
+      if(in_array($value, $our_types)) {
+        $checked[] = $i;
+      }
+      $i++;
+    }
+    $form['edan_record_admin_settings']['record_types'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('EDAN Record Types'),
+      '#description' => t("Enable or disable which record types are available."),
+      '#options' => $options,
+      '#default_value' => $checked,
+    );
+  }
+
+  // Set a submit handler manually because the default submit handler
+  // gets overridden by the system_settings_form() submit handler.
+  $form['#submit'][] = 'edan_record_admin_admin_form_submit';
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_submit().
+ */
+function edan_record_admin_admin_form_submit($form, &$form_state) {
+  $edan_record_admin_schema_types_array = array();
+  foreach($form['edan_record_admin_settings']['record_types'] as $key => $value) {
+    if(is_numeric($key)) {
+      if($value['#checked']) {
+        $edan_record_admin_schema_types_array[] = strtolower($value['#title']);
+      }
+    }
+  }
+  $edan_record_admin_schema_types = implode(',', $edan_record_admin_schema_types_array);
+  variable_set('edan_record_admin_schema_types', $edan_record_admin_schema_types);
+
+  drupal_set_message('Active content types have been successfully modified.');
+}
+
+/**
+ * Adds fields to $form (passed by reference). Each field is processed individually by
+ * _edan_record_admin_add_field().
+ *
+ * TODO: Are all the params necessary? Could they be consolidated into a single param array?
+ */
+function _edan_record_admin_add_fields($fields, $record_values, &$form, &$form_state) {
+/*
+  $params = array('type' => 'exhibition');
+  $results = _edan_call_edan('getSchema', $params);
+  dpm($results);
+*/
+
+  foreach ($fields as $field_key => $field) {
+    if($field_key !== 'title') {
+      if(count($record_values) > 0) {
+        // existing record
+        $field['default'] = isset($record_values[$field_key]) ? $record_values[$field_key] : '';
+      }
+      _edan_record_admin_add_field($field_key, $field, $form, $form_state);
+    }
+  }
+
+}
+
+/**
+ * Processes an individual field and adds it to $form (passed by reference).
+ * Custom field types may be processed by support functions called from here.
+ */
+function _edan_record_admin_add_field($field_key, $field, &$form, &$form_state) {
+
+  $type = $field['field_type'];
+  
+  // $field_key = (isset($field['id'])) ? $field['id'] : 'field' . $field_index;
+  // $default = (isset($default_data[$field_key])) ? $default_data[$field_key] : '';
+  $default = isset($field['default']) ? $field['default'] : '';
+
+  // // allow override of default data from $field
+  // if (isset($field['default'])) {
+  //   $default = $field['default'];
+  // }
+
+  $label = (isset($field['label'])) ? $field['label'] : '';
+  // $item_parents = array_merge($parents, array($field_key));
+
+  // $class_list = array('form-transcriptData-field');
+  // if (isset($field['class'])) {
+  //   array_push($class_list, $field['class']);
+  // }
+
+  // If multiple is set, actually create the field and field instance,
+  // so the interface can switch to support multiple entries.
+  if (($type === 'textfield') && isset($field['multiple']) && !empty($field['multiple'])) {
+    // Make sure the field doesn't already exist.
+    if (!field_info_field($field_key)) {
+      //@todo values
+
+      // Create the field.
+      $new_field = array(
+        'field_name' => $field_key,
+        'type' => 'text',
+        'settings' => array(
+          'max_length' => isset($new_field['maxlength']) ? intval(str_replace(',', '', $new_field['maxlength'])) : 128,
+        ),
+        'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      );
+      field_create_field($new_field);
+      // Create the instance.
+      $instance = array(
+        'field_name' => $field_key,
+        'entity_type' => 'node',
+        'bundle' => $form['type']['#value'],
+        'label' => $label,
+        'description' => 'Enter keywords for this ' . $form['type']['#value'],
+        'required' => FALSE,
+        'widget' => array('weight' => isset($field['weight']) ? $field['weight'] : -1),
+      );
+      field_create_instance($instance);
+      watchdog('edan_record_admin', t('!field_name was added successfully.', array('!field_name' => $field_key)));
+    }
+    else {
+      watchdog('edan_record_admin', t('Did not add the field. !field_name already exists.', array('!field_name' => $field_key)));
+    }
+  }
+  elseif($type === 'fieldset') {
+
+    // Define base field
+    $form[$field_key] = array(
+      '#title' => t($label),
+      '#type' => $type,
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+    );
+
+    if (isset($field['weight']) && !empty($field['weight'])) {
+      $form[$field_key]['#weight'] = $field['weight'];
+    }
+
+    // Build out the fieldset's fields.
+    if (isset($field['properties']) && !empty($field['properties'])) {
+      foreach($field['properties'] as $property_key => $property_value) {
+        $form[$field_key][$property_key] = array(
+          '#type' => $property_value['field_type'],
+          '#title' => t($property_value['label']),
+          '#default_value' => '',
+          '#size' => isset($field['size']) ? $field['size'] : 60,
+          '#maxlength' => $property_value['maxlength'],
+          '#required' => FALSE
+        );
+      }
+    }
+
+  } else {
+
+    // Define base field
+    $form[$field_key] = array(
+      '#title' => t($label),
+      '#type' => $type,
+      '#default_value' => $default,
+      // '#attributes' => array('class' => $class_list),
+      // '#parents' => $item_parents
+    );
+
+    // Add specific attributes - Consult Drupal's Form API docs
+
+    if (isset($field['prefix']) && !empty($field['prefix'])) {
+      $form[$field_key]['#prefix'] = $field['prefix'];
+    }
+
+    if (isset($field['suffix']) && !empty($field['suffix'])) {
+      $form[$field_key]['#suffix'] = '<div class="form-item">' . $field['suffix'] . '</div>';
+    }
+
+    if (isset($field['value'])) { // Hidden fields
+      $form[$field_key]['#value'] = $field['value'];
+    }
+
+    if (isset($field['maxlength'])) {
+      $form[$field_key]['#maxlength'] = intval(str_replace(',', '', $field['maxlength']));
+    }
+
+    if (isset($field['options'])) {
+      $form[$field_key]['#options'] = $field['options'];
+    }
+
+    if (isset($field['resizable'])) {
+      $form[$field_key]['#resizable'] = (bool)$field['resizable'];
+    }
+
+    if (isset($field['weight']) && !empty($field['weight'])) {
+      $form[$field_key]['#weight'] = $field['weight'];
+    }
+
+    if (isset($field['autocompleteSource']) && !empty($field['autocompleteSource'])) { // Autocomplete
+      // add #autocomplete to $form [ $field_key ]['#autocomplete_path']
+      // path is transcribe/autocomplete/<field_key>
+      // TODO: field_key should really be the value of autocompleteSource but that's not ready yet.
+      $form[$field_key]['#autocomplete_path'] = 'transcribe/autocomplete/' . $field['autocompleteSource'];
+    }
+
+    if (isset($field['data-']) && is_array($field['data-'])) { // HTML5-style data-XXX attributes
+      foreach ($field['data-'] as $data_key => $data_value) {
+        $form[$field_key]['#attributes']['data-' . $data_key] = $data_value;
+      }
+    }
+
+    // Type-specific modifiers
+
+    if ($type == 'textfield') {
+      $form[$field_key]['#size'] = isset($field['size']) ? $field['size'] : 60;
+    }
+
+    if ($type == 'textarea') {
+      // cols
+      $cols = isset($field['cols']) ? $field['cols'] : 30;
+      $form[$field_key]['#cols'] = $cols;
+      // rows
+      $rows = isset($field['rows']) ? $field['rows'] : 5;
+      $form[$field_key]['#rows'] = $rows;
+    }
+
+    if ($type == 'text_format') {
+      // Support full HTML.
+      $form[$field_key]['#format'] = 'full_html';
+    }
+
+  }
+
+  return;
+}
+
+function _edan_records_load($schema_type = null) {
+
+  $edan_record_data = array();
+
+  $edan_schema_types = _edan_record_admin_schema_types();
+  if(NULL != $schema_type && (count($edan_schema_types) == 0 || !in_array($schema_type, $edan_schema_types)) ) {
+    return MENU_NOT_FOUND;
+  }
+
+  $params = array();
+  if(NULL !== $schema_type && strlen($schema_type) > 0) {
+    $params = array(
+      'type' => $schema_type,
+      'status' => 0,
+    );
+  }
+  else {
+    return;
+  }
+
+  $params['rows'] = 1000;
+
+  // /content/v1.0/content/getContentRows.htm
+  // accepts id as param, type as param. start as param, rows as param.
+  $response = _edan_call_edan('getContentRecords', $params);
+
+  if(isset($response['rows'])) {
+    $edan_record_data = $response['rows'];
+  }
+
+  /*
+      $edan_record_data = array(
+        'm123456789' => array('id' => '123456789',
+          'schema_type' => 'museum',
+          'title' => 'National Air and Space Museum',
+          'acronymn' => 'NASM',
+          'short_name' => 'Air and Space',
+          'unit' => 'NASM',
+        ),
+        'm345646564' => array('id' => '345646564',
+          'schema_type' => 'museum',
+          'title' => 'Smithsonian American Art Museum',
+          'acronymn' => 'SAAM',
+          'short_name' => 'American Art',
+          'unit' => 'SAAM',
+        ),
+        'm657455756757' => array('id' => '657455756757',
+          'schema_type' => 'museum',
+          'title' => 'National Portrait Gallery',
+          'acronymn' => 'NPG',
+          'short_name' => 'National Portrait Gallery',
+          'unit' => 'NPG',
+        ),
+        'm23586645' => array('id' => '23586645',
+          'schema_type' => 'museum',
+          'title' => 'Archives of American Art',
+          'acronymn' => 'AAA',
+          'short_name' => 'Archives of American Art',
+          'unit' => 'AAA',
+        ),
+        'm86789235234' => array('id' => '86789235234',
+          'schema_type' => 'museum',
+          'title' => 'National Museum of American History',
+          'acronymn' => 'NMAH',
+          'short_name' => 'American History',
+          'unit' => 'NMAH',
+        ),
+      );
+    }
+  */
+
+  return $edan_record_data;
+}
+
+function _edan_record_load($edan_record_id = NULL) {
+
+  //@todo test $edan_record_id for expected values
+  //@test schema_type for allowed values
+  // we need to have either the record id or the type
+
+  $edan_record_data = array();
+
+  if(NULL !== $edan_record_id && strlen($edan_record_id) > 0) {
+    //$id = "p1b-1456242918501-1459450038050-0";
+
+    $endpoint = "content/v1.0/admincontent/getContent.htm";
+    $info = '';
+    $uri = "id=" . $edan_record_id;
+
+    $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+    $edan_auth_key = variable_get('edan_auth_key', '');
+    $edan_tier_type = variable_get('edan_tier_type', '0');
+    $edan_app_id = variable_get('edan_app_id', '');
+
+    $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+    $send_request = $edan->sendRequest(
+      $uri
+      ,$endpoint
+      ,FALSE
+      ,$info
+    );
+
+    $result = json_decode($send_request, TRUE);
+
+    if(isset($result['content'])) {
+      $edan_record_data = $result['content'];
+      $edan_record_data['edan_url'] = isset($result['url']) ? $result['url'] : '';
+      $edan_record_data['title'] = isset($result['title']) ? $result['title'] : '';
+      $edan_record_data['lastTimeUpdated'] = isset($result['lastTimeUpdated']) ? $result['lastTimeUpdated'] : '';
+      $edan_record_data['status'] = isset($result['status']) ? $result['status'] : '';
+      $edan_record_data['publicSearch'] = isset($result['publicSearch']) ? $result['publicSearch'] : '';
+    }
+
+    /*
+    $edan_record_data = array(
+      'id' => '123456789',
+      'title' => 'National Air and Space Museum',
+      'acronymn' => 'NASM',
+      'short_name' => 'Air and Space',
+      'unit' => 'NASM',
+    );
+    */
+  }
+
+  return $edan_record_data;
+}
+
+function _edan_records_view_load($schema_type = null, $parent_record_id = NULL, $event_type = NULL) {
+
+  //@todo test $edan_record_id for expected values
+  //@test schema_type for allowed values
+  // we need to have either the record id or the type
+
+  $edan_record_data = array();
+
+  //$id = "p1b-1456242918501-1459450038050-0";
+
+  $endpoint = "metadata/v1.0/metadata/search.htm";
+  $info = '';
+  $uri = NULL;
+  if(NULL !== $schema_type && strlen($schema_type) > 0) {
+    $params = array(
+      'status' => 0,
+    );
+  }
+  else {
+    return array();
+  }
+
+  if($schema_type == 'event' && NULL !== $parent_record_id && strlen($parent_record_id) > 0) {
+    // "p.event.location.extended.facet_edan_facility_id:p1b-1461351448247-1463403445925-0"
+    if(NULL !== $event_type) {
+      if($event_type == 'exhibition') {
+        $params['fqs'] = '["type:event","p.event.event_type:' . $event_type . '","p.event.location.extended.facet_edan_facility_id:' . $parent_record_id . '", "p.event.status:\"On View\""]';
+      }
+      elseif($event_type == 'imax-movie') {
+        $params['fqs'] = '["type:event","p.event.event_type:' . $event_type . '","p.event.field_edan_facility_id:' . $parent_record_id . '"]';
+      }
+    }
+    if(!isset($params['fqs'])) {
+      $params['fqs'] = '["type:event","p.event.event_type:UNKNOWN", "p.event.location.extended.facet_edan_facility_id:' . $parent_record_id . '"]';
+    }
+    //  $params['fqs'] = '["type:event", "p.event.status:\"On View\""]';
+    $params['rows'] = '100';
+  }
+  $uri = drupal_http_build_query($params);
+
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+  $send_request = $edan->sendRequest(
+    $uri
+    ,$endpoint
+    ,FALSE
+    ,$info
+  );
+
+  $result = json_decode($send_request, TRUE);
+
+  if(isset($result['content'])) {
+    $edan_record_data = $result['content'];
+    $edan_record_data['edan_url'] = isset($result['url']) ? $result['url'] : '';
+    $edan_record_data['title'] = isset($result['title']) ? $result['title'] : '';
+    $edan_record_data['lastTimeUpdated'] = isset($result['lastTimeUpdated']) ? $result['lastTimeUpdated'] : '';
+    $edan_record_data['status'] = isset($result['status']) ? $result['status'] : '';
+    $edan_record_data['publicSearch'] = isset($result['publicSearch']) ? $result['publicSearch'] : '';
+  }
+  elseif(isset($result['items'])) {
+    foreach($result['items'] as $i => $item) {
+      // get the nice/local path for this content type and this record
+
+      // id, record_type, edan_url convert to edan_id, edan_type, url
+      // edan urls look like museum:national-museum-of-american-history
+      // replace the schema + colon with nothing
+      $item['record_type'] = $item['type'];
+      $edan_url = str_replace($item['record_type'] . ':', '', $item['url']);
+      $path_data = array('edan_id' => $item['id'],
+        'edan_type' => $item['record_type'],
+        'url' => $edan_url
+      );
+      $item['local_path'] = _get_path_for_edan_record($item['record_type'], $path_data);
+      $result['items'][$i] = $item;
+
+    }
+    $edan_record_data = $result['items'];
+
+  }
+
+  return $edan_record_data;
+}
+
+function _edan_record_view_load($edan_record_id = NULL, $by_field = NULL, $field_value = NULL) {
+
+  //@todo test $edan_record_id for expected values
+  //@test schema_type for allowed values
+  // we need to have either the record id or the type
+
+  $edan_record_data = array();
+
+  //$id = "p1b-1456242918501-1459450038050-0";
+
+  $endpoint = "content/v1.0/content/getContent.htm";
+  $info = '';
+  $uri = NULL;
+  if(NULL !== $by_field) {
+    if($by_field == 'uri') {
+      $uri = "url=" . $field_value;
+    }
+  }
+  elseif(NULL !== $edan_record_id && strlen($edan_record_id) > 0) {
+    $uri = "id=" . $edan_record_id;
+  }
+  else {
+    return array();
+  }
+
+  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_auth_key = variable_get('edan_auth_key', '');
+  $edan_tier_type = variable_get('edan_tier_type', '0');
+  $edan_app_id = variable_get('edan_app_id', '');
+
+  $edan = new EDAN\EDANInterface($edan_server, $edan_app_id, $edan_auth_key, $edan_tier_type);
+
+  $send_request = $edan->sendRequest(
+    $uri
+    ,$endpoint
+    ,FALSE
+    ,$info
+  );
+
+  $result = json_decode($send_request, TRUE);
+
+  if(isset($result['content'])) {
+    $edan_record_data = $result['content'];
+    $edan_record_data['edan_url'] = isset($result['url']) ? $result['url'] : '';
+    $edan_record_data['id'] = $result['id'];
+    if($result['type'] == 'event') {
+      $edan_record_data['title'] = isset($result['content']['title']['content']) ? $result['content']['title']['content'] : '';
+    }
+    else {
+      $edan_record_data['title'] = isset($result['title']) ? $result['title'] : '';
+    }
+    $edan_record_data['lastTimeUpdated'] = isset($result['lastTimeUpdated']) ? $result['lastTimeUpdated'] : '';
+    //@todo - EDAN gives a status also $edan_record_data['status'] = isset($result['status']) ? $result['status'] : '';
+    $edan_record_data['publicSearch'] = isset($result['publicSearch']) ? $result['publicSearch'] : '';
+
+    // id, record_type, edan_url convert to edan_id, edan_type, url
+    // edan urls look like museum:national-museum-of-american-history
+    // replace the schema + colon with nothing
+    if(!isset($edan_record_data['record_type'] )) {
+      if(isset($edan_record_data['event_type'])) {
+        $edan_record_data['record_type'] = 'event';
+      }
+    }
+    $edan_url = str_replace($edan_record_data['record_type'] . ':', '', $edan_record_data['edan_url']);
+    $path_data = array('edan_id' => $edan_record_data['id'],
+      'edan_type' => $edan_record_data['record_type'],
+      'url' => $edan_url
+    );
+    $edan_record_data['local_path'] = _get_path_for_edan_record($edan_record_data['record_type'], $path_data);
+
+  }
+
+    // do we have an Object Group ID?
+    $object_group = array();
+
+  if(module_exists('ogmt') && isset($edan_record_data['edan_object_group_id'])) {
+    $ec = get_edan_connection();
+    $object_group = new \EDAN\OGMT\ObjectGroup($ec);
+    $object_group->load($edan_record_data['edan_object_group_id'], FALSE);
+
+    if(count($object_group->getErrors()) < 1) {
+      $object_group_vars = array(
+        'content' => $object_group->body,
+        'objectGroupImageUri' => '',
+        'menu' => _ogmt_build_menu($object_group),
+        'objectGroupId' => $object_group->getObjectGroupId(),
+        'url' => $object_group->uri,
+        'title' => $object_group->title,
+        'list_title' => $object_group->listTitle,
+        'description' => _ogmt_render_content($object_group->body),
+        'keywords' => $object_group->keywords,
+        'object_group_raw' => $object_group,
+        'menu_raw' => $object_group->getMenu(),
+        'raw_json' => json_encode($object_group),
+      );
+      if(strlen($object_group->objectGroupImageUri) > 0) {
+        $vars['feature_image_url'] = $object_group->objectGroupImageUri;
+      }
+
+      if (NULL !== $object_group->objectList && $object_group->objectList->size > 0) {
+
+        // Process search, to render the object listing
+        $opts = array(
+          'variables' => array(
+            'field_order' => array('record_ID', 'dataSource'),
+            'mini_fields' => array(),
+            'results_per_page' => 10,
+          ),
+          'theme' => array(),
+          'q' => '*:*',
+        );
+
+        //@todo- if the OG has a default page, we need to show that object listing instead!
+        $args = _edan_search_get_query('*:*', $opts);
+        $args['objectGroupId'] = $object_group->getObjectGroupId();
+        $search_results = _edan_search_get_results($args);
+        $object_group_vars['search_results'] = $search_results;
+
+        $edan_record_data['objectGroup'] = $object_group_vars;
+      }
+    }
+  }
+
+  /*
+  $edan_record_data = array(
+    'id' => '123456789',
+    'title' => 'National Air and Space Museum',
+    'acronymn' => 'NASM',
+    'short_name' => 'Air and Space',
+    'unit' => 'NASM',
+  );
+  */
+  return $edan_record_data;
+}
+
+function _edan_record_schema_load($schema_type, $authoring_form = FALSE) {
+
+  //@todo check that we recognize this schema
+  $schema_data = array();
+
+  //@todo placeholder
+  $json = json_decode(file_get_contents(DRUPAL_ROOT . '/' . drupal_get_path('module', 'edan_record_admin') . '/json/' . $schema_type . '.fields.json'), true);
+
+  //@todo when the endpoints are ready:
+  // $schema_data = _edan_call_edan('getSchema', array('type' => 'type:' . $schema_type));
+
+  if($authoring_form) {
+    $schema_data = $json['content']['authoringForm'];
+  }
+  else {
+    $schema_data = $json['content']['schema'];
+  }
+
+  return $schema_data;
+}
+
+// blocks
+
+/**
+ * Implements hook_block_info().
+ */
+function edan_record_admin_block_info() {
+
+  $edan_schema_types = _edan_record_admin_schema_types();
+
+  $blocks = array();
+  foreach($edan_schema_types as $schema_type) {
+    // shortened block name to avoid Drupal snafu with too-long block ids
+    $blocks['edan-rec-ad-' . $schema_type] = array(
+      'info' => t('EDAN ' . ucwords($schema_type) . ' Records'),
+    );
+  }
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_views().
+ */
+function edan_record_admin_block_view($delta = '') {
+
+  $schema_type = str_replace('edan-rec-ad-', '', $delta);
+
+  if(strlen($schema_type) > 0) {
+//  if ($delta == 'edan_rec_ad_museums') {
+    //edan_record_admin_view_record(‘museum’)
+    $edan_schema_types = _edan_record_admin_schema_types();
+    if(NULL == $schema_type || strlen($schema_type) == 0 || count($edan_schema_types) == 0 || !in_array($schema_type, $edan_schema_types)) {
+      return array();
+    }
+
+    $rows = _edan_records_load($schema_type);
+    $edan_records = array();
+    foreach($rows as $row) {
+      $record_id = $row['id'];
+      $record = _edan_record_view_load($record_id);
+      $edan_records[$record_id] = $record;
+    }
+
+    $vars = array(
+      'content' => $edan_records,
+      'schema_type' => $schema_type,
+    );
+    $content = theme('edan_' . $schema_type . 's_block', $vars);
+    return array(
+      'subject' => t('EDAN ' . ucwords($schema_type) . ' Records'),
+      'content' => $content,
+    );
+
+  }
+}
+
+function get_title_for_schematype($schema_type, $values_array) {
+
+  switch($schema_type) {
+    case 'museum':
+      $title = $values_array['unit'];
+      break;
+    case 'event':
+      $title = $values_array['title'];
+      break;
+    default:
+      $title = 'Unknown Title';
+      break;
+  }
+
+  return $title;
+}
+
+function _get_path_for_edan_record($schema_type, $edan_record_data) {
+
+  // build href to use alias configured in pathauto, or our default pattern
+  $content_pattern = _get_default_path_pattern();
+  if(module_exists('pathauto')) {
+    $content_pattern = pathauto_pattern_load_by_entity('edan_record_admin', $schema_type, LANGUAGE_NONE);
+  }
+  $content_pattern_array = explode('/', $content_pattern);
+  foreach($content_pattern_array as $k => $v) {
+    switch($v) {
+      case '[edan:edan_id]':
+        $content_pattern_array[$k] = $edan_record_data['edan_id'];
+        break;
+      case '[edan:edan_type]':
+        $content_pattern_array[$k] = $edan_record_data['edan_type'];
+        break;
+      case '[edan:url]':
+        $content_pattern_array[$k] = $edan_record_data['url'];
+        break;
+      default:
+        // leave it alone
+        break;
+    }
+  }
+  $content_path = implode('/', $content_pattern_array);
+
+  return $content_path;
+}
+
+function _get_default_path_pattern() {
+  // for this module
+  //@todo: change to [edan:edan_type]/[edan:edan_url] once that's working
+ return '[edan:edan_type]/[edan:edan_url]';
+}
