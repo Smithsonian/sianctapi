@@ -331,10 +331,24 @@ class SIANCTAPI {
     curl_setopt($ch, CURLOPT_URL, $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $solrResult = curl_exec($ch);
+    if (!curl_errno($ch)) {
+      $info = curl_getinfo($ch);
+
+      switch ($info['http_code']) {
+        case 200:  # OK
+          $logString = substr($solrResult,0,300);
+          if (strlen($solrResult) > 300) $logString .= '...';
+          break;
+
+        default:
+          $logString = 'Unexpected HTTP code: ' . $http_code;
+          break;
+      }
+    }
+    else {
+      $logString = 'Curl error: ' . curl_error($ch);
+    }
     curl_close($ch);
-    $datestamp = $this->datetimems();
-    $logString = substr($solrResult,0,300);
-    if (strlen($solrResult) > 300) $logString .= '...';
     $datestamp = $this->datetimems();
     fwrite($logfp, "\n[$datestamp] $this->app_id solrResult: $logString");
     fclose($logfp);
@@ -645,14 +659,27 @@ class SIANCTAPI {
     curl_setopt($ch, CURLOPT_USERPWD, $fedoraUserPass);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $fedoraResult = curl_exec($ch);
+    if (!curl_errno($ch)) {
+      $info = curl_getinfo($ch);
+
+      switch ($info['http_code']) {
+        case 200:  # OK
+          $logString = substr($fedoraResult,0,300);
+          if (strlen($fedoraResult) > 300) {
+            $logString .= '...';
+          }
+          break;
+
+        default:
+          $logString = 'Unexpected HTTP code: ' . $http_code;
+          break;
+      }
+    }
+    else {
+      $logString = 'Curl error: ' . curl_error($ch);
+    }
     curl_close($ch);
     $datestamp = $this->datetimems();
-    //fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$fedoraResult");
-    $datestamp = $this->datetimems();
-    $logString = substr($fedoraResult,0,300);
-    if (strlen($fedoraResult) > 300) {
-      $logString .= '...';
-    }
     fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$logString");
     fclose($logfp);
     return $fedoraResult;
