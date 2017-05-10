@@ -57,7 +57,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetFile $filepath ");
-    
+
     $result = $this->sianctapiGettFile($filepath);
     $out = '';
     if (strpos($filepath, '.html') > -1) {
@@ -85,7 +85,7 @@ class SIANCTAPI {
       //$filepath = trim($this->config['sianctapi_path'], '/') . '/' . $filepath;
       $filepath = $filepath;
     }
-    
+
     fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiGettFile $i $filepath ");
     if (!is_readable($filepath)) {
       $result = 'SYSTEM ERROR: file is not readable: ' . $filepath;
@@ -160,7 +160,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiDownload $filename");
-    
+
     if (FALSE !== strpos($filename, '../')) {
       return NULL;
     }
@@ -169,9 +169,9 @@ class SIANCTAPI {
     if (!in_array($ext, array('.csv', 'jpeg', 'json', '.png', '.jpg'))) {
       return NULL;
     }
-    
+
     fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiDownload $filename");
-    
+
     $file = $this->path('runtime/' . $filename);
     if (!is_file($file)) {
       self::sendHeader(404);
@@ -529,7 +529,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     $obstable = '';
-    
+
     fwrite($logfp, "\nTESTING NEW WCS FIELDS...... $obstablePid");
 
     #$solrResult = $this->sianctapiGetProjectHierarchyLabelsFromSolr($obstablePid);
@@ -584,7 +584,7 @@ class SIANCTAPI {
           $projectPID = $xmlDoc->result->doc->str[8];
           $ctPID = $xmlDoc->result->doc->str[2];
         }
-        
+
         //fwrite($logfp, "\n[$datestamp] $this->app_id line $j $projectPID $ctPID loadedPids: $currentlyLoadedProjectPid loadNew?".((string)$projectPID !== (string)$currentlyLoadedProjectPid)." $currentlyLoadedCtPid loadNew?".((string)$ctPID !== (string)$currentlyLoadedCtPid));
 
         // Step 2 - for the projectPID, execute call against EAC-CPF stream
@@ -598,7 +598,7 @@ class SIANCTAPI {
         $pubdate = $this->getPubDate($loadedProjectInfo);
         $latlon = $this->getLatLon($loadedProjectInfo);
         $obstable .= ',' . $pubdate . ',' . $latlon['lat'] . ',' . $latlon['lon'];
-        
+
         // Step 3 - for ctPID, execute call against FGDC stream
         if ((string)$ctPID !== (string)$currentlyLoadedCtPid) {
           $params = 'objects/' . $ctPID . '/datastreams/FGDC/content';
@@ -672,7 +672,7 @@ class SIANCTAPI {
     return $result;
     exit();
   }
-  
+
   function sianctapiGetSpeciesJSON($obstablePids) {
     $sianctapiCache = $this->sianctapiCacheGet();
     $obstables = $sianctapiCache['obstables'];
@@ -701,7 +701,7 @@ class SIANCTAPI {
     #module_invoke_all('exit');
     exit();
   }
-  
+
   function sianctapiGetAllSpeciesNamesCachedJSON() {
     #global $user;
     $datestamp = $this->datetimems();
@@ -785,8 +785,8 @@ class SIANCTAPI {
 
     return $result;
   }
-  
-  
+
+
   function sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids, &$sianctapiCache) {
     $datestamp = $this->datetimems();
     $logdatestamp = date('Y-m-d');
@@ -849,10 +849,10 @@ class SIANCTAPI {
     $datestamp = $this->datetimems();
 
     ksort($speciesnames);
-    
+
     return json_encode($speciesnames);
   }
-  
+
   function sianctapiSelectObstables($query, $xslt) {
     $solrXslt = $xslt;
     if ($xslt == '' || $xslt == 'default') {
@@ -936,7 +936,7 @@ class SIANCTAPI {
 
     $sianctapiCacheRefreshing['speciesOptions'] = $this->sianctapiGetSpeciesOptions($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
     #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
-    
+
     $sianctapiCacheRefreshing['speciesOptionsJSON'] = $this->sianctapiGetSpeciesOptionsJSON($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
 
     $datestamp = $this->datetimems();
@@ -1138,13 +1138,13 @@ class SIANCTAPI {
       'lat' => '',
       'lon' => '',
     );
-    
+
     if ($xmlDoc = @simplexml_load_string($fedoraData)) {
       $latlon = $xmlDoc->cpfDescription->description->place->placeEntry[2]->attributes();
       $data['lat'] = $latlon['latitude'];
       $data['lon'] = $latlon['longitude'];
     }
-    
+
     return $data;
   }
 
@@ -1156,14 +1156,14 @@ class SIANCTAPI {
   /////
   function getPubDate($fedoraData) {
     $pubDate = '';
-    
+
     if ($xmlDoc = @simplexml_load_string($fedoraData)) {
       $pubDate = $xmlDoc->control->localControl->date;
     }
-    
+
     return $pubDate;
   }
-  
+
   ///////
   // Get Access Constraints from Fedora FGDC datastream
   //
@@ -1172,11 +1172,11 @@ class SIANCTAPI {
   ///////
   function getAccessConstraints($fedoraData) {
     $accessConstraints = '';
-    
+
     if ($xmlDoc = @simplexml_load_string($fedoraData)) {
       $accessConstraints = $xmlDoc->idinfo->accconst;
     }
-    
+
     return $accessConstraints;
   }
 

@@ -120,7 +120,7 @@ try {
     fwrite($logfp, $output);
     //fwrite($logfp, "\n[$datestamp] $app_id $ipnonce $secret_key $date $uri $auth_content");
     fclose($logfp);
-    
+
     // We have to build the hash differently, accepting the parameters passed to the
     // API in the order they were passed.
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -134,7 +134,7 @@ try {
       $qry = $_SERVER['QUERY_STRING'];
     } else {
       $qry = FALSE;
-    } 
+    }
 
     $datestamp = date('r');
     $logfp = fopen('/tmp/sianctapi-hp.log', 'a');
