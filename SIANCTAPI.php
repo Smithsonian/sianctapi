@@ -333,20 +333,13 @@ class SIANCTAPI {
     $solrResult = curl_exec($ch);
     if (!curl_errno($ch)) {
       $info = curl_getinfo($ch);
-
-      switch ($info['http_code']) {
-        case 200:  # OK
-          $logString = substr($solrResult,0,300);
-          if (strlen($solrResult) > 300) $logString .= '...';
-          break;
-
-        default:
-          $logString = 'Unexpected HTTP code: ' . $http_code;
-          break;
+      $logString = 'HTTP code ' . $info['http_code'] . ': ' . substr($solrResult, 0, 300);
+      if (strlen($solrResult) > 300) {
+        $logString .= '...';
       }
     }
     else {
-      $logString = 'Curl error: ' . curl_error($ch);
+      $logString = 'Curl error (' . curl_errno($ch) . '): ' . curl_error($ch);
     }
     curl_close($ch);
     $datestamp = $this->datetimems();
@@ -661,22 +654,13 @@ class SIANCTAPI {
     $fedoraResult = curl_exec($ch);
     if (!curl_errno($ch)) {
       $info = curl_getinfo($ch);
-
-      switch ($info['http_code']) {
-        case 200:  # OK
-          $logString = substr($fedoraResult,0,300);
-          if (strlen($fedoraResult) > 300) {
-            $logString .= '...';
-          }
-          break;
-
-        default:
-          $logString = 'Unexpected HTTP code: ' . $http_code;
-          break;
+      $logString = 'HTTP code ' . $info['http_code'] . ': ' . substr($fedoraResult, 0, 300);
+      if (strlen($fedoraResult) > 300) {
+        $logString .= '...';
       }
     }
     else {
-      $logString = 'Curl error: ' . curl_error($ch);
+      $logString = 'Curl error (' . curl_errno($ch) . '): ' . curl_error($ch);
     }
     curl_close($ch);
     $datestamp = $this->datetimems();
