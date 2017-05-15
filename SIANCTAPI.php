@@ -1256,7 +1256,7 @@ class SIANCTAPI {
         $message = ' %d retry left.';
       }
       else {
-        $message = ' No retries left.';
+        $message = ' No retries left, request aborted.';
       }
       $return['log'] .= sprintf($message, $i);
       $return['log'] .= "\n";
