@@ -1235,6 +1235,9 @@ class SIANCTAPI {
         $return['results'] = $results;
 
         $info = curl_getinfo($ch);
+        if (!empty($return['log'])) {
+          $return['log'] .= 'Successful request after Curl errors.' . "\n";
+        }
         $return['log'] .= sprintf('HTTP code %s: %s',  $info['http_code'], substr($results, 0, 300));
         if (strlen($results) > 300) {
           $return['log'] .= '...';
