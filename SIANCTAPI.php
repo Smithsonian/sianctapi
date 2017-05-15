@@ -320,32 +320,16 @@ class SIANCTAPI {
   }
 
   function sianctapiGetProjectStructureMetadataFromSolr($params) {
-    #global $user;
     $datestamp = $this->datetimems();
     $logdatestamp = date('Y-m-d');
-    //$logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     $logfp = fopen('/tmp/project-structure-sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
-    $solrUrl = $this->config['sianctapi_block_solr']; #FIX
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $solrUrl . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    $solrResult = curl_exec($ch);
-    if (!curl_errno($ch)) {
-      $info = curl_getinfo($ch);
-      $logString = 'HTTP code ' . $info['http_code'] . ': ' . substr($solrResult, 0, 300);
-      if (strlen($solrResult) > 300) {
-        $logString .= '...';
-      }
-    }
-    else {
-      $logString = 'Curl error (' . curl_errno($ch) . '): ' . curl_error($ch);
-    }
-    curl_close($ch);
+    $solrUrl = $this->config['sianctapi_block_solr'] . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on';
+    $solrResults = $this->curlWithRetries($solrUrl);
     $datestamp = $this->datetimems();
-    fwrite($logfp, "\n[$datestamp] $this->app_id solrResult: $logString");
+    fwrite($logfp, "\n[$datestamp] $this->app_id solrResult: \n" . $solrResults['log']);
     fclose($logfp);
-    return $solrResult;
+    return $solrResults['results'];
   }
 
   function sianctapiGetAllObstablePids() {
@@ -647,26 +631,15 @@ class SIANCTAPI {
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetDataFromFedora: params=$params ");
     $fedoraUrl = $this->config['sianctapi_block_fedora'];
     $fedoraUserPass = $this->config['sianctapi_block_fedora_userpass'];
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $fedoraUrl . '/' . $params);
-    curl_setopt($ch, CURLOPT_USERPWD, $fedoraUserPass);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    $fedoraResult = curl_exec($ch);
-    if (!curl_errno($ch)) {
-      $info = curl_getinfo($ch);
-      $logString = 'HTTP code ' . $info['http_code'] . ': ' . substr($fedoraResult, 0, 300);
-      if (strlen($fedoraResult) > 300) {
-        $logString .= '...';
-      }
-    }
-    else {
-      $logString = 'Curl error (' . curl_errno($ch) . '): ' . curl_error($ch);
-    }
-    curl_close($ch);
+
+    $curlOptions = array(
+      CURLOPT_USERPWD => $fedoraUserPass,
+    );
+    $fedoraResults = $this->curlWithRetries($fedoraUrl . '/' . $params, $curlOptions);
     $datestamp = $this->datetimems();
-    fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n$logString");
+    fwrite($logfp, "\n[$datestamp] $this->app_id fedoraResult: \n" + $fedoraResults['log']);
     fclose($logfp);
-    return $fedoraResult;
+    return $fedoraResults['results'];
   }
 
   function sianctapiGetSpecies($obstablePids) {
@@ -1222,5 +1195,75 @@ class SIANCTAPI {
     }
 
     return json_encode($results);
+  }
+
+  /**
+   * Curl wrapper with a fixed number of retries.
+   *
+   * The SIANCT API cache generation can DDOS systems with rapid data requests.
+   * Curl returns a CURLE_COULDNT_CONNECT (7) error when this happens. A lack
+   * of fault tolerance also means cached data is invalid. This Curl wrappers
+   * will wait and retry requests in an attempt to alleviate load.
+   *
+   * @param $url
+   * @param $curlOpts
+   *
+   * @return Array
+   */
+  private function curlWithRetries($url, $curlOpts = array()) {
+    $maxRetries = 5;
+    $retrySleep = 5;
+    $return = array(
+      'log' => '',
+      'results' => FALSE,
+    );
+
+    $ch = curl_init();
+    if (!empty($curlOpts)) {
+      foreach ($curlOpts as $option => $value) {
+        curl_setopt($ch, $option, $value);
+      }
+    }
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+    for ($i = $maxRetries; $i >= 0; $i--) {
+      $results = curl_exec($ch);
+
+      // Successful request
+      if (!curl_errno($ch)) {
+        $return['results'] = $results;
+
+        $info = curl_getinfo($ch);
+        $return['log'] .= sprintf('HTTP code %s: %s',  $info['http_code'], substr($results, 0, 300));
+        if (strlen($results) > 300) {
+          $return['log'] .= '...';
+        }
+        curl_close($ch);
+        break;
+      }
+
+      // Curl error with request
+      $return['log'] .= sprintf('Curl error (%d): %s.', curl_errno($ch), curl_error($ch));
+
+      if ($i > 1) {
+        $message = ' %d retries left.';
+      }
+      elseif ($i == 1) {
+        $message = ' %d retry left.';
+      }
+      else {
+        $message = ' No retries left.';
+      }
+      $return['log'] .= sprintf($message, $i);
+      $return['log'] .= "\n";
+
+      if ($i > 0) {
+        sleep($retrySleep);
+      }
+    }
+
+    curl_close($ch);
+    return $return;
   }
 }
