@@ -1,9 +1,11 @@
 <?php
 
-require_once('./lib/edan-module/includes/EDANInterface.class.php');
+use EDAN\Connection as EdanConnection;
+
+require_once './lib/edan-module/includes/EDANInterface.class.php';
 
 /**
- * EDAN interface API for Camera Trap images
+ * EDAN interface API for Camera Trap images.
  */
 class EDAN_SIANCTAPI {
   private $app_id;
@@ -14,7 +16,7 @@ class EDAN_SIANCTAPI {
   );
 
   /**
-   * Reference the SIANCTAPI constructor
+   * Reference the SIANCTAPI constructor.
    */
   public function __construct($config = array(), $app_id = '') {
     $this->config = array();
@@ -23,7 +25,7 @@ class EDAN_SIANCTAPI {
       $this->config = $config;
     }
 
-    // Default the config
+    // Default the EDAN connection config.
     $this->config += array(
       'server_url' => '',
       'app_id' => '',
@@ -31,29 +33,26 @@ class EDAN_SIANCTAPI {
       'tier_type' => '',
     );
 
-    // Set app_id
     $this->app_id = $app_id;
-
-    return;
   }
 
   /**
-   *
+   * Get an fully-loaded image sequence.
    */
   public function getImageSequence($type, $id, $return) {
     if (!isset($type) || !isset($id)) {
-      $this->_invalidRequest();
+      $this->invalidRequest();
     }
 
     if (!in_array($type, $this->types)) {
-      $this->_invalidRequest();
+      $this->invalidRequest();
     }
 
     if (!$return) {
       $id = filter_input(INPUT_GET, 'id');
     }
 
-    $edan = new EDAN\Connection($this->config['server_url'], $this->config['tier_type'], $this->config['app_id'], $this->config['auth_key']);
+    $edan = new EdanConnection($this->config['server_url'], $this->config['tier_type'], $this->config['app_id'], $this->config['auth_key']);
     $service = 'metadata/v1.1/metadata/search.htm';
     $fqs = array(
       'type:emammal_image',
@@ -70,7 +69,7 @@ class EDAN_SIANCTAPI {
         break;
 
       default:
-        $this->_invalidRequest();
+        $this->invalidRequest();
         break;
     }
 
@@ -86,7 +85,7 @@ class EDAN_SIANCTAPI {
         $image = $edan->getResultsJSON();
 
         if (!isset($image['rows'])) {
-          $this->_invalidRequest();
+          $this->invalidRequest();
         }
 
         if (!isset($image['rows'][0])) {
@@ -108,10 +107,11 @@ class EDAN_SIANCTAPI {
   }
 
   /**
-   * Reject nonconforming requests
+   * Reject nonconforming requests.
    */
-  function _invalidRequest() {
+  private function invalidRequest() {
     http_response_codeREAL(404);
     exit();
   }
+
 }
