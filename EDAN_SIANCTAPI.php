@@ -99,6 +99,15 @@ class EDAN_SIANCTAPI {
 
   /**
    * Get an fully-loaded image sequence.
+   *
+   * @param string $type
+   *   The request type, either "image" or "sequence".
+   *
+   * @param string $id
+   *   The id of the requested type.
+   *
+   * @param bool $return
+   *   Internal use only for recursion during "image" type requests.
    */
   public function getImageSequence($type, $id, $return) {
     if (!isset($type) || !isset($id)) {
