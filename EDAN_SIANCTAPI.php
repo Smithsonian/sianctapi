@@ -89,7 +89,7 @@ class EDAN_SIANCTAPI {
       $results = $edan->getResultsJSON();
       if (!empty($results['rows'])) {
         $valid_sequences += array_map(function ($value) {
-          return $value['content']['image_sequence_id'];
+          return $value['content'];
         }, $results['rows']);
       }
     }
