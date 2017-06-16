@@ -142,6 +142,13 @@ function _get_routes() {
       'args' => array('type', 'id'),
     ),
 
+    'edan/getPidsImageSequences' => array(
+      'library' => 'EDAN_SIANCTAPI',
+      'controller' => 'getPidsImageSequences',
+      'method' => '_POST',
+      'args' => array('pids', 'species'),
+    ),
+
     'edan/getValidImageSequences' => array(
       'library' => 'EDAN_SIANCTAPI',
       'controller' => 'getValidImageSequences',
