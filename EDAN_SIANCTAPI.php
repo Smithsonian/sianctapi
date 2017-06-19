@@ -66,7 +66,8 @@ class EDAN_SIANCTAPI {
 
     // Fake out a full load of the SIANCTAPI class so we can use the
     // SIANCTAPI runtime cache.
-    $route = _get_routes()['sianctapi/getSelectedObservations'];
+    $routes = _get_routes();
+    $route = $routes['sianctapi/getSelectedObservations'];
     $sianct = _factory($route['library'], './api.config', $this->app_id);
 
     // Get the observations CSV and retrieve all image sequence IDs.
