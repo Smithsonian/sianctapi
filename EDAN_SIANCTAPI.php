@@ -11,10 +11,6 @@ require_once './lib/edan-module/includes/EDANInterface.class.php';
 class EDAN_SIANCTAPI {
   private $app_id;
   private $config;
-  private $types = array(
-    'image',
-    'sequence',
-  );
 
   /**
    * Reference the SIANCTAPI constructor.
@@ -177,10 +173,6 @@ class EDAN_SIANCTAPI {
    */
   public function getImageSequence($type, $id, $return) {
     if (!isset($type) || !isset($id)) {
-      $this->invalidRequest();
-    }
-
-    if (!in_array($type, $this->types)) {
       $this->invalidRequest();
     }
 
