@@ -13,6 +13,26 @@ class EDAN_SIANCTAPI {
   private $config;
 
   /**
+   * Binomial names of excluded species.
+   *
+   * @var string[]
+   */
+  private $excludedSpecies = array(
+    'Bicycle',
+    'Blank',
+    'Calibration Photos',
+    'Camera Misfire',
+    'Camera Trapper',
+    'False trigger',
+    'Homo sapien',
+    'Homo sapiens',
+    'No Animal',
+    'Setup Pickup',
+    'Time Lapse',
+    'Vehicle',
+  );
+
+  /**
    * Reference the SIANCTAPI constructor.
    */
   public function __construct($config = array(), $app_id = '') {
@@ -65,11 +85,15 @@ class EDAN_SIANCTAPI {
         break;
       }
 
-      // Get the sequence ID column index.
+      // Get the binomial name and sequence ID column index.
       $headers = str_getcsv($data[0]);
       array_shift($data);
       foreach ($headers as &$key) {
         $key = trim($key);
+      }
+      $binomial_name_column = array_search('Species Name', $headers);
+      if ($binomial_name_column === FALSE) {
+        break;
       }
       $image_sequence_column = array_search('Sequence ID', $headers);
       if ($image_sequence_column === FALSE) {
@@ -79,7 +103,12 @@ class EDAN_SIANCTAPI {
       // Parse all returned rows for sequence IDs.
       $image_sequences = array();
       foreach ($data as $row) {
-        $image_sequences[] = str_getcsv($row)[$image_sequence_column];
+        $row_array = str_getcsv($row);
+        // Remove rows with excluded species types.
+        if (in_array($row_array[$binomial_name_column], $this->excludedSpecies)) {
+          continue;
+        }
+        $image_sequences[] = $row_array[$image_sequence_column];
       }
       if (empty($image_sequences)) {
         break;
