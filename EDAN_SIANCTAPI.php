@@ -1,6 +1,5 @@
 <?php
 
-use SIANCTAPI;
 use EDAN\Connection as EdanConnection;
 
 require_once './SIANCTAPI.php';
@@ -39,20 +38,18 @@ class EDAN_SIANCTAPI {
   }
 
   /**
-   * Get a list of image sequences from deployment pids.
+   * Prints a JSON-encoded array of image sequences from deployment pids.
    *
    * @param string $pids
    *   A comma-separated list of deployment pids.
    * @param string $species
    *   A comma-separated list of species.
-   *
-   * @return string
-   *   An JSON-encoded array of image sequence IDs available in EDAN.
    */
   public function getPidsImageSequences($pids, $species) {
     $output = FALSE;
 
-    // Fake out a full load of the library so we can use the local cache.
+    // Fake out a full load of the SIANCTAPI class so we can use the
+    // SIANCTAPI runtime cache.
     $route = _get_routes()['sianctapi/getSelectedObservations'];
     $sianct = _factory($route['library'], './api.config', $this->app_id);
 
@@ -173,10 +170,8 @@ class EDAN_SIANCTAPI {
    *
    * @param string $type
    *   The request type, either "image" or "sequence".
-   *
    * @param string $id
    *   The id of the requested type.
-   *
    * @param bool $return
    *   Internal use only for recursion during "image" type requests.
    */
