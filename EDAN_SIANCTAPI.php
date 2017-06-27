@@ -2,6 +2,7 @@
 
 use EDAN\Connection as EdanConnection;
 
+require_once './SIANCTAPI.php';
 require_once './lib/edan-module/includes/EDANInterface.class.php';
 
 /**
@@ -10,9 +11,25 @@ require_once './lib/edan-module/includes/EDANInterface.class.php';
 class EDAN_SIANCTAPI {
   private $app_id;
   private $config;
-  private $types = array(
-    'image',
-    'sequence',
+
+  /**
+   * Binomial names of excluded species.
+   *
+   * @var string[]
+   */
+  private $excludedSpecies = array(
+    'Bicycle',
+    'Blank',
+    'Calibration Photos',
+    'Camera Misfire',
+    'Camera Trapper',
+    'False trigger',
+    'Homo sapien',
+    'Homo sapiens',
+    'No Animal',
+    'Setup Pickup',
+    'Time Lapse',
+    'Vehicle',
   );
 
   /**
@@ -34,6 +51,83 @@ class EDAN_SIANCTAPI {
     );
 
     $this->app_id = $app_id;
+  }
+
+  /**
+   * Prints a JSON-encoded array of image sequences from deployment pids.
+   *
+   * @param string $pids
+   *   A comma-separated list of deployment pids.
+   * @param string $species
+   *   A comma-separated list of species.
+   */
+  public function getPidsImageSequences($pids, $species) {
+    $output = FALSE;
+
+    // Fake out a full load of the SIANCTAPI class so we can use the
+    // SIANCTAPI runtime cache.
+    $routes = _get_routes();
+    $route = $routes['sianctapi/getSelectedObservations'];
+    $sianct = _factory($route['library'], './api.config', $this->app_id);
+
+    // Get the observations CSV and retrieve all image sequence IDs.
+    $data = array();
+    $csv = trim($sianct->sianctapiGetSelectedObservations($pids, $species));
+    $data = explode("\n", $csv);
+    unset($csv);
+
+    // Remove the HTML tag around the CSV.
+    array_shift($data);
+    array_pop($data);
+
+    do {
+      // Stop if there is no rows or only a header row.
+      if (count($data) < 2) {
+        break;
+      }
+
+      // Get the binomial name and sequence ID column index.
+      $headers = str_getcsv($data[0]);
+      array_shift($data);
+      foreach ($headers as &$key) {
+        $key = trim($key);
+      }
+      $binomial_name_column = array_search('Species Name', $headers);
+      if ($binomial_name_column === FALSE) {
+        break;
+      }
+      $image_sequence_column = array_search('Sequence ID', $headers);
+      if ($image_sequence_column === FALSE) {
+        break;
+      }
+
+      // Parse all returned rows for sequence IDs.
+      $image_sequences = array();
+      foreach ($data as $row) {
+        $row_array = str_getcsv($row);
+        // Remove rows with excluded species types.
+        if (in_array($row_array[$binomial_name_column], $this->excludedSpecies)) {
+          continue;
+        }
+        $image_sequences[] = $row_array[$image_sequence_column];
+      }
+      if (empty($image_sequences)) {
+        break;
+      }
+
+      // Capture output from endpoint and JSON decode.
+      ob_start();
+      $this->getValidImageSequences(implode(',', $image_sequences));
+      $output = ob_get_contents();
+      ob_end_clean();
+    } while (0);
+
+    if ($output) {
+      print $output;
+    }
+    else {
+      print json_encode(array());
+    }
   }
 
   /**
@@ -89,7 +183,7 @@ class EDAN_SIANCTAPI {
       $results = $edan->getResultsJSON();
       if (!empty($results['rows'])) {
         $valid_sequences += array_map(function ($value) {
-          return $value['content']['image_sequence_id'];
+          return $value['content'];
         }, $results['rows']);
       }
     }
@@ -99,13 +193,16 @@ class EDAN_SIANCTAPI {
 
   /**
    * Get an fully-loaded image sequence.
+   *
+   * @param string $type
+   *   The request type, either "image" or "sequence".
+   * @param string $id
+   *   The id of the requested type.
+   * @param bool $return
+   *   Internal use only for recursion during "image" type requests.
    */
   public function getImageSequence($type, $id, $return) {
     if (!isset($type) || !isset($id)) {
-      $this->invalidRequest();
-    }
-
-    if (!in_array($type, $this->types)) {
       $this->invalidRequest();
     }
 

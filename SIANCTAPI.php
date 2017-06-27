@@ -415,7 +415,7 @@ class SIANCTAPI {
       $obstablePids = $sianctapiCache['obstablePids'];
     }
     $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
-    $out = "\n" . '<div id="sianctapiGetObservationsResult">';
+    $out = '<div id="sianctapiGetObservationsResult">' . "\n";
     $out .= $resultingObservations;
     $out .= "\n" . '</div>' . "\n";
     return $out;
