@@ -25,6 +25,7 @@ data <- read.csv(csvFile)
 
 ##########
 #Coerce the date and time values to a date and time format in R
+#New change required to replace Ts with spaces
 #########
 #data$End.Time <- mdy_hm(data$End.Time)
 data$End.Time<-gsub("T"," ", data$End.Time,fixed=TRUE)
