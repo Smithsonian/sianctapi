@@ -1,9 +1,13 @@
 require(overlap)
 require(lubridate)
+require(jpeg)
+require(png)
 
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 resultFile <- args[2]
+# Set workflow path for SIANCT API
+workflowPath <- file.path(getwd(), "resources/rscripts");
 
 #this setwd command will of course change or be eliminated depending how this is set up in the server
 #setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014")
@@ -23,6 +27,7 @@ data <- read.csv(csvFile)
 #Coerce the date and time values to a date and time format in R
 #########
 #data$End.Time <- mdy_hm(data$End.Time)
+data$End.Time<-gsub("T"," ", data$End.Time,fixed=TRUE)
 data$End.Time <- ymd_hms(data$End.Time)
 #check that coversion was correct
 #class(data$End.Time)
@@ -64,7 +69,28 @@ grpB.gph <- sppB.temp[,19]
 #Overlap plot as png
 ###########
 jpeg(resultFile,width=750,height=530,units="px",pointsize=14,quality=100)
-overlapPlot(grpA.gph, grpB.gph, xlab="Time of Day", ylab="",yaxt="n", main=c(paste(sppA.temp[1,10],"vs.",sppB.temp[1,10]),paste("Observations =",length(grpA.gph), "and", length(grpB.gph))))
+
+
+# load logo
+ima <- readPNG(file.path(workflowPath, "images/emammal_nobackground_logo_bw.png"))
+#ima <- readPNG("emammal_nobackground_logo_bw.png")
+
+#create function to place the logo
+logoing_func<-function(logo, x, y, size){
+  dims<-dim(logo)[1:2] #number of x-y pixels for the logo (aspect ratio)
+  AR<-dims[1]/dims[2]
+  par(usr=c(0, 1, 0, 1))
+  rasterImage(logo, x-(size/2), y-(AR*size/2), x+(size/2), y+(AR*size/2), interpolate=TRUE)
+}
+
+
+overlapPlot(grpA.gph, grpB.gph, xlab="Time of Day", ylab="",yaxt="n", 
+            main=c(paste(sppA.temp[1,10],"vs.",sppB.temp[1,10]),paste("Observations =",length(grpA.gph), "and", length(grpB.gph))))
 mtext("Activity Level",side=2,line=0.8)
 legend("topleft", legend=c(as.character(sppA.temp[1,10]),as.character(sppB.temp[1,10]),"Activity Overlap"), lty=c(1, 2,0), col=c("black", "blue","lightgrey"), pch=c(NA,NA,15), pt.cex=2.5,bty="n")
+
+#add the logo
+logoing_func(ima, x=0.50, y=0.90, size=0.15)
+
+#add the plot again
 dev.off()
