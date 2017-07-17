@@ -60,11 +60,12 @@ sppA.temp <- data.frame(spp[1])
 sppB.temp <- data.frame(spp[2])
 
 #remove NA values from the radian columns
-sppA.temp <- sppA.temp[complete.cases(sppA.temp[,19]),]
-sppB.temp <- sppB.temp[complete.cases(sppB.temp[,19]),]
+i<-which( colnames(data)=="endtime_rad" )
+sppA.temp <- sppA.temp[complete.cases(sppA.temp[,i]),]
+sppB.temp <- sppB.temp[complete.cases(sppB.temp[,i]),]
 
-grpA.gph <- sppA.temp[,19]
-grpB.gph <- sppB.temp[,19]
+grpA.gph <- sppA.temp[,i]
+grpB.gph <- sppB.temp[,i]
 
 ############
 #Overlap plot as png
