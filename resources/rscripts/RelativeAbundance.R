@@ -94,7 +94,16 @@ dur<-rep(as.numeric(duration), length(spp))
 count <- csvFile[,list(sum=sum(Count)),by='Common Name']
 rate<-(count$sum/dur)*100
 rate_input<-cbind(count, rate)
-remove_spp<-("Camera Trapper|No Animal|Unknown Animal|Vehicle|Unknown Squirrel|Unknown Small Rodent|Unknown Rabbit_Hare|Unknown Flying Squirrel|Unknown Felid|Unknown Coati_Raccoon|Unknown Canid|Unknown Bird|Time Lapse|Reptile species|Raptor species|Owl species|Other Bird species|Northern Bobwhite|Human non-staff|Common Raven|Calibration Photos|Blue Jay|Bicycle|Animal Not on List|American Crow")
+#remove_spp<-("Camera Trapper|No Animal|Unknown Animal|Vehicle|Unknown Squirrel|Unknown Small Rodent|Unknown Rabbit_Hare|Unknown Flying Squirrel|Unknown Felid|Unknown Coati_Raccoon|Unknown Canid|Unknown Bird|Time Lapse|Reptile species|Raptor species|Owl species|Other Bird species|Northern Bobwhite|Human non-staff|Common Raven|Calibration Photos|Blue Jay|Bicycle|Animal Not on List|American Crow")
+
+#removing all humans, and other inappropriate detections
+data.an <- subset(rate_input, !(rate_input$"Common Name" %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Human non-staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List")))
+
+#subset the data to remove all Unknown and Domestic species
+data.t1 <- subset(data.an,!grepl("Unknown*",data.an$"Common Name"))
+data.t <- subset(data.t1,!grepl("^Domestic",data.t1$"Common Name"))
+
+rrate<-data.t[order(-data.t$rate),]
 rrate<-rate_input[grep(remove_spp, rate_input$'Common Name', invert=T),]   #invert = T shows the species not designated in remove_spp. 
 #If you made a list of species you are interested in use invert=F
  #Orders based on which species has the higher Detection rate
