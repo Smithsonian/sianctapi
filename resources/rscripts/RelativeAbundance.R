@@ -49,10 +49,10 @@ resultFile <- args[2]
 
 ####### Make Camera Night Output Table ############
 #Generate a table with the camera deployment days
-csvFile$Date=substr(csvFile$Begin.Time,1,10)
+csvFile$Date=substr(csvFile$"Begin Time",1,10)
 csvFile$Date<-as.Date(csvFile$Date,
                    format="%Y-%m-%d")
-DeploymentNightTable<-ddply(csvFile,~csvFile$Deployment.Name,summarise,TrapNights=length(unique(Date)))
+DeploymentNightTable<-ddply(csvFile,~csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
 
 DeploymentNightTable2<-xtable(DeploymentNightTable)
 
@@ -70,18 +70,18 @@ DeploymentNightTable2<-xtable(DeploymentNightTable)
 SubprojectTrapNights = ddply(csvFile,~csvFile$Subproject,summarise,TrapNights=length(unique(Date)))
 #names(SubprojectTrapNights)<-c("Subproject", "Camera Nights")
 #SubprojectTrapNights
-AverageSubprojectTrapNight<-ddply(csvFile,~Subproject+'Deployment Name',summarise,TrapNights=length(unique(Date)))
+AverageSubprojectTrapNight<-ddply(csvFile,~csvFile$Subproject+csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
 AverageSubprojectTrapNight<-ddply(AverageSubprojectTrapNight,~Subproject,summarise,mean(TrapNights))
 #AverageSubprojectTrapNight
 
 
 
 #Total Trap Nights across the entire project
-TotalTrapNights<- ddply(csvFile,~Project,summarise,TrapNights=length(unique(Date)))
+TotalTrapNights<- ddply(csvFile,~csvFile$Project,summarise,TrapNights=length(unique(Date)))
 #names(TotalTrapNights)<-c("Total Trap Nights", "Camera Nights")
 #TotalTrapNights
-AverageProjectTrapNight<-  ddply(csvFile,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
-AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~Project,summarise,mean(TrapNights))
+AverageProjectTrapNight<-ddply(csvFile,~csvFile$Project+csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
+AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~AverageProjectTrapNight$"csvFile$Project",summarise,mean(TrapNights))
 #AverageProjectTrapNight
 
 
@@ -104,7 +104,7 @@ data.t1 <- subset(data.an,!grepl("Unknown*",data.an$"Common Name"))
 data.t <- subset(data.t1,!grepl("^Domestic",data.t1$"Common Name"))
 
 rrate<-data.t[order(-data.t$rate),]
-rrate<-rate_input[grep(remove_spp, rate_input$'Common Name', invert=T),]   #invert = T shows the species not designated in remove_spp. 
+#rrate<-rate_input[grep(remove_spp, rate_input$'Common Name', invert=T),]   #invert = T shows the species not designated in remove_spp. 
 #If you made a list of species you are interested in use invert=F
  #Orders based on which species has the higher Detection rate
 
@@ -127,15 +127,20 @@ rrate<-rate_input[grep(remove_spp, rate_input$'Common Name', invert=T),]   #inve
 
 
 #Make graph showing detection rate
-rrate<-rrate[order(-rrate$rate)]
+#rrate<-rrate[order(-rrate$rate)]
 jpeg(resultFile,width=750,height=530,units="px",pointsize=14,quality=100)
 ggplot(data=rrate, aes(x=reorder(rrate$'Common Name', rate), y=rate)) +
   geom_bar(stat="identity", color="black", 
            fill="steelblue")+
   theme_classic() + 
   labs(x="Species", 
-       y = "Detection Rate (count/day)")+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, color="black"))+
-  theme(axis.text.y = element_text(color="black"))
-dev.off()
+       y = "Detection Rate (counts/100 camera days)")+
+  theme(axis.text.x = element_text(size=14,angle = 90, hjust = 1, color="black"))+
+  theme(axis.text.y = element_text(size=14,color="black"))+
+  theme(axis.title.x=element_text(size=18))+
+  theme(axis.title.y=element_text(size=18))+
+  ggtitle("Detections per 100 Camera Nights")+
+  theme(plot.title = element_text(hjust = 0.5,size=20))+
+  #geom_text(data=as.character(rrate$rate),aes(x=x,y=rate,label=lab),vjust=0)
+  geom_text(aes(label=round(rate,digits=1)),vjust=-0.5)
 dev.off()
