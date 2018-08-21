@@ -40,7 +40,8 @@ resultFile <- args[2]
 #Load the latest dataset downloaded from the website
 #Note that the filename will change each time so make sure it is
 #edited properly below
-#csvFile <- fread("okaloosa.csv")
+data <- read.csv(csvFile)
+#data <- read.csv("okaloosa.csv")
 #SiteInfo<-fread(file="SiteInfo.csv")
 #resultFile<-"testing.jpeg"
 
@@ -49,10 +50,10 @@ resultFile <- args[2]
 
 ####### Make Camera Night Output Table ############
 #Generate a table with the camera deployment days
-csvFile$Date=substr(csvFile$"Begin Time",1,10)
-csvFile$Date<-as.Date(csvFile$Date,
+data$Date=substr(data$Begin.Time,1,10)
+data$Date<-as.Date(data$Date,
                    format="%Y-%m-%d")
-DeploymentNightTable<-ddply(csvFile,~csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
+DeploymentNightTable<-ddply(data,~data$Deployment.Name,summarise,TrapNights=length(unique(Date)))
 
 DeploymentNightTable2<-xtable(DeploymentNightTable)
 
@@ -67,41 +68,43 @@ DeploymentNightTable2<-xtable(DeploymentNightTable)
 
 
 #Total and average Trap Night per Subproject
-SubprojectTrapNights = ddply(csvFile,~csvFile$Subproject,summarise,TrapNights=length(unique(Date)))
+SubprojectTrapNights = ddply(data,~data$Subproject,summarise,TrapNights=length(unique(Date)))
 #names(SubprojectTrapNights)<-c("Subproject", "Camera Nights")
 #SubprojectTrapNights
-AverageSubprojectTrapNight<-ddply(csvFile,~csvFile$Subproject+csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
+AverageSubprojectTrapNight<-ddply(data,~Subproject+'Deployment Name',summarise,TrapNights=length(unique(Date)))
 AverageSubprojectTrapNight<-ddply(AverageSubprojectTrapNight,~Subproject,summarise,mean(TrapNights))
 #AverageSubprojectTrapNight
 
 
 
 #Total Trap Nights across the entire project
-TotalTrapNights<- ddply(csvFile,~csvFile$Project,summarise,TrapNights=length(unique(Date)))
+TotalTrapNights<- ddply(data,~Project,summarise,TrapNights=length(unique(Date)))
 #names(TotalTrapNights)<-c("Total Trap Nights", "Camera Nights")
 #TotalTrapNights
-AverageProjectTrapNight<-ddply(csvFile,~csvFile$Project+csvFile$"Deployment Name",summarise,TrapNights=length(unique(Date)))
-AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~AverageProjectTrapNight$"csvFile$Project",summarise,mean(TrapNights))
+AverageProjectTrapNight<-  ddply(data,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
+AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~Project,summarise,mean(TrapNights))
 #AverageProjectTrapNight
+
 
 
 
 ############ Bar graph of relative abundance  ##########
 #Make data summary, detection rate for each species for the entire project
 duration <- AverageProjectTrapNight[,2]
-spp<-unique(csvFile$'Common Name')
+spp<-unique(data$Common.Name)
 dur<-rep(as.numeric(duration), length(spp))
-count <- csvFile[,list(sum=sum(Count)),by='Common Name']
+#count <- data[,list(sum=sum(Count)),by='Common Name']
+count<-ddply(data, .(Common.Name), summarise, sum=sum(Count))
 rate<-(count$sum/dur)*100
 rate_input<-cbind(count, rate)
 #remove_spp<-("Camera Trapper|No Animal|Unknown Animal|Vehicle|Unknown Squirrel|Unknown Small Rodent|Unknown Rabbit_Hare|Unknown Flying Squirrel|Unknown Felid|Unknown Coati_Raccoon|Unknown Canid|Unknown Bird|Time Lapse|Reptile species|Raptor species|Owl species|Other Bird species|Northern Bobwhite|Human non-staff|Common Raven|Calibration Photos|Blue Jay|Bicycle|Animal Not on List|American Crow")
 
 #removing all humans, and other inappropriate detections
-data.an <- subset(rate_input, !(rate_input$"Common Name" %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Human non-staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List")))
+data.an <- subset(rate_input, !(rate_input$Common.Name %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Human non-staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List")))
 
 #subset the data to remove all Unknown and Domestic species
-data.t1 <- subset(data.an,!grepl("Unknown*",data.an$"Common Name"))
-data.t <- subset(data.t1,!grepl("^Domestic",data.t1$"Common Name"))
+data.t1 <- subset(data.an,!grepl("Unknown*",data.an$Common.Name))
+data.t <- subset(data.t1,!grepl("Domestic",data.t1$Common.Name))
 
 rrate<-data.t[order(-data.t$rate),]
 #rrate<-rate_input[grep(remove_spp, rate_input$'Common Name', invert=T),]   #invert = T shows the species not designated in remove_spp. 
@@ -125,22 +128,22 @@ rrate<-data.t[order(-data.t$rate),]
 #To save plot, run line 114
 #ggsave("Countgraph1.png", width = 20, height = 20, units = "cm")
 
+ylim_rough<-max(rrate$rate)+50
+ylim_max<-10*(ylim_rough%/%10+as.logical(ylim_rough%%10))
 
 #Make graph showing detection rate
 #rrate<-rrate[order(-rrate$rate)]
 jpeg(resultFile,width=750,height=530,units="px",pointsize=14,quality=100)
-ggplot(data=rrate, aes(x=reorder(rrate$'Common Name', rate), y=rate)) +
+ggplot(data=rrate, aes(x=reorder(rrate$Common.Name, rate), y=rate)) +
+  ylim(0,ylim_max) +
   geom_bar(stat="identity", color="black", 
            fill="steelblue")+
   theme_classic() + 
+  geom_text(aes(label=round(rate,digits=1)), vjust=-.5,size=5) +
+  theme(axis.title.x = element_text(size = 20)) +
+  theme(axis.title.y = element_text(size = 20)) +
   labs(x="Species", 
-       y = "Detection Rate (counts/100 camera days)")+
-  theme(axis.text.x = element_text(size=14,angle = 90, hjust = 1, color="black"))+
-  theme(axis.text.y = element_text(size=14,color="black"))+
-  theme(axis.title.x=element_text(size=18))+
-  theme(axis.title.y=element_text(size=18))+
-  ggtitle("Detections per 100 Camera Nights")+
-  theme(plot.title = element_text(hjust = 0.5,size=20))+
-  #geom_text(data=as.character(rrate$rate),aes(x=x,y=rate,label=lab),vjust=0)
-  geom_text(aes(label=round(rate,digits=1)),vjust=-0.5)
+       y = "Detection Rate (count/100 trap nights)")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, color="black",size=12))+
+  theme(axis.text.y = element_text(color="black",size = 12))
 dev.off()
