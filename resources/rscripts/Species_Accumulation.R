@@ -30,7 +30,7 @@ data <- read.csv(csvFile)
 data <- data[complete.cases(data$Count),]
 
 #removing all humans, and other inappropriate detections
-data.an <- subset(data, !Common.Name %in% c("Camera Trapper","Calibration Photos","No Animal","Time Lapse","Human, non staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List"))
+data.an <- subset(data, !(data$Common.Name %in% c("Camera Trapper","Calibration Photos","Human non-staff","No Animal","Time Lapse","Human, non staff","Bicycle","Camera Misfire","Vehicle","Animal Not On List")))
 
 #subset the data to remove all Unknown and Domestic species
 data.t1 <- subset(data.an,!grepl("Unknown*",data.an$Common.Name))
