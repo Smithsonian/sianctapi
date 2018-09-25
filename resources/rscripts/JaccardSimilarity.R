@@ -1,3 +1,7 @@
+list.of.packages<-c("vegan","plyr",'rich','reshape',"xtable",'d2json','rjson','gtools')
+new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages))install.packages(new.packages)
+
 require(vegan)
 require(rich)
 require(reshape)
@@ -18,8 +22,7 @@ resultFile <- args[2]
 #setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014")
 #data <- read.csv("SampleOutput_Final.csv")
 #data <- read.csv("si2.csv")
-#setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014/Sample Output")
-#data <- read.csv("Diversity2.csv")
+#data <- read.csv("1809FL.csv")
 data <- read.csv(csvFile)
 
 #Remove all NA rows from the data set in the count column which eliminates the spaces

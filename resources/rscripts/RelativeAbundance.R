@@ -5,7 +5,7 @@
 #The below packages are the ones used throughout this code template. Please install
 #and load the below packages before proceeding 
 #If you do not have one of these packages you can install with the following code:
-list.of.packages<-c("data.table","dplyr",'xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
+list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
 new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages))install.packages(new.packages)
 
