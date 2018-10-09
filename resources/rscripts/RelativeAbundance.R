@@ -5,9 +5,6 @@
 #The below packages are the ones used throughout this code template. Please install
 #and load the below packages before proceeding 
 #If you do not have one of these packages you can install with the following code:
-list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
-new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages))install.packages(new.packages)
 
 library(data.table)
 library(xtable)
@@ -33,6 +30,9 @@ library(png)
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 resultFile <- args[2]
+list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
+new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages))resultFile<-write.csv("packages not installed!")
 
 #this setwd command will of course change or be eliminated depending how this is set up in the server
 #setwd("C:/Users/ZhaoJJ/Dropbox (Smithsonian)/Documents/")
@@ -53,7 +53,7 @@ data <- read.csv(csvFile)
 data$Date=substr(data$Begin.Time,1,10)
 data$Date<-as.Date(data$Date,
                    format="%Y-%m-%d")
-DeploymentNightTable<-ddply(data,~data$Deployment.Name,summarise,TrapNights=length(unique(Date)))
+DeploymentNightTable<-ddply(data,~data$Deployment.Nam?e,summarise,TrapNights=length(unique(Date)))
 
 DeploymentNightTable2<-xtable(DeploymentNightTable)
 
@@ -81,7 +81,7 @@ AverageSubprojectTrapNight<-ddply(AverageSubprojectTrapNight,~Subproject,summari
 TotalTrapNights<- ddply(data,~Project,summarise,TrapNights=length(unique(Date)))
 #names(TotalTrapNights)<-c("Total Trap Nights", "Camera Nights")
 #TotalTrapNights
-AverageProjectTrapNight<-  ddply(data,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
+AverageProjectTrapNight<-ddply(data,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
 AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~Project,summarise,mean(TrapNights))
 #AverageProjectTrapNight
 

@@ -1,7 +1,3 @@
-list.of.packages<-c("vegan","plyr",'rich','reshape',"xtable",'d2json','rjson','gtools')
-new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages))install.packages(new.packages)
-
 require(vegan)
 require(rich)
 require(reshape)
@@ -14,6 +10,10 @@ require(gtools)
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 resultFile <- args[2]
+
+list.of.packages<-c("vegan",'rich','reshape',"xtable",'df2json','rjson','plyr','gtools')
+new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages))resultFile<-write.csv("package not installed!")
 
 ##################
 #Compare the mammal diversity similarity of two places
