@@ -5,6 +5,8 @@
 #The below packages are the ones used throughout this code template. Please install
 #and load the below packages before proceeding 
 #If you do not have one of these packages you can install with the following code:
+
+tryCatch({
 list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
 new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages))print("packages not installed!")
@@ -147,3 +149,12 @@ ggplot(data=rrate, aes(x=reorder(rrate$Common.Name, rate), y=rate)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, color="black",size=12))+
   theme(axis.text.y = element_text(color="black",size = 12))
 dev.off()
+
+
+}, error=function(e) {
+  print(paste(e,"\n Please contact eMammal@si.edu for help fixing this.")) #jen to clean up
+}, warning=function(w){
+  print(paste(w,"\n Please contact eMammal@si.edu for help fixing this."))
+}, finally={}
+)
+

@@ -2,16 +2,17 @@
 #Brent Pease (@BrentPease1) - modified by M. Cove and J. Zhao with permission and assistance from B. Pease
 #Note: in camtrapR, a "station" correlates to an eMammal "deployment"
 
+tryCatch({
 #code to read in eMammal Inputs from API
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 depcsvFile <- args[2]
 clump <- args[3]
 resultFile <- args[4]
-#csvFile<-"acousticdeer.csv"
-#depcsvFile<-"acousticdeerdep.csv"
+#csvFile<-"okaloosadeer.csv"
+#depcsvFile<-"okaloosadeerdep.csv"
 #clump <- 7
-#resultFile<-"racc.csv"
+#resultFile<-"deer.csv"
 
 #Code to set the time zone - Not Important to change, but required for later packages
 ols.sys.timezone <- Sys.timezone()
@@ -28,7 +29,7 @@ if(length(new.packages))print("warning: package not installed!")
 
 #read in datasets
 sequences <- fread(csvFile)
-cameras <-fread(depcsvFile)
+cameras <- fread(depcsvFile)
 #remove spaces from column headers and replace with '.'
 names(sequences) <- gsub(" ",".",names(sequences))  
 
@@ -58,10 +59,8 @@ cameras_dates <- cameras[,c("deployment_id","actual_date_out","retrieval_date")]
 colnames(cameras_dates) <- c("Deployment.ID", "Start.Date","End.Date")
 #start.dates <- cameras_dates[,min(Begin.Time, na.rm=T),by=Deployment.ID] #find start date for each camera
 #colnames(start.dates) <- c("Deployment.ID", "Start.Date")
-
 #end.dates <- cameras_dates[,max(Begin.Time, na.rm=T),by=Deployment.ID] #find end date for each camera
 #colnames(end.dates) <- c("Deployment.ID", "End.Date")
-
 # remove duplicates (sometimes there is 2 or more events with same first or last Begin.Time)  
 #start.dates <- start.dates[!duplicated(start.dates$Deployment.ID),]
 #end.dates <- end.dates[!duplicated(end.dates$Deployment.ID),]
@@ -101,7 +100,15 @@ camop <- cameraOperation(CTtable      = deployments,                #this is our
                          hasProblems  = FALSE,            #were there camera malfunctions?
                          dateFormat   = "%Y-%m-%d"
 )
+cam.tmp.min <- apply(camop, MARGIN = 1, function(X){min(which(!is.na(X)))})    # 1st day of each station
+cam.tmp.max <- apply(camop, MARGIN = 1, function(X){max(which(!is.na(X)))})    # last day of each station
 
+rec.tmp.min  <- aggregate(as.Date(sequences$Begin.Time, tz = ols.sys.timezone),
+                          list(sequences[,Deployment.ID]),
+                          FUN = min)
+rec.tmp.max  <- aggregate(as.Date(sequences$End.Time, tz = ols.sys.timezone),
+                          list(sequences[,Deployment.ID]),
+                          FUN = max)
 #3. We just now need to format our initial .csv (in this case, 'sequences') 
 #to be a 'record table'
 #at minimum, we need a column for StationID, SpeciesID, and date/time. 
@@ -120,6 +127,25 @@ species_name <- unique(sequences$Common.Name)
 # range(seq_rectable$DateTimeOriginal[seq_rectable$Station == "d17702"])       # the range of DateTimeOriginal at station 01C1
 # seq_short$Setup_date[seq_short$Station == "4288"]      # setup date at station 01C1
 # seq_short$Retrieval_date[seq_short$Station == "4288"]   # retreival date at station 01C1
+date_ranges <- data.frame(Deployment.ID = rec.tmp.max$Group.1,
+                          rec.min = rec.tmp.min[match(rownames(camop), rec.tmp.min[,1]), 2],       # first record
+                          rec.max = rec.tmp.max[match(rownames(camop), rec.tmp.max[,1]), 2],       # last record
+                          cam.min = as.POSIXct(colnames(camop)[cam.tmp.min], tz = ols.sys.timezone),   # station setup date
+                          cam.max = as.POSIXct(colnames(camop)[cam.tmp.max], tz = ols.sys.timezone)    # station retrieval date
+)
+
+if(any(date_ranges$rec.min < as.Date(date_ranges$cam.min), tz = ols.sys.timezone, na.rm = TRUE)) 
+  stop(paste("deployments with sequence timestamp outside deployment date range: ",                              
+             paste(date_ranges$Deployment.ID[which(
+               date_ranges$rec.min < as.Date(date_ranges$cam.min, tz = ols.sys.timezone))], 
+               collapse = ", " )), call. = FALSE)
+
+if(any(date_ranges$rec.max > as.Date(date_ranges$cam.max, tz = ols.sys.timezone), na.rm = TRUE)) 
+  stop(paste("deployments with sequence timestamp outside deployment date range: ",
+             paste(date_ranges$Deployment.ID[which(
+               date_ranges$rec.max > as.Date(date_ranges$cam.max, tz = ols.sys.timezone))], 
+               collapse = ", " )), call. = FALSE)
+
 
 DetHist <- detectionHistory(recordTable         = seq_rectable,                     #a list of all capture events with their location and date/time stamp
                             camOp                = camop,                #our camera trap operation matrix
@@ -146,8 +172,16 @@ DetHist<-cbind(rownames(DetHist),DetHist)
 colnames(DetHist)[1]<-"Deployment.ID"
 
 finalCSV<-merge(cameras_dates,DetHist, by="Deployment.ID")
-
 write.csv(finalCSV, file  = resultFile, row.names=FALSE)
+
+}, error=function(e) {
+  print(paste(e,"Please contact eMammal@si.edu with these deployment IDs for help fixing this.")) #jen to clean up
+}, warning=function(w){
+  print(paste(w,"Please contact eMammal@si.edu for help fixing this."))
+}, finally={}
+)
+
+
 
 #write.csv(as.data.frame(DetHist), file  = 'all.csv')
 #change name of csv to species name + clump
