@@ -13,7 +13,7 @@ if(length(new.packages))print("packages not installed!")
 
 library(data.table)
 library(xtable)
-library(rgdal)
+#library(rgdal)
 library(dplyr)
 library(plyr)
 library(ggplot2)
@@ -43,7 +43,7 @@ resultFile <- args[2]
 #Note that the filename will change each time so make sure it is
 #edited properly below
 data <- read.csv(csvFile)
-#data <- read.csv("okaloosatoday.csv")
+#data <- read.csv("okaloosa.csv")
 #SiteInfo<-fread(file="SiteInfo.csv")
 #resultFile<-"testing.jpeg"
 
@@ -76,7 +76,6 @@ SubprojectTrapNights = ddply(data,~data$Subproject,summarise,TrapNights=length(u
 AverageSubprojectTrapNight<-ddply(data,~Subproject+'Deployment Name',summarise,TrapNights=length(unique(Date)))
 AverageSubprojectTrapNight<-ddply(AverageSubprojectTrapNight,~Subproject,summarise,mean(TrapNights))
 #AverageSubprojectTrapNight
-
 
 
 #Total Trap Nights across the entire project
@@ -114,8 +113,7 @@ rrate<-data.t[order(-data.t$rate),]
  #Orders based on which species has the higher Detection rate
 
 
-
-# #Make graph showing total capture counts
+ #Make graph showing total capture counts
 # rrate<-rrate[order(-rrate$sum)]
 # head(rrate)
 # print(Countgraph1 <- ggplot(csvFile=rrate, aes(x=reorder(rrate$'Common Name', sum), y=sum)) +
