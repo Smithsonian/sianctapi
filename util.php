@@ -93,6 +93,13 @@ function _get_routes() {
       'args' => array('workflowName', 'pids', 'species', 'resultFileExt'),
     ),
 
+    'sianctapi/runOccupancyWorkflow' => array(
+      'library' => 'SIANCTAPI',
+      'controller' => 'sianctapiRunWorkflow',
+      'method' => '_POST',
+      'args' => array('projectCsvFile', 'deploymentCsvFile', 'clumpInterval'),
+    ),
+
     'sianctapi/selectObstables' => array(
       'library' => 'SIANCTAPI',
       'controller' => 'sianctapiSelectObstables',

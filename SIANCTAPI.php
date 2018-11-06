@@ -266,6 +266,94 @@ class SIANCTAPI {
     exit();
   }
 
+  /**
+   * Run R Script workflow for Occupany.
+   *
+   * Separate from sianctapiRunWorkflow because extra arguments are required.
+   *
+   * @param $workflowName
+   * @param $obstablePids
+   * @param $speciesNames
+   * @param $resultFileExt
+   *
+   * @return string
+   */
+  function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsvFile, $clumpInterval) {
+    // Hardcoded the R script filename.
+    $workflowName = 'Occupancy.R';
+
+    $datestamp = $this->datetimems();
+    $logdatestamp = date('Y-m-d');
+    $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiRunOccupancyWorkflow / $projectCsvFile / $deploymentCsvFile / $clumpInterval");
+
+    $projectCsvFilePath = $this->config['sianctapi_path'] . '/runtime/' . $projectCsvFile;
+    $deploymentCsvFilePath = $this->config['sianctapi_path'] . '/runtime/' . $deploymentCsvFile;
+    $workflowFilePath = $this->config['sianctapi_path'] . '/resources/rscripts/' . $workflowName;
+
+    if (!file_exists($projectCsvFilePath)) {
+      $result = 'SYSTEM ERROR: project csv file is not available not created.';
+    }
+    else if (!file_exists($deploymentCsvFilePath)) {
+      $result = 'SYSTEM ERROR: deployment csv file is not available not created.';
+    }
+    else if (!is_readable($workflowFilePath)) {
+      $result = 'SYSTEM ERROR: Occupancy R script file is not readable';
+    }
+    else if (!is_int($clumpInterval) || $clumpInterval <= 0) {
+      $result = 'SYSTEM ERROR: invalid clump interval: ' . $clumpInterval;
+    }
+    else {
+      $UUID = uniqid();
+      $resultFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.csv';
+      $outFilePath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
+
+      $command = 'R CMD BATCH "--args ' . $projectCsvFilePath . ' ' . $deploymentCsvFilePath . ' ' . ' ' . $clumpInterval . ' ' . $resultFilePath . '" ' . $workflowFilePath . ' ' . $outFilePath . ' 2>&1';
+
+      $datestamp = $this->datetimems();
+      fwrite($logfp, "\n[$datestamp]  $this->app_id sianctapiRunWorkflow command: $command");
+      $rOut = shell_exec($command);
+      $datestamp = $this->datetimems();
+      fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow R out:\n $rOut");
+
+      if (!is_readable($resultFilePath)) {
+        $result = 'SYSTEM ERROR: result file was not created: ' . $resultFilePath;
+        //$routfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . 'out';
+        $routfilepath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . 'out';
+        if (!is_readable($routfilepath)) {
+          $result .= '\n diagnosis file ' . $routfilepath . ' not found';
+        } else {
+          $result .= '\n diagnosis file ' . $routfilepath . ' contains\n' . $this->sianctapiGettFile($routfilepath);
+        }
+      } else {
+        $result = $resultFilePath;
+        $result_worked = TRUE;
+      }
+    }
+
+    $datestamp = $this->datetimems();
+    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow result: $result");
+    fclose($logfp);
+
+    if (!$result_worked) {
+      //self::sendHeader(500);
+      //return '';
+      return $result;
+    }
+
+    $out = "\n" . '<div id="sianctapiRunWorkflowResult">';
+    if ($result_worked == TRUE && strpos($result, '/') !== FALSE) {
+      $foo = explode('/', $result);
+      $out .= end($foo);
+    } else {
+      $out .= $result; //basename($result);
+    }
+    $out .= '</div>' . "\n";
+    return $out;
+    #module_invoke_all('exit');
+    exit();
+  }
+
   function sianctapiGetProjectStructure($xslt, $wt='xslt') {
     $solrResult = $this->sianctapiGetProjectStructureFromSolr($xslt, $wt);
     return $solrResult;
