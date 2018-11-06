@@ -314,7 +314,7 @@ class SIANCTAPI {
       $resultFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.csv';
       $outFilePath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
 
-      $command = 'R CMD BATCH "--args ' . $projectCsvFilePath . ' ' . $deploymentCsvFilePath . ' ' . ' ' . $clumpInterval . ' ' . $resultFilePath . '" ' . $workflowFilePath . ' ' . $outFilePath . ' 2>&1';
+      $command = sprintf('R CMD BATCH "--args %s %s %s %s" %s %s 2>&1', $projectCsvFilePath, $deploymentCsvFilePath, $clumpInterval, $resultFilePath, $workflowFilePath, $outFilePath );
 
       $datestamp = $this->datetimems();
       fwrite($logfp, "\n[$datestamp]  $this->app_id $logFunc command: $command");
