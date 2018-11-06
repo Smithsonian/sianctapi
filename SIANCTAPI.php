@@ -278,18 +278,24 @@ class SIANCTAPI {
    *
    * @return string
    */
-  function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsvFile, $clumpInterval) {
+  function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsv, $clumpInterval) {
     // Hardcoded the R script filename.
     $workflowName = 'Occupancy.R';
 
     $datestamp = $this->datetimems();
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
-    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiRunOccupancyWorkflow / $projectCsvFile / $deploymentCsvFile / $clumpInterval");
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiRunOccupancyWorkflow / $projectCsvFile / $clumpInterval");
+
+    $UUID = uniqid();
 
     $projectCsvFilePath = $this->config['sianctapi_path'] . '/runtime/' . $projectCsvFile;
-    $deploymentCsvFilePath = $this->config['sianctapi_path'] . '/runtime/' . $deploymentCsvFile;
     $workflowFilePath = $this->config['sianctapi_path'] . '/resources/rscripts/' . $workflowName;
+
+    $deploymentCsvFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-occupancy-deployments-' . $UUID . '.csv';
+    $deploymentCsvFile = fopen($deploymentCsvFilePath, 'w');
+    fwrite($deploymentCsvFile, $deploymentCsv);
+    fclose($deploymentCsvFile);
 
     if (!file_exists($projectCsvFilePath)) {
       $result = 'SYSTEM ERROR: project csv file is not available not created.';
@@ -304,7 +310,6 @@ class SIANCTAPI {
       $result = 'SYSTEM ERROR: invalid clump interval: ' . $clumpInterval;
     }
     else {
-      $UUID = uniqid();
       $resultFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.csv';
       $outFilePath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
 
