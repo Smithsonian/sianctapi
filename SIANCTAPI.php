@@ -324,12 +324,10 @@ class SIANCTAPI {
 
       if (!is_readable($resultFilePath)) {
         $result = 'SYSTEM ERROR: result file was not created: ' . $resultFilePath;
-        //$routfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . 'out';
-        $routfilepath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . 'out';
-        if (!is_readable($routfilepath)) {
-          $result .= '\n diagnosis file ' . $routfilepath . ' not found';
+        if (!is_readable($outFilePath)) {
+          $result .= '\n diagnosis file ' . $outFilePath . ' not found';
         } else {
-          $result .= '\n diagnosis file ' . $routfilepath . ' contains\n' . $this->sianctapiGettFile($routfilepath);
+          $result .= '\n diagnosis file ' . $outFilePath . ' contains\n' . $this->sianctapiGettFile($outFilePath);
         }
       } else {
         $result = $resultFilePath;
