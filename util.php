@@ -97,7 +97,7 @@ function _get_routes() {
       'library' => 'SIANCTAPI',
       'controller' => 'sianctapiRunWorkflow',
       'method' => '_POST',
-      'args' => array('projectCsvFile', 'deploymentCsvFile', 'clumpInterval'),
+      'args' => array('projectCsvFile', 'deploymentCsv', 'clumpInterval'),
     ),
 
     'sianctapi/selectObstables' => array(
