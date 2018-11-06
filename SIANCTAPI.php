@@ -279,13 +279,14 @@ class SIANCTAPI {
    * @return string
    */
   function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsv, $clumpInterval) {
+    $logFunc = __function__;
     // Hardcoded the R script filename.
     $workflowName = 'Occupancy.R';
 
     $datestamp = $this->datetimems();
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
-    fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiRunOccupancyWorkflow / $projectCsvFile / $clumpInterval");
+    fwrite($logfp, "\n\n[$datestamp] $this->app_id $logFunc / $projectCsvFile / $clumpInterval");
 
     $UUID = uniqid();
 
@@ -306,7 +307,7 @@ class SIANCTAPI {
     else if (!is_readable($workflowFilePath)) {
       $result = 'SYSTEM ERROR: Occupancy R script file is not readable';
     }
-    else if (!is_int($clumpInterval) || $clumpInterval <= 0) {
+    else if ($clumpInterval <= 0) {
       $result = 'SYSTEM ERROR: invalid clump interval: ' . $clumpInterval;
     }
     else {
@@ -316,10 +317,10 @@ class SIANCTAPI {
       $command = 'R CMD BATCH "--args ' . $projectCsvFilePath . ' ' . $deploymentCsvFilePath . ' ' . ' ' . $clumpInterval . ' ' . $resultFilePath . '" ' . $workflowFilePath . ' ' . $outFilePath . ' 2>&1';
 
       $datestamp = $this->datetimems();
-      fwrite($logfp, "\n[$datestamp]  $this->app_id sianctapiRunWorkflow command: $command");
+      fwrite($logfp, "\n[$datestamp]  $this->app_id $logFunc command: $command");
       $rOut = shell_exec($command);
       $datestamp = $this->datetimems();
-      fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow R out:\n $rOut");
+      fwrite($logfp, "\n[$datestamp] $this->app_id $logFunc R out:\n $rOut");
 
       if (!is_readable($resultFilePath)) {
         $result = 'SYSTEM ERROR: result file was not created: ' . $resultFilePath;
@@ -337,7 +338,7 @@ class SIANCTAPI {
     }
 
     $datestamp = $this->datetimems();
-    fwrite($logfp, "\n[$datestamp] $this->app_id sianctapiRunWorkflow result: $result");
+    fwrite($logfp, "\n[$datestamp] $this->app_id $logFunc result: $result");
     fclose($logfp);
 
     if (!$result_worked) {
