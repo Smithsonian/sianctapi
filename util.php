@@ -95,7 +95,7 @@ function _get_routes() {
 
     'sianctapi/runOccupancyWorkflow' => array(
       'library' => 'SIANCTAPI',
-      'controller' => 'sianctapiRunWorkflow',
+      'controller' => 'sianctapiRunOccupancyWorkflow',
       'method' => '_POST',
       'args' => array('projectCsvFile', 'deploymentCsv', 'clumpInterval'),
     ),
