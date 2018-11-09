@@ -15,6 +15,7 @@ resultFile <- args[4]
 #resultFile<-"deer.csv"
 
 #Code to set the time zone - Not Important to change, but required for later packages
+Sys.setenv(TZ="America/New_York") #added this to get rid of timezone warning
 ols.sys.timezone <- Sys.timezone()
 Sys.setenv(TZ = 'GMT')
 
