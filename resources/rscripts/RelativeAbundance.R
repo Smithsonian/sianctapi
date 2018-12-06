@@ -5,13 +5,15 @@
 #The below packages are the ones used throughout this code template. Please install
 #and load the below packages before proceeding 
 #If you do not have one of these packages you can install with the following code:
-list.of.packages<-c("data.table","dplyr",'xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
+
+tryCatch({
+list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
 new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages))install.packages(new.packages)
+if(length(new.packages))print("packages not installed!")
 
 library(data.table)
 library(xtable)
-library(rgdal)
+#library(rgdal)
 library(dplyr)
 library(plyr)
 library(ggplot2)
@@ -76,12 +78,11 @@ AverageSubprojectTrapNight<-ddply(AverageSubprojectTrapNight,~Subproject,summari
 #AverageSubprojectTrapNight
 
 
-
 #Total Trap Nights across the entire project
 TotalTrapNights<- ddply(data,~Project,summarise,TrapNights=length(unique(Date)))
 #names(TotalTrapNights)<-c("Total Trap Nights", "Camera Nights")
 #TotalTrapNights
-AverageProjectTrapNight<-  ddply(data,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
+AverageProjectTrapNight<-ddply(data,~Project+'Deployment Name',summarise,TrapNights=length(unique(Date)))
 AverageProjectTrapNight<-ddply(AverageProjectTrapNight,~Project,summarise,mean(TrapNights))
 #AverageProjectTrapNight
 
@@ -112,8 +113,7 @@ rrate<-data.t[order(-data.t$rate),]
  #Orders based on which species has the higher Detection rate
 
 
-
-# #Make graph showing total capture counts
+ #Make graph showing total capture counts
 # rrate<-rrate[order(-rrate$sum)]
 # head(rrate)
 # print(Countgraph1 <- ggplot(csvFile=rrate, aes(x=reorder(rrate$'Common Name', sum), y=sum)) +
@@ -147,3 +147,12 @@ ggplot(data=rrate, aes(x=reorder(rrate$Common.Name, rate), y=rate)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, color="black",size=12))+
   theme(axis.text.y = element_text(color="black",size = 12))
 dev.off()
+
+
+}, error=function(e) {
+  print(paste(e,"\n Please contact eMammal@si.edu for help fixing this.")) #jen to clean up
+}, warning=function(w){
+  print(paste(w,"\n Please contact eMammal@si.edu for help fixing this."))
+}, finally={}
+)
+

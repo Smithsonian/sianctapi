@@ -10,6 +10,11 @@ require(gtools)
 args <- commandArgs(TRUE)
 csvFile <- args[1]
 resultFile <- args[2]
+#resultFile<-"test.json"
+
+list.of.packages<-c("vegan",'rich','reshape',"xtable",'d2json','rjson','plyr','gtools')
+new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages))print("warning: package not installed!")
 
 ##################
 #Compare the mammal diversity similarity of two places
@@ -17,9 +22,8 @@ resultFile <- args[2]
 #load data
 #setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014")
 #data <- read.csv("SampleOutput_Final.csv")
-#data <- read.csv("si2.csv")
-#setwd("X:/1 Camera Trapping/SI Data Repository/R scripts/Codes to Gert 5_15_2014/Sample Output")
-#data <- read.csv("Diversity2.csv")
+#data <- read.csv("4180Okaloosa.csv")
+#data <- read.csv("JaccardTest.csv")
 data <- read.csv(csvFile)
 
 #Remove all NA rows from the data set in the count column which eliminates the spaces
@@ -50,6 +54,10 @@ jacc <- vegdist(data.cmx,"jaccard")
 #create lists of park comparisons and values
 tmp.list <- matrix(row.names(data.cmx))
 print(tmp.list)
+if (length(tmp.list)<2){
+  jacc.json<-toJSON("Please choose a project with more than one subproject for this analysis!")
+  write(jacc.json,resultFile)
+} else {
 park.list <- combn(tmp.list,2)
 park.list <- t(park.list)
 print(park.list)
@@ -64,3 +72,4 @@ jacc.json <- toJSON(jacc.m)
 
 #Save json to file
 write(jacc.json,resultFile)
+}
