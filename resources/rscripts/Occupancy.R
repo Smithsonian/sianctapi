@@ -1,188 +1,272 @@
-#Create capture history in camtrapR from eMammal .csv files
-#Brent Pease (@BrentPease1) - modified by M. Cove and J. Zhao with permission and assistance from B. Pease
-#Note: in camtrapR, a "station" correlates to an eMammal "deployment"
+#########################################################################
+################## Create Occupancy Data with ###########################
+############## Daily Sample Periods from Camera Observations ############
+#########################################################################
 
 tryCatch({
-#code to read in eMammal Inputs from API
-args <- commandArgs(TRUE)
-csvFile <- args[1]
-depcsvFile <- args[2]
-clump <- args[3]
-resultFile <- args[4]
-#csvFile<-"okaloosadeer.csv"
-#depcsvFile<-"okaloosadeerdep.csv"
-#clump <- 7
-#resultFile<-"deer.csv"
+  #code to read in eMammal Inputs from API
+  args <- commandArgs(TRUE)
+  csvFile <- args[1]
+  depcsvFile <- args[2]
+  clump <- args[3]
+  resultFile <- args[4]
+#First, install and load the packages we will need
+# install.packages("dplyr")
+# install.packages("plyr")
+# install.packages("reshape2")
+# install.packages("lubridate")
+# install.packages("reshape")
+# install.packages("elevatr")
+# install.packages("sp")
 
-#Code to set the time zone - Not Important to change, but required for later packages
+require(plyr)
+require(dplyr)
+require(reshape2)
+require(lubridate)
+require(reshape)
+
+#Set the time zone of the collected data
 Sys.setenv(TZ="America/New_York") #added this to get rid of timezone warning
 ols.sys.timezone <- Sys.timezone()
 Sys.setenv(TZ = 'GMT')
 
-#install.packages("data.table")
-#install.packages("camtrapR")
-library(data.table)
-library(camtrapR)
-#library(here)
-list.of.packages<-c("data.table",'camtrapR') 
-new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages))print("warning: package not installed!")
+#Set the capture period (minute, hour, day, week, month)
+#Set in terms of day, so day=1, hour=1/24, minute=1/(24*60) and week=7
+day <- clump
+#day <- 1
 
-#read in datasets
-sequences <- fread(csvFile)
-cameras <- fread(depcsvFile)
-#remove spaces from column headers and replace with '.'
-names(sequences) <- gsub(" ",".",names(sequences))  
+#Set the number of seconds in the sample period
+#for a one day sample period, would be 60*60*24 for example
+day.sec <- day*60*60*24
 
-#####Work flow####
-#1. Create 'camera station table' (This is an object (or file) describing the name, location, and date/time of all camera traps)
-#2. Using the camera station table, create a 'camera operation matrix' (this is an object (or file) describing the data/time a camera was operating and the total number of days camera was running)
-#3. Format initial dataset object (in this case, sequences) to be a 'record table' (This is an object (or file) containing all unique capture events, their location, and date/time)
-#4. Create capture history (i.e., detection history) of specified species using camtrapR::detectionHistory
-##################
+########### Load the data downloaded from the eMammal website ###########
 
-#1.TO create camera station table, first find start and end camera dates 
+#set the appropriate working directory
+#setwd("~")  
 
-#replace 'T' in x.Time with " " (a space)
-sequences$Begin.Time <- gsub("T"," ",sequences$Begin.Time)
-sequences$End.Time <- gsub("T"," ",sequences$End.Time)
+#Read in the downloaded file
+df <- read.csv(csvFile)
+cameras <- read.csv(depcsvFile)
+#df <- read.csv("coyote_test.csv", stringsAsFactors=FALSE)
+#df <- read.csv("acousticdeer.csv")
+#cameras <- read.csv("acousticdeerdep.csv")
 
-# format with as.POSIXct()
-sequences$Begin.Time <- as.POSIXct(sequences$Begin.Time, format ="%Y-%m-%d %H:%M:%S")
-sequences$End.Time <- as.POSIXct(sequences$End.Time, format ="%Y-%m-%d %H:%M:%S")
+######################## Fix the timestamps ###############################
+# Remove any data with no dates
+df[df$Begin.Time=="",] <- NA
+df <- df[!is.na(df$Begin.Time),]
+
+#Replace the Ts in the timestamps with a space
+df$Begin <- gsub("T", " ", df$Begin.Time)
+df$End <- gsub("T", " ", df$End.Time)
+
+#Format the times as POSIXct, the format that R uses for times
+df$Begin2 <- as.POSIXct(as.character(df$Begin, format = "%Y-%m-%d %H:%M:%S"))
+df$End2 <- as.POSIXct(as.character(df$End, format = "%Y-%m-%d %H:%M:%S"))
 cameras$actual_date_out <- as.POSIXct(cameras$actual_date_out, format = "%Y-%m-%d") 
 cameras$retrieval_date <- as.POSIXct(cameras$retrieval_date, format = "%Y-%m-%d")
-#str(cameras$actual_date_out)
-#str(cameras$retrieval_date)
+#str(df$Begin2)
+#str(df$End2)
+cameras_try <- subset(cameras, cameras$deployment_id == unique(df$Deployment.ID))
 
-#subset cameras to have only two columns begin and end date, and rename 
+############ Clean out rows where camera time not set properly ##########
+#Remove any entries with years in the future
+df$Date<-as.Date(df$Begin2, format="%Y-%m-%d")
+df$Year<-format(df$Date, format="%Y")
+p<-df %>%group_by(Deployment.Name)%>%mutate(RM=ifelse(Year > year(Sys.Date()),"remove", "keep"))
+p2<-filter(p, RM=="keep")
+
+#Remove any timestamps where the time was reset to the factory default
+#Define the factory default times to find them easily
+times <- c("2000-01-01 00:00:00", "2011-01-01 00:00:00", 
+           "2012-01-01 00:00:00", "2013-01-01 00:00:00", 
+           "2014-01-01 00:00:00", "2015-01-01 00:00:00", 
+           "2016-01-01 00:00:00", "2017-01-01 00:00:00", 
+           "2018-01-01 00:00:00", "2019-01-01 00:00:00", 
+           "2020-01-01 00:00:00", "2021-01-01 00:00:00")
+
+#Determine if a deployment has one of the times above
+p2$TI<-p2$Begin %in% times
+which(p2$TI=="TRUE")
+
+#Determine the maximum year of each deployment
+detach(package:plyr)
+library(dplyr)
+p<-p2 %>%group_by(Deployment.Name)%>%mutate(Max_Year=as.numeric(max(Year)))
+
+#If a deployment has one of the factory default times, remove all sequences
+#With that same year since these are typically put out at least one year
+#after they are manufactured
+p3<-p %>%group_by(Deployment.Name)%>%mutate(RM=ifelse(any(TI=="TRUE")&(Year < Max_Year),"remove", "keep"))
+df<-filter(p3, RM=="keep")
+
+############### Calculate Start and End dates for each camera ############
+library(plyr)
+
+#subset cameras to only have two columns Begin and End Date, and rename
 cameras_dates <- cameras[,c("deployment_id","actual_date_out","retrieval_date")] 
 colnames(cameras_dates) <- c("Deployment.ID", "Start.Date","End.Date")
-#start.dates <- cameras_dates[,min(Begin.Time, na.rm=T),by=Deployment.ID] #find start date for each camera
-#colnames(start.dates) <- c("Deployment.ID", "Start.Date")
-#end.dates <- cameras_dates[,max(Begin.Time, na.rm=T),by=Deployment.ID] #find end date for each camera
-#colnames(end.dates) <- c("Deployment.ID", "End.Date")
-# remove duplicates (sometimes there is 2 or more events with same first or last Begin.Time)  
-#start.dates <- start.dates[!duplicated(start.dates$Deployment.ID),]
-#end.dates <- end.dates[!duplicated(end.dates$Deployment.ID),]
 
-### merge with sequences
-#sequences <- merge(sequences, start.dates, by = "Deployment.ID", all.x = T, suffixes = '')
-#sequences <- merge(sequences, end.dates, by = "Deployment.ID", all.x = T, suffixes = '')
-sequences <- merge(sequences, cameras_dates, by = "Deployment.ID", all.x = T, suffixes = '')
+#merge with df
+df <- merge(df, cameras_dates, by = "Deployment.ID", all.x = T, suffixes = '')
 
+#z <- arrange(df, Deployment.Name, Begin2)
+#z <- group_by(z, Deployment.Name)
+#start.dates <- filter(z, Begin2 == min(Begin2, na.rm = T))[,c("Deployment.Name", "Begin2")]
+#colnames(start.dates) <- c("Deployment.Name", "Start.Date")
 
-#just need the following rows for camtrapR::camera trap station information (CT station info):
-#Station (deploy.id), location (lat/lon), setup.date, retrieval.date, problem_from1, problem_to1
-#problem_from and problem_to are columns to let camtrapR know of a camera malfunction
+#end.dates <- filter(z, Begin2 == max(Begin2, na.rm = T))[,c("Deployment.Name", "Begin2")]
+#colnames(end.dates) <- c("Deployment.Name", "End.Date")
 
-seq_short <- sequences[, .(Deployment.ID,Actual.Lon,Actual.Lat,Start.Date,End.Date)]
-names(seq_short) <- c("Station","Longitude","Latitude","Setup_date","Retrieval_date") #clean up the names
+#Remove duplicates (rarely there are 2 or more events with same first or last Begin2)  
+#start.dates <- start.dates[!duplicated(start.dates$Deployment.Name),]
+#end.dates <- end.dates[!duplicated(end.dates$Deployment.Name),]
 
-#add empty columns for problematic cameras
-seq_short <- seq_short[,`:=`(Problem1_from="",Problem1_to="")] 
+#Merge back into the original df
+#df <- merge(df, start.dates, by = "Deployment.Name", all.x = T, suffixes = '')
+#df <- merge(df, end.dates, by = "Deployment.Name", all.x = T, suffixes = '')
 
-#make setup_date and retrieval_date column only contain date and not time
-#seq_short$Setup_date <- substr(seq_short$Setup_date,1,10) 
-#seq_short$Retrieval_date <- substr(seq_short$Retrieval_date,1,10) 
+#Calculate the number of days/minutes/hours each camera was working
+#Set the units argument as needed, "weeks", days", "hours", "mins", "secs"
+df$Total.days.Sampled <- difftime(df$End.Date, df$Start.Date, units = "mins")
 
-deployments <- seq_short[!duplicated(seq_short$Station)] #return only one row of each Station
-print(deployments)  #make sure this looks good
-deployments <- as.data.frame(deployments) #camtrapR needs data.frame. data.tables are data.frames, but...
+################## Make a list of all existing deployments ###############
 
+cams.list <- unique(as.character(df$Deployment.ID))
 
-# 2. create camera operation matrix
-# for an example of a CTtable, load data(camtraps) from camtrapR package then View(camtraps)
+########### Select the species to make the capture history for ###########
+#we don't need this!!
+#species <- "Coyote"
 
-camop <- cameraOperation(CTtable      = deployments,                #this is our CT station information  
-                         stationCol   = "Station",        #which column contains station information 
-                         setupCol     = "Setup_date",     #which column contains setup_date info
-                         retrievalCol = "Retrieval_date", #Ditto 
-                         hasProblems  = FALSE,            #were there camera malfunctions?
-                         dateFormat   = "%Y-%m-%d"
-)
-cam.tmp.min <- apply(camop, MARGIN = 1, function(X){min(which(!is.na(X)))})    # 1st day of each station
-cam.tmp.max <- apply(camop, MARGIN = 1, function(X){max(which(!is.na(X)))})    # last day of each station
+#Subset the data for just detections of that species
+#df.sp <- subset(df, Common.Name == species)
 
-rec.tmp.min  <- aggregate(as.Date(sequences$Begin.Time, tz = ols.sys.timezone),
-                          list(sequences[,Deployment.ID]),
-                          FUN = min)
-rec.tmp.max  <- aggregate(as.Date(sequences$End.Time, tz = ols.sys.timezone),
-                          list(sequences[,Deployment.ID]),
-                          FUN = max)
-#3. We just now need to format our initial .csv (in this case, 'sequences') 
-#to be a 'record table'
-#at minimum, we need a column for StationID, SpeciesID, and date/time. 
-#for an example, load data(recordTableSample) from camtrapR package then View(recordTableSample)
+####### Calculate Sample Period for each observation for each Camera ####
 
-seq_rectable <- sequences[,.(Deployment.ID,Common.Name,Begin.Time)]
-#colnames(seq_rectable) <- c("Station","Species","DateTimeOriginal") #define column names
-seq_rectable <- as.data.frame(seq_rectable) #make sure this looks good 
+#Create sampling period IDs
+z <- df
+z$Deployment.Name <- as.character(z$Deployment.Name)
 
-# species to create detection history for
-species_name <- unique(sequences$Common.Name)
-#species <- c('White-tailed Deer', 'American Black Bear', 'Camera Trapper') #This is list of species that we want to create the detection histories for
+z$SamplePeriod <- NA
 
-#4. compute detection history for a species 
-# 
-# range(seq_rectable$DateTimeOriginal[seq_rectable$Station == "d17702"])       # the range of DateTimeOriginal at station 01C1
-# seq_short$Setup_date[seq_short$Station == "4288"]      # setup date at station 01C1
-# seq_short$Retrieval_date[seq_short$Station == "4288"]   # retreival date at station 01C1
-date_ranges <- data.frame(Deployment.ID = rec.tmp.max$Group.1,
-                          rec.min = rec.tmp.min[match(rownames(camop), rec.tmp.min[,1]), 2],       # first record
-                          rec.max = rec.tmp.max[match(rownames(camop), rec.tmp.max[,1]), 2],       # last record
-                          cam.min = as.POSIXct(colnames(camop)[cam.tmp.min], tz = ols.sys.timezone),   # station setup date
-                          cam.max = as.POSIXct(colnames(camop)[cam.tmp.max], tz = ols.sys.timezone)    # station retrieval date
-)
+for (i in unique(z$Deployment.Name)){
+  print(i)
+  x <- z[z$Deployment.Name == i,]
+  
+  z[z$Deployment.Name == i,]$SamplePeriod <- cut(x$Begin2, breaks = as.POSIXct(seq(from = min(x$Start.Date, na.rm = T), by = day.sec, to = max(x$End.Date, na.rm = T) + day.sec)), labels = F)
+}
 
-if(any(date_ranges$rec.min < as.Date(date_ranges$cam.min), tz = ols.sys.timezone, na.rm = TRUE)) 
-  stop(paste("deployments with sequence timestamp outside deployment date range: ",                              
-             paste(date_ranges$Deployment.ID[which(
-               date_ranges$rec.min < as.Date(date_ranges$cam.min, tz = ols.sys.timezone))], 
-               collapse = ", " )), call. = FALSE)
+max(z$SamplePeriod)
+summary(z$SamplePeriod)
 
-if(any(date_ranges$rec.max > as.Date(date_ranges$cam.max, tz = ols.sys.timezone), na.rm = TRUE)) 
-  stop(paste("deployments with sequence timestamp outside deployment date range: ",
-             paste(date_ranges$Deployment.ID[which(
-               date_ranges$rec.max > as.Date(date_ranges$cam.max, tz = ols.sys.timezone))], 
-               collapse = ", " )), call. = FALSE)
+#Remove all columns but Deployment.Name and SamplePeriod
+colnames(z)
+df8 <- z[ -c(2:(ncol(z)-1)) ]
 
+################## Add in missing deployment names for ##################
+############## deployments that did not detect the species ##############
+########################### of interest #################################
 
-DetHist <- detectionHistory(recordTable         = seq_rectable,                     #a list of all capture events with their location and date/time stamp
-                            camOp                = camop,                #our camera trap operation matrix
-                            stationCol           = "Deployment.ID",            
-                            speciesCol           = "Common.Name",
-                            recordDateTimeCol    = "Begin.Time",
-                            recordDateTimeFormat = "%Y-%m-%d %H:%M:%S",
-                            species              = species_name, #which species to create detection history for, from the species in 'seq_rectable' 
-                            occasionLength       = clump,                   #This is the clumping number (e.g., number of days to aggregate in a single survey occasion)
-                            day1                 = "station",           #WHen should occassions begin: station setup date("station"), first day of survey("survey"), or a specified date (e.g., "2015-12-25")?
-                            datesAsOccasionNames = FALSE,               #only applies if day1="survey"
-                            includeEffort        = FALSE,               #compute trapping effort(number of active camera trap days per station and occasion)?
-                            timeZone             = "GMT",
-                            writecsv = TRUE,
-                            outDir = getwd())         #here specifies the base directory and then "Capture_Histories" specifies folder within base directory
-            
-#Jen to change - add data frames together
+# Find names of missing cams
+Missing_cam <- setdiff(cams.list,df8$Deployment.ID) 
 
-DetHist<-as.data.frame(DetHist)
+#Mark them with 0s as SamplePeriod which can be easily removed later
+M_C<-as.data.frame(cbind(Missing_cam, rep(0, length(Missing_cam))))
+names(M_C)<-c("Deployment.ID", "SamplePeriod")
 
+#Add them into the dataframe with the detection data
+df4<-rbind(df8, M_C)
+
+#Sort by Deployment
+df4<-df4[order(df4$Deployment.ID), ]
+
+#################### Create the capture history matrix ###################
+########################## Just like a Pivot Table #######################
+
+#Reshape the data using melt
+transform=melt(df4, id.vars="Deployment.ID")
+pivot=cast(transform, Deployment.ID ~ value)
+
+#Delete the first sample period (0) we made when adding the rest of the
+#Deployments
+pivot<- pivot[ -c(2) ] 
+pivot[is.na(pivot)]=0
+
+#Turn all non-zero matrix elements for sampleperiod into 1
+pivot[,2:ncol(pivot)][pivot[,2:ncol(pivot)] != 0] = 1
+
+#Get everything ready to output the CH find length of history
+df4$SamplePeriod<-as.numeric(df4$SamplePeriod)
+
+######### Add any missing hours (or days, minutes etc.) of data ##########
+
+#First create the full sequence of hours from beginning to end of the 
+#study that should be accounted for
+occStr <- seq(1,max(df4$SamplePeriod),1);
+occStr <- as.character(occStr); 
+occStr <- c("Deployment.ID",occStr); # pre-pend tag onto occStr
+
+#Then find the names of missing time columns
+Missing_time <- setdiff(occStr,names(pivot)) 
+
+#Add them to the to the dataframe, filled with 0s and set in ordinal
+#sequence
+pivot[Missing_time] <- 0
+pivot <- pivot[occStr]
+
+############### Add "NA"s where cameras were not running ###############
+
+#First create a list of the maximum Sample Period for each camera in the
+#entire dataset, this will be larger than the last time we calcualted
+#this since that was only for a specific species
+z2 <- df
+z2$Deployment.ID <- as.character(z2$Deployment.ID)
+
+z2$SamplePeriod <- NA
+
+for (i in unique(z2$Deployment.ID)){
+  print(i)
+  x <- z2[z2$Deployment.ID == i,]
+  
+  z2[z2$Deployment.ID == i,]$SamplePeriod <- 
+    cut(x$Begin2, breaks = 
+          as.POSIXct(seq(from = min(x$Start.Date, na.rm = T), 
+                         by = day.sec, to = max(x$End.Date, na.rm = T) + day.sec)), labels = F)
+}
+
+max(z2$SamplePeriod)
+summary(z2$SamplePeriod)
+
+df5 <- z2[ -c(2:(ncol(z2)-1)) ]
+
+max_period<-aggregate(.~ Deployment.ID,data=df5, FUN= max)
+max_period
+
+#Then for each title, insert "NA" for each Sample Period greater than
+#the maximum
+pivot2<-pivot
+for(j in 2:ncol(pivot2)){
+  for(i in 1:nrow(pivot2)){
+    if (j > max_period[i,2]){
+      pivot2[i,j]<-"NA"}
+  }}
+
+#insert identifying pieces of information in pivot2
+species_name=unique(df$Common.Name)
 cameras_dates$Common.Name<-species_name
-cameras_dates$ClumpNum<-clump
-DetHist<-cbind(rownames(DetHist),DetHist)
-colnames(DetHist)[1]<-"Deployment.ID"
+cameras_dates$ClumpNum<-day
 
-finalCSV<-merge(cameras_dates,DetHist, by="Deployment.ID")
-write.csv(finalCSV, file  = resultFile, row.names=FALSE)
+pivot2<- merge(cameras_dates,pivot2, by="Deployment.ID")
+
+# Write CSV in R
+write.csv(pivot2, file = resultFile, row.names=FALSE)
+#write.csv(pivot2, file = "resultFile.csv", row.names=FALSE)
+
 
 }, error=function(e) {
-  print(paste(e,"Please contact eMammal@si.edu with these deployment IDs for help fixing this.")) #jen to clean up
+  print(paste(e,"Please contact eMammal@si.edu for help fixing this.")) #jen to clean up
 }, warning=function(w){
   print(paste(w,"Please contact eMammal@si.edu for help fixing this."))
 }, finally={}
 )
 
-
-
-#write.csv(as.data.frame(DetHist), file  = 'all.csv')
-#change name of csv to species name + clump
