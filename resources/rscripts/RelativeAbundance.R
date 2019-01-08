@@ -7,22 +7,20 @@
 #If you do not have one of these packages you can install with the following code:
 
 tryCatch({
-list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity','camtrapR','rgdal')
+list.of.packages<-c("data.table","dplyr",'lubridate','jpeg','png','xtable','reshape2',"ggplot2",'ggmap','overlap','activity')
 new.packages<-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages))print("packages not installed!")
 
 library(data.table)
 library(xtable)
 #library(rgdal)
-library(dplyr)
 library(plyr)
+library(dplyr)
 library(ggplot2)
 library(reshape2)
 library(ggmap)
 library(overlap)
 library(activity)
-library(camtrapR)
-
 
 library(lubridate)
 library(jpeg)
