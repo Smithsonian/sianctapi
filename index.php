@@ -2,7 +2,7 @@
 require_once('./util.php');
 define('SIANCT_TRUSTED_REQUEST', FALSE);
 //define('SIANCT_TRUSTED_REQUEST', TRUE);
-ini_set('memory_limit', '2G');
+ini_set('memory_limit', '4G');
 
 //-- Configuration:
 
