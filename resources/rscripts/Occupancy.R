@@ -10,6 +10,13 @@ tryCatch({
   depcsvFile <- args[2]
   clump <- args[3]
   resultFile <- args[4]
+  
+  #check on inputs
+  print(csvFile)
+  print(depcsvFile)
+  typeof(clump)
+  print(clump)
+  print(resultFile)
 #First, install and load the packages we will need
 # install.packages("dplyr")
 # install.packages("plyr")
@@ -47,6 +54,8 @@ day.sec <- day*60*60*24
 #Read in the downloaded file
 df <- read.csv(csvFile)
 cameras <- read.csv(depcsvFile)
+head(df)
+head(cameras)
 #df <- read.csv("coyote_test.csv", stringsAsFactors=FALSE)
 #df <- read.csv("acousticdeer.csv")
 #cameras <- read.csv("acousticdeerdep.csv")
