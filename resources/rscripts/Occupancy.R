@@ -77,7 +77,7 @@ cameras$actual_date_out <- as.POSIXct(cameras$actual_date_out, format = "%Y-%m-%
 cameras$retrieval_date <- as.POSIXct(cameras$retrieval_date, format = "%Y-%m-%d")
 #str(df$Begin2)
 #str(df$End2)
-cameras_try <- subset(cameras, cameras$deployment_id == unique(df$Deploy.ID))
+#cameras_try <- subset(cameras, cameras$deployment_id == unique(df$Deploy.ID))
 
 ############ Clean out rows where camera time not set properly ##########
 #Remove any entries with years in the future
