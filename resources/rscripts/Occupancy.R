@@ -39,7 +39,8 @@ Sys.setenv(TZ = 'GMT')
 
 #Set the capture period (minute, hour, day, week, month)
 #Set in terms of day, so day=1, hour=1/24, minute=1/(24*60) and week=7
-day <- clump
+#SIANCT API supplies a string, convert it into a double.
+day <- as.double(clump)
 #day <- 1
 
 #Set the number of seconds in the sample period
