@@ -77,7 +77,7 @@ cameras$actual_date_out <- as.POSIXct(cameras$actual_date_out, format = "%Y-%m-%
 cameras$retrieval_date <- as.POSIXct(cameras$retrieval_date, format = "%Y-%m-%d")
 #str(df$Begin2)
 #str(df$End2)
-cameras_try <- subset(cameras, cameras$deployment_id == unique(df$Deployment.ID))
+cameras_try <- subset(cameras, cameras$deployment_id == unique(df$Deploy.ID))
 
 ############ Clean out rows where camera time not set properly ##########
 #Remove any entries with years in the future
@@ -115,10 +115,10 @@ library(plyr)
 
 #subset cameras to only have two columns Begin and End Date, and rename
 cameras_dates <- cameras[,c("deployment_id","actual_date_out","retrieval_date")] 
-colnames(cameras_dates) <- c("Deployment.ID", "Start.Date","End.Date")
+colnames(cameras_dates) <- c("Deploy.ID", "Start.Date","End.Date")
 
 #merge with df
-df <- merge(df, cameras_dates, by = "Deployment.ID", all.x = T, suffixes = '')
+df <- merge(df, cameras_dates, by = "Deploy.ID", all.x = T, suffixes = '')
 
 #z <- arrange(df, Deployment.Name, Begin2)
 #z <- group_by(z, Deployment.Name)
@@ -142,7 +142,7 @@ df$Total.days.Sampled <- difftime(df$End.Date, df$Start.Date, units = "mins")
 
 ################## Make a list of all existing deployments ###############
 
-cams.list <- unique(as.character(df$Deployment.ID))
+cams.list <- unique(as.character(df$Deploy.ID))
 
 ########### Select the species to make the capture history for ###########
 #we don't need this!!
@@ -171,31 +171,31 @@ summary(z$SamplePeriod)
 
 #Remove all columns but Deployment.Name and SamplePeriod
 colnames(z)
-df8 <- z[ -c(2:(ncol(z)-1)) ]
+df8 <- subset(z, select=c("Deploy.ID","SamplePeriod"))
 
 ################## Add in missing deployment names for ##################
 ############## deployments that did not detect the species ##############
 ########################### of interest #################################
 
 # Find names of missing cams
-Missing_cam <- setdiff(cams.list,df8$Deployment.ID) 
+Missing_cam <- setdiff(cams.list,df8$Deploy.ID) 
 
 #Mark them with 0s as SamplePeriod which can be easily removed later
 M_C<-as.data.frame(cbind(Missing_cam, rep(0, length(Missing_cam))))
-names(M_C)<-c("Deployment.ID", "SamplePeriod")
+names(M_C)<-c("Deploy.ID", "SamplePeriod")
 
 #Add them into the dataframe with the detection data
 df4<-rbind(df8, M_C)
 
 #Sort by Deployment
-df4<-df4[order(df4$Deployment.ID), ]
+df4<-df4[order(df4$Deploy.ID), ]
 
 #################### Create the capture history matrix ###################
 ########################## Just like a Pivot Table #######################
 
 #Reshape the data using melt
-transform=melt(df4, id.vars="Deployment.ID")
-pivot=cast(transform, Deployment.ID ~ value)
+transform=melt(df4, id.vars="Deploy.ID")
+pivot=cast(transform, Deploy.ID ~ value)
 
 #Delete the first sample period (0) we made when adding the rest of the
 #Deployments
@@ -207,6 +207,7 @@ pivot[,2:ncol(pivot)][pivot[,2:ncol(pivot)] != 0] = 1
 
 #Get everything ready to output the CH find length of history
 df4$SamplePeriod<-as.numeric(df4$SamplePeriod)
+df4[is.na(df4)] <- 0
 
 ######### Add any missing hours (or days, minutes etc.) of data ##########
 
@@ -214,7 +215,7 @@ df4$SamplePeriod<-as.numeric(df4$SamplePeriod)
 #study that should be accounted for
 occStr <- seq(1,max(df4$SamplePeriod),1);
 occStr <- as.character(occStr); 
-occStr <- c("Deployment.ID",occStr); # pre-pend tag onto occStr
+occStr <- c("Deploy.ID",occStr); # pre-pend tag onto occStr
 
 #Then find the names of missing time columns
 Missing_time <- setdiff(occStr,names(pivot)) 
@@ -230,26 +231,27 @@ pivot <- pivot[occStr]
 #entire dataset, this will be larger than the last time we calcualted
 #this since that was only for a specific species
 z2 <- df
-z2$Deployment.ID <- as.character(z2$Deployment.ID)
+z2$Deploy.ID <- as.character(z2$Deploy.ID)
 
 z2$SamplePeriod <- NA
 
-for (i in unique(z2$Deployment.ID)){
+for (i in unique(z2$Deploy.ID)){
   print(i)
-  x <- z2[z2$Deployment.ID == i,]
+  x <- z2[z2$Deploy.ID == i,]
   
-  z2[z2$Deployment.ID == i,]$SamplePeriod <- 
+  z2[z2$Deploy.ID == i,]$SamplePeriod <- 
     cut(x$Begin2, breaks = 
           as.POSIXct(seq(from = min(x$Start.Date, na.rm = T), 
                          by = day.sec, to = max(x$End.Date, na.rm = T) + day.sec)), labels = F)
 }
 
+z2$SamplePeriod[is.na(z2$SamplePeriod)] <- 0
 max(z2$SamplePeriod)
 summary(z2$SamplePeriod)
 
 df5 <- z2[ -c(2:(ncol(z2)-1)) ]
 
-max_period<-aggregate(.~ Deployment.ID,data=df5, FUN= max)
+max_period<-aggregate(.~ Deploy.ID,data=df5, FUN= max)
 max_period
 
 #Then for each title, insert "NA" for each Sample Period greater than
@@ -266,7 +268,7 @@ species_name=unique(df$Common.Name)
 cameras_dates$Common.Name<-species_name
 cameras_dates$ClumpNum<-day
 
-pivot2<- merge(cameras_dates,pivot2, by="Deployment.ID")
+pivot2<- merge(cameras_dates,pivot2, by="Deploy.ID")
 
 # Write CSV in R
 write.csv(pivot2, file = resultFile, row.names=FALSE)
