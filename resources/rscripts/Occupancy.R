@@ -87,7 +87,7 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
   metadata <- metadata[!(metadata$actual_date_out == "" | is.na(metadata$actual_date_out)), ]
   
   # double check that obs doesn't contain the deployment_ids in missing
-  obs <- obs[!(obs$Deployment.ID %in% missing),]
+  obs <- obs[!(obs$Deploy.ID %in% missing),]
   
   #Replace the Ts in the timestamps with a space
   obs[c("Begin.Time", "End.Time")] <- lapply(obs[c("Begin.Time", "End.Time")], 
@@ -131,7 +131,7 @@ CalculateSamplePeriod <- function(obs, metadata) {
   #   metadata: camera deployment metadata from eMammal (object `depcsvFile`).
   #
   # returns:
-  #   `SamplePeriod` with two columns: 1. Deployment.ID - unique identifier for deployments
+  #   `SamplePeriod` with two columns: 1. Deploy.ID - unique identifier for deployments
   #                                    2. SamplePeriod -  which 'visits' the 
   #                                                       species was detected
   
@@ -143,12 +143,12 @@ CalculateSamplePeriod <- function(obs, metadata) {
   # Merge obs and metadata
   tmp <- merge(obs, 
                metadata[, c("deployment_id","actual_date_out","retrieval_date", 'totalSamplingPeriod')],
-               by.x = "Deployment.ID",
+               by.x = "Deploy.ID",
                by.y = "deployment_id",
                all.x = T)
   
   # identify which deployments have mismatch in obs and metadata dates
-  badDates <- as.character(unique(tmp[which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date),]$Deployment.ID))
+  badDates <- as.character(unique(tmp[which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date),]$Deploy.ID))
   
   # notify user
   # the following if statement has messy formatting but is neccessary to print correctly. Please do not edit. 
@@ -160,7 +160,7 @@ CalculateSamplePeriod <- function(obs, metadata) {
     
   }
   # remove badDates
-  tmp <- tmp[!(tmp$Deployment.ID %in% badDates),]
+  tmp <- tmp[!(tmp$Deploy.ID %in% badDates),]
   
   # convert column class
   tmp$Deployment.Name <- as.character(tmp$Deployment.Name)
@@ -180,18 +180,18 @@ CalculateSamplePeriod <- function(obs, metadata) {
     rm(holder)
   }
   
-  # reduce tmp down to two columns: Deployment.ID and SamplePeriod
-  tmp <- subset(tmp, select = c('Deployment.ID', 'SamplePeriod'))
+  # reduce tmp down to two columns: Deploy.ID and SamplePeriod
+  tmp <- subset(tmp, select = c('Deploy.ID', 'SamplePeriod'))
   
   # find deployments in metadata that did not detect focal species and add to the
   # data frame containing sites where species was detected
-  tmp2 <- as.character(metadata[metadata$deployment_id %in% setdiff(metadata$deployment_id,tmp$Deployment.ID),]$deployment_id)
-  tmp2 <- data.frame(Deployment.ID = tmp2, SamplePeriod = rep(0, length(tmp2)))
+  tmp2 <- as.character(metadata[metadata$deployment_id %in% setdiff(metadata$deployment_id,tmp$Deploy.ID),]$deployment_id)
+  tmp2 <- data.frame(Deploy.ID = tmp2, SamplePeriod = rep(0, length(tmp2)))
   
   tmp3 <- rbind(tmp, tmp2)
   
   # order by deployment date
-  tmp3 <- tmp3[order(tmp3$Deployment.ID),]
+  tmp3 <- tmp3[order(tmp3$Deploy.ID),]
   
   # add to the global environment
   samplePeriod <<- tmp3
@@ -208,13 +208,13 @@ CreateCaptureHistory <- function(samplePeriod) {
   #        occurred observation. The object created from the function CalculateSamplePeriod is ideal.
   #
   # Returns:
-  #   CapHist: A data frame containing a camera-site specific (i.e., deployment.ID)
+  #   CapHist: A data frame containing a camera-site specific (i.e., deploy.ID)
   #            capture history for the focal species. 
   
   
   # Reshape the data using melt
-  transform <- melt(samplePeriod, id.vars="Deployment.ID")
-  pivot <- cast(transform, Deployment.ID ~ value, fun.aggregate = length)
+  transform <- melt(samplePeriod, id.vars="Deploy.ID")
+  pivot <- cast(transform, Deploy.ID ~ value, fun.aggregate = length)
   
   # Remove column indicating whether species was detected 
   pivot<- pivot[ -c(2) ] 
