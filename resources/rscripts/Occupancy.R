@@ -233,7 +233,7 @@ CreateCaptureHistory <- function(samplePeriod) {
   cameras_dates$ClumpNum<-clump
   
   #store in environment
-  CapHist<- merge(pivot,cameras_dates by="Deploy.ID", all.x=TRUE)
+  CapHist<- merge(pivot,cameras_dates, by="Deploy.ID", all.x=TRUE)
   #CapHist <<- pivot
   
   #notify user of status
