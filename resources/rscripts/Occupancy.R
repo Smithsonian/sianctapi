@@ -224,9 +224,17 @@ CreateCaptureHistory <- function(samplePeriod) {
   
   #Turn all non-zero matrix elements for SamplePeriod into 1
   pivot[,2:ncol(pivot)][pivot[,2:ncol(pivot)] != 0] = 1
-
+  
+  #insert identifying pieces of information in pivot2
+  cameras_dates <- depcsvFile[,c("deployment_id","actual_date_out","retrieval_date")] 
+  colnames(cameras_dates) <- c("Deploy.ID", "Start.Date","End.Date")
+  species_name=unique(csvFile$Common.Name)
+  cameras_dates$Common.Name<-species_name
+  cameras_dates$ClumpNum<-clump
+  
   #store in environment
-  CapHist <<- pivot
+  CapHist<- merge(cameras_dates,pivot, by="Deploy.ID")
+  #CapHist <<- pivot
   
   #notify user of status
   if(any(is.na(CapHist))) {
