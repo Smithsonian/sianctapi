@@ -230,7 +230,7 @@ CreateCaptureHistory <- function(samplePeriod) {
   colnames(cameras_dates) <- c("Deploy.ID", "Start.Date","End.Date")
   species_name=unique(csvFile$Common.Name)
   cameras_dates$Common.Name<-species_name
-  cameras_dates$ClumpNum<-clump
+  cameras_dates$ClumpNum<-clump/(60*60*24)
   
   #store in environment
   CapHist<- merge(cameras_dates,pivot, by="Deploy.ID", all.x=TRUE)
