@@ -12,14 +12,16 @@
 args <- commandArgs(TRUE)
 
 # object containing animal observations
-csvFile <- args[1]
+csvFileName <- args[1]
+csvFile<-read.csv(csvFileName)
 #csvFile <- read.csv("sianctapi-selected-observations-5c5f7749e8e6d.csv")
 
 # remove spaces in variable names and replace with "."
 names(csvFile) <- gsub(" ", ".", names(csvFile))
 
 # object containing deployment metadata
-depcsvFile <- args[2]
+depcsvFileName <- args[2]
+depcsvFile<-read.csv(depcsvFile)
 #depcsvFile <- read.csv("deployment_metadata_20190209195846.csv")
 
 # number of days for interval, defined by the user
