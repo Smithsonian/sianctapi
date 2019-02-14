@@ -21,7 +21,7 @@ names(csvFile) <- gsub(" ", ".", names(csvFile))
 
 # object containing deployment metadata
 depcsvFileName <- args[2]
-depcsvFile<-read.csv(depcsvFile)
+depcsvFile<-read.csv(depcsvFileName)
 #depcsvFile <- read.csv("deployment_metadata_20190209195846.csv")
 
 # number of days for interval, defined by the user
