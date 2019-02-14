@@ -217,7 +217,7 @@ CreateCaptureHistory <- function(samplePeriod) {
   pivot <- cast(transform, Deploy.ID ~ value, fun.aggregate = length)
   
   # Remove column indicating whether species was detected 
-  pivot<- pivot[ -c(2) ] 
+  #pivot<- pivot[ -c(2) ] 
   
   # Set NAs to non-detection status
   pivot[is.na(pivot)]=0
