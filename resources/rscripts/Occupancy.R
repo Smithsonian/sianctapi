@@ -237,7 +237,6 @@ CreateCaptureHistory <- function(samplePeriod) {
   pivot <- dcast(transform, Deploy.ID ~ value, fun.aggregate = length)
   
   # Check that all sample period are included (even those when no animals are detected)
-  samplePeriod[387,]
   allPeriods <- as.character(seq(min(samplePeriod$SamplePeriod), max(samplePeriod$SamplePeriod)))
   missingColumns <- allPeriods[allPeriods %in% colnames(pivot) == FALSE]
   pivot[,missingColumns] <- 0
