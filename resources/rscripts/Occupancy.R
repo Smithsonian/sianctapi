@@ -175,7 +175,9 @@ CalculateSamplePeriod <- function(obs, metadata) {
                     Here are the deployments that were removed: %s", paste(badDates, collapse = " ")),
             " ",
             "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
-    
+  }
+  else {
+    warningmsg<<-NA
   }
   # remove badDates
   tmp <- tmp[!(tmp$Deploy.ID %in% badDates),]
@@ -267,7 +269,8 @@ CreateCaptureHistory <- function(samplePeriod) {
   if(any(is.na(CapHist))) {
     warning('There was an error creating the Capture History. Please email eMammal at eMammal@si.edu with this warning message and the inputs at each step above.', call. = F)
   } else {
-    CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
+    if (!is.na(warningmsg))
+      CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
     write.csv(CapHist, file=resultFile, row.names = FALSE)
     warning('Capture History was successfully created', call. = F)
   }
