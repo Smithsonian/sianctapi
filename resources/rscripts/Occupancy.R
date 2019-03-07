@@ -33,7 +33,7 @@ clump <- as(clump, 'double')*60*60*24
 
 # capture history to be returned to user
 resultFile <- args[4]
-
+#resultFile <- "test.csv"
 
 # libraries needed to execute script
 
@@ -67,6 +67,10 @@ FixTimeStamps <- function(obs, metadata) {
   #   `csvFile` updated with time columns standardized and reformatted.
   #   `depcsvFile` updated with time columsn standardized and reformatted.
   
+  # if column name is Deployment.ID change it to Deploy.ID
+  if("Deployment.ID" %in% colnames(obs)){
+    colnames(obs)[which(colnames(obs) == "Deployment.ID")] <- "Deploy.ID"
+  }
   
   # Remove any data with no dates
   obs <- obs[!(obs$Begin.Time == "" | is.na(obs$Begin.Time)), ]
@@ -87,11 +91,16 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
   metadata <- metadata[!(metadata$actual_date_out == "" | is.na(metadata$actual_date_out)), ]
   
   # double check that obs doesn't contain the deployment_ids in missing
-  obs <- obs[!(obs$Deploy.ID %in% missing),]
+  if (length(missing) > 0){
+    obs <- obs[!(obs$Deploy.ID %in% missing),]}
   
   #Replace the Ts in the timestamps with a space
   obs[c("Begin.Time", "End.Time")] <- lapply(obs[c("Begin.Time", "End.Time")], 
                                              function(x) gsub("T", " ", x))
+  
+  # make a copy of what the Begin.Time and End.Times are to start with 
+  #(will be used in a moment to check that the dates were all converted to correct format)
+  BeginEnd <- obs[c("Begin.Time", "End.Time")]
   
   #Format the times columns as class POSIXct
   obs[c("Begin.Time", "End.Time")] <- lapply(obs[c("Begin.Time", "End.Time")], 
@@ -99,6 +108,12 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
 
   metadata[c("actual_date_out", "retrieval_date")] <- lapply(metadata[c("actual_date_out", "retrieval_date")], 
                                              function(x) as.POSIXct(x, format = "%Y-%m-%d")) 
+  
+  # check that it successfully converted all the formats in R
+  if(identical(is.na(BeginEnd), is.na(obs[c("Begin.Time", "End.Time")])) == FALSE){
+    warning("Begin and End times are not all in the correct format. In the selected Observations csv please make sure the Begin.Time and End.Time columns are one of following formats: '%Y-%m-%d %H:%M:%S' or  '%Y-%m-%dT%H:%M:%S'
+            To do this: (1) open the selected observations csv in excel (2) Select the Begin and End Time columns (3) Once selected, right click on the selected cells and select 'format cells' (4) under the 'number' cell, press custom and paste 'yyyy-mm-ddThh:mm:ss' (no quotation marks) in the space under 'Type' (5) hit ok (6) save and reload the csv to this R script")
+  }
   
   # Remove any entries from the future
   obs <- obs[!(obs$Begin.Time > Sys.Date()),]
@@ -135,6 +150,9 @@ CalculateSamplePeriod <- function(obs, metadata) {
   #                                    2. SamplePeriod -  which 'visits' the 
   #                                                       species was detected
   
+  # make sure R recognizes dates as dates
+  metadata$retrieval_date <- ymd(metadata$retrieval_date)
+  metadata$actual_date_out <- ymd(metadata$actual_date_out)
   
   # Calculate total sampling length in days for each deployment
   metadata$totalSamplingPeriod <- difftime(metadata$retrieval_date, 
@@ -153,7 +171,7 @@ CalculateSamplePeriod <- function(obs, metadata) {
   # notify user
   # the following if statement has messy formatting but is neccessary to print correctly. Please do not edit. 
   if(length(badDates) > 0) {
-    warning(sprintf("Some deployments had a mismatch in observation and camera metadata dates and were removed.
+    warningmsg<<-warning(sprintf("Some deployments had a mismatch in observation and camera metadata dates and were removed.
                     Here are the deployments that were removed: %s", paste(badDates, collapse = " ")),
             " ",
             "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
@@ -167,6 +185,9 @@ CalculateSamplePeriod <- function(obs, metadata) {
   
   # create empty variable to hold loop output
   tmp$SamplePeriod <- NA
+  
+  # remove empty rows
+  tmp <- tmp[rowSums(is.na(tmp)) != ncol(tmp),]
   
   # loop to update SamplePeriod
   for (i in unique(tmp$Deployment.Name)){
@@ -211,13 +232,19 @@ CreateCaptureHistory <- function(samplePeriod) {
   #   CapHist: A data frame containing a camera-site specific (i.e., deploy.ID)
   #            capture history for the focal species. 
   
-  
   # Reshape the data using melt
   transform <- melt(samplePeriod, id.vars="Deploy.ID")
-  pivot <- cast(transform, Deploy.ID ~ value, fun.aggregate = length)
+  pivot <- dcast(transform, Deploy.ID ~ value, fun.aggregate = length)
+  
+  # Check that all sample period are included (even those when no animals are detected)
+  samplePeriod[387,]
+  allPeriods <- as.character(seq(min(samplePeriod$SamplePeriod), max(samplePeriod$SamplePeriod)))
+  missingColumns <- allPeriods[allPeriods %in% colnames(pivot) == FALSE]
+  pivot[,missingColumns] <- 0
+  pivot <- pivot[,c("Deploy.ID",as.character(sort(as.numeric(colnames(pivot[which(colnames(pivot) != "Deploy.ID")])))))]
   
   # Remove column indicating whether species was detected 
-  #pivot<- pivot[ -c(2) ] 
+  pivot<- pivot[ -c(2) ] 
   
   # Set NAs to non-detection status
   pivot[is.na(pivot)]=0
@@ -234,17 +261,22 @@ CreateCaptureHistory <- function(samplePeriod) {
   
   #store in environment
   CapHist<- merge(cameras_dates,pivot, by="Deploy.ID", all.x=TRUE)
+  
   #CapHist <<- pivot
   
   #notify user of status
   if(any(is.na(CapHist))) {
     warning('There was an error creating the Capture History. Please email eMammal at eMammal@si.edu with this warning message and the inputs at each step above.', call. = F)
   } else {
+    CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
     write.csv(CapHist, file=resultFile, row.names = FALSE)
     warning('Capture History was successfully created', call. = F)
   }
   
+  
+  
 }
+
 
 
 # END FUNCTIONS
