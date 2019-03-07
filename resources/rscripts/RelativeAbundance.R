@@ -94,7 +94,7 @@ tryCatch({
 
   #Make graph showing detection rate
   jpeg(resultFile, width=750, height=530, units="px", pointsize=14, quality=100)
-  print(ggplot(data=rrate, aes(x=reorder(rrate$Common.Name, rate), y=rate)) +
+  print(ggplot(data=rrate, aes(x=reorder(rrate$Common.Name, -rate), y=rate)) +
     ylim(0, ylim_max) +
     geom_bar(stat="identity", color="black", fill="steelblue") +
     theme_classic() +
