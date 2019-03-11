@@ -79,12 +79,16 @@ FixTimeStamps <- function(obs, metadata) {
   # `missing` is a character object containing deployment_ids with no dates
   missing <- as.character(metadata[which(metadata$actual_date_out == "" | 
                                              is.na(metadata$actual_date_out)), ]$deployment_id)
+  
   # the formatting in the following if message is messy, but necessary to print correctly
   if(length(missing) > 0) {
-    warning(sprintf("Some deployments were missing dates and those deployments were removed.
+    warningmsg<<-warning(sprintf("Some deployments were missing dates and those deployments were removed.
 Here are the deployments that were removed: %s", paste(missing, collapse = " ")),
             " ", # adds space between missing deployments and contact message
             "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
+  }
+  else {
+    warningmsg<<-NA
   }
   
   # remove rows with no dates in metadata
@@ -93,6 +97,24 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
   # double check that obs doesn't contain the deployment_ids in missing
   if (length(missing) > 0){
     obs <- obs[!(obs$Deploy.ID %in% missing),]}
+  
+  #notify user of issues in csvFile - missingAnimals means the data is weird
+  missingAnimals <- as.character(metadata[which(obs$Common.Name == "" | 
+                                           is.na(obs$Common.Name)), ]$deployment_id)
+  
+  # the formatting in the following if message is messy, but necessary to print correctly
+  if(length(missingAnimals) > 0) {
+    warningmsg1<<-warning(sprintf("Some deployments were missing dates and those deployments were removed.
+Here are the deployments that were removed: %s", paste(missingAnimals, collapse = " ")),
+                         " ", # adds space between missing deployments and contact message
+                         "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
+  }
+  else {
+    warningmsg1<<-NA
+  }
+  
+  # remove rows with missing Animals in obs
+  obs <- obs[!(obs$Common.Name == "" | is.na(obs$Common.Name)), ]
   
   #Replace the Ts in the timestamps with a space
   obs[c("Begin.Time", "End.Time")] <- lapply(obs[c("Begin.Time", "End.Time")], 
@@ -165,17 +187,21 @@ CalculateSamplePeriod <- function(obs, metadata) {
                by.y = "deployment_id",
                all.x = T)
   
-  # identify which deployments have mismatch in obs and metadata dates
-  badDates <- as.character(unique(tmp[which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date),]$Deploy.ID))
+  # identify which deployments have mismatch in obs and metadata dates AND nothing in the date column
+  badDates <- as.character(unique(
+    tmp[c(which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date), 
+          which(is.na(tmp$End.Time))),]$Deploy.ID))
   
   # notify user
   # the following if statement has messy formatting but is neccessary to print correctly. Please do not edit. 
   if(length(badDates) > 0) {
-    warningmsg<<-warning(sprintf("Some deployments had a mismatch in observation and camera metadata dates and were removed.
+    warningmsg2<<-warning(sprintf("Some deployments had a mismatch in observation and camera metadata dates and were removed.
                     Here are the deployments that were removed: %s", paste(badDates, collapse = " ")),
             " ",
             "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
-    
+  }
+  else {
+    warningmsg2<<-NA
   }
   # remove badDates
   tmp <- tmp[!(tmp$Deploy.ID %in% badDates),]
@@ -267,7 +293,12 @@ CreateCaptureHistory <- function(samplePeriod) {
   if(any(is.na(CapHist))) {
     warning('There was an error creating the Capture History. Please email eMammal at eMammal@si.edu with this warning message and the inputs at each step above.', call. = F)
   } else {
-    CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
+    if (!is.na(warningmsg))
+      CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
+    if (!is.na(warningmsg1))
+      CapHist[nrow(CapHist)+2,"ClumpNum"] <- warningmsg1
+    if (!is.na(warningmsg2))
+      CapHist[nrow(CapHist)+3,"ClumpNum"] <- warningmsg2
     write.csv(CapHist, file=resultFile, row.names = FALSE)
     warning('Capture History was successfully created', call. = F)
   }
