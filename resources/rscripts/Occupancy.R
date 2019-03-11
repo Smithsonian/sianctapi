@@ -165,8 +165,10 @@ CalculateSamplePeriod <- function(obs, metadata) {
                by.y = "deployment_id",
                all.x = T)
   
-  # identify which deployments have mismatch in obs and metadata dates
-  badDates <- as.character(unique(tmp[which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date),]$Deploy.ID))
+  # identify which deployments have mismatch in obs and metadata dates AND nothing in the date column
+  badDates <- as.character(unique(
+    tmp[c(which(as.Date(tmp$End.Time, format = "%Y-%m-%d") > tmp$retrieval_date), 
+          which(is.na(tmp$End.Time))),]$Deploy.ID))
   
   # notify user
   # the following if statement has messy formatting but is neccessary to print correctly. Please do not edit. 
