@@ -87,6 +87,9 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
             " ", # adds space between missing deployments and contact message
             "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
   }
+  else {
+    warningmsg<<-NA
+  }
   
   # remove rows with no dates in metadata
   metadata <- metadata[!(metadata$actual_date_out == "" | is.na(metadata$actual_date_out)), ]
@@ -105,6 +108,9 @@ Here are the deployments that were removed: %s", paste(missing, collapse = " "))
 Here are the deployments that were removed: %s", paste(missingAnimals, collapse = " ")),
                          " ", # adds space between missing deployments and contact message
                          "\nContact eMammal with this warning message and the list of deployments for assistance: eMammal@si.edu", call. = F)
+  }
+  else {
+    warningmsg1<<-NA
   }
   
   # remove rows with missing Animals in obs
@@ -288,7 +294,7 @@ CreateCaptureHistory <- function(samplePeriod) {
     warning('There was an error creating the Capture History. Please email eMammal at eMammal@si.edu with this warning message and the inputs at each step above.', call. = F)
   } else {
     if (!is.na(warningmsg))
-      CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg1
+      CapHist[nrow(CapHist)+1,"ClumpNum"] <- warningmsg
     if (!is.na(warningmsg1))
       CapHist[nrow(CapHist)+2,"ClumpNum"] <- warningmsg1
     if (!is.na(warningmsg2))
