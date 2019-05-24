@@ -524,7 +524,7 @@ class SIANCTAPI {
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
     #$resultingObservations = 'Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, UnusedCol1, UnusedCol2, UnusedCol3';
-    $resultingObservations = 'Project, Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, Actual Lat, Actual Lon, Feature type, Publish Date, Project Lat, Project Lon, Access Constraints';
+    $resultingObservations = 'Project, Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individual, Count, Animal Recognizable, Actual Lat, Actual Lon, Feature type, Publish Date, Project Lat, Project Lon, Access Constraints';
     $speciesnamesArray = str_getcsv($speciesNames);
     $countSpeciesnames=count($speciesnamesArray);
     if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
@@ -651,7 +651,7 @@ class SIANCTAPI {
         }
 
         // Restrict the Fedora CSV to the first X fields
-        $lineArray = array_slice(str_getcsv($line), 0, 11);
+        $lineArray = array_slice(str_getcsv($line), 0, 12);
         $stream = fopen('php://temp', 'r+');
         fputcsv($stream, $lineArray);
         rewind($stream);
