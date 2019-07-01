@@ -103,6 +103,21 @@ try {
     $date = $_SERVER['HTTP_X_REQUESTDATE']; // Could check dates too, EDAN does not so we're not
     $secret_key = _get_secret_key($app_id, './keys.config');
 
+    // We have to build the hash differently, accepting the parameters passed to the
+    // API in the order they were passed.
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+      if (stripos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') === FALSE) {
+        $qry = file_get_contents("php://input");
+      } else {
+        // Flatten $_POST because php://input does not support muti-part enctype
+        $qry = urldecode(http_build_query($_POST));
+      }
+    } else if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+      $qry = $_SERVER['QUERY_STRING'];
+    } else {
+      $qry = FALSE;
+    }
+
     /**
      * The following code logs data for _every_ authenticated request received
      * by the SIANTCT API.
@@ -122,30 +137,10 @@ try {
      * ====================\n\n
      * ";
      * fwrite($logfp, $output);
-     * //fwrite($logfp, "\n[$datestamp] $app_id $ipnonce $secret_key $date $uri $auth_content");
+     * $output = "\$qry:\n$qry\n";
+     * fwrite($logfp, $output);
      * fclose($logfp);
      */
-
-    // We have to build the hash differently, accepting the parameters passed to the
-    // API in the order they were passed.
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-      if (stripos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') === FALSE) {
-        $qry = file_get_contents("php://input");
-      } else {
-        // Flatten $_POST because php://input does not support muti-part enctype
-        $qry = urldecode(http_build_query($_POST));
-      }
-    } else if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-      $qry = $_SERVER['QUERY_STRING'];
-    } else {
-      $qry = FALSE;
-    }
-
-    $datestamp = date('r');
-    $logfp = fopen('/tmp/sianctapi-hp.log', 'a');
-    $output = "\$qry:\n$qry\n";
-    fwrite($logfp, $output);
-    fclose($logfp);
 
     $auth_check1 = "{$ipnonce}\n{$qry}\n{$date}\n{$secret_key}";
     $auth_check = base64_encode(sha1($auth_check1));
