@@ -1336,7 +1336,6 @@ class SIANCTAPI {
         if (strlen($results) > 300) {
           $return['log'] .= '...';
         }
-        curl_close($ch);
         break;
       }
 
