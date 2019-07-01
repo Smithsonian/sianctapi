@@ -103,23 +103,28 @@ try {
     $date = $_SERVER['HTTP_X_REQUESTDATE']; // Could check dates too, EDAN does not so we're not
     $secret_key = _get_secret_key($app_id, './keys.config');
 
-    $datestamp = date('r');
-    $logfp = fopen('/tmp/sianctapi-hp.log', 'a');
-    $output = "========== $datestamp ==========
-    APPID: $app_id
-    SECRET_KEY: $secret_key
-    IPNONCE: $ipnonce
-    URI: $uri
-    AUTH_CONTENT: $auth_content
-
-    ***** \$_SERVER *****\n" .
-    print_r($_SERVER, true) . "\n
-    ====================
-    ====================\n\n
-    ";
-    fwrite($logfp, $output);
-    //fwrite($logfp, "\n[$datestamp] $app_id $ipnonce $secret_key $date $uri $auth_content");
-    fclose($logfp);
+    /**
+     * The following code logs data for _every_ authenticated request received
+     * by the SIANTCT API.
+     *
+     * $datestamp = date('r');
+     * $logfp = fopen('/tmp/sianctapi-hp.log', 'a');
+     * $output = "========== $datestamp ==========
+     * APPID: $app_id
+     * SECRET_KEY: $secret_key
+     * IPNONCE: $ipnonce
+     * URI: $uri
+     * AUTH_CONTENT: $auth_content
+     *
+     * ***** \$_SERVER *****\n" .
+     * print_r($_SERVER, true) . "\n
+     * ====================
+     * ====================\n\n
+     * ";
+     * fwrite($logfp, $output);
+     * //fwrite($logfp, "\n[$datestamp] $app_id $ipnonce $secret_key $date $uri $auth_content");
+     * fclose($logfp);
+     */
 
     // We have to build the hash differently, accepting the parameters passed to the
     // API in the order they were passed.
