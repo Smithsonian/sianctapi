@@ -72,8 +72,6 @@ class SIANCTAPI {
       $out .= '</div>';
     }
     return $out;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGettFile($filepath) {
@@ -236,8 +234,6 @@ class SIANCTAPI {
     }
     $out .= '</div>' . "\n";
     return $out;
-    #module_invoke_all('exit');
-    exit();
   }
 
   /**
@@ -321,15 +317,11 @@ class SIANCTAPI {
     }
     $out .= '</div>' . "\n";
     return $out;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetProjectStructure($xslt, $wt='xslt') {
     $solrResult = $this->sianctapiGetProjectStructureFromSolr($xslt, $wt);
     return $solrResult;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetProjectStructureMetadata($params) {
@@ -337,8 +329,6 @@ class SIANCTAPI {
     $this->logger->writeLog("$this->app_id sianctapiGetProjectStructureMetadata\n $paramtxt");
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetProjectStructureCached() {
@@ -348,8 +338,6 @@ class SIANCTAPI {
     if (strlen($result) > 300) $logString .= '...';
     $this->logger->writeLog("$this->app_id sianctapiGetProjectStructureCached\n $logString");
     return $result;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetProjectStructureFromSolr($xslt, $wt='xslt') {
@@ -381,8 +369,6 @@ class SIANCTAPI {
     $this->logger->writeLog("$this->app_id sianctapiGetAllObstablePids: noparams ");
     $solrResult = $this->sianctapiGetAllObstablePidsFromSolr();
     return $solrResult;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetAllObstablePidsFromSolr() {
@@ -395,8 +381,6 @@ class SIANCTAPI {
   function sianctapiGetAllObstablePidsCached() {
     $result = $this->sianctapiGettAllObstablePidsCached();
     return $result;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGettAllObstablePidsCached() {
@@ -425,9 +409,6 @@ class SIANCTAPI {
     fwrite($fp, $resultingObservations);
     fclose($fp);
     return $csvfilepath;
-    //return json_encode($resultingObservations);
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetSelectedObservations($obstablePids, $speciesNames) {
@@ -443,8 +424,6 @@ class SIANCTAPI {
     $out .= $resultingObservations;
     $out .= "\n" . '</div>' . "\n";
     return $out;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGettSelectedObservations(&$obstables, $obstablePids, $speciesNames) {
@@ -670,7 +649,6 @@ class SIANCTAPI {
     $this->logger->writeLog("$this->app_id sianctapiGetSpecies: obstablePids= $obstablePids countobstables= $countobstables");
     $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids, $sianctapiCache);
     return $result;
-    exit();
   }
 
   function sianctapiGetSpeciesJSON($obstablePids) {
@@ -680,7 +658,6 @@ class SIANCTAPI {
     $this->logger->writeLog("$this->app_id sianctapiGetSpeciesJSON: obstablePids= $obstablePids countobstables= $countobstables");
     $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids, $sianctapiCache);
     return $result;
-    exit();
   }
 
   function sianctapiGetAllSpeciesNamesCached() {
@@ -688,8 +665,6 @@ class SIANCTAPI {
     $result = $sianctapiCache['speciesOptions'];
     $this->logger->writeLog("$this->app_id sianctapiGetAllSpeciesNamesCached\n $result");
     return $result;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetAllSpeciesNamesCachedJSON() {
@@ -698,8 +673,6 @@ class SIANCTAPI {
     $result = $sianctapiCache['speciesOptionsJSON'];
     $this->logger->writeLog("$this->app_id sianctapiGetAllSpeciesNamesCachedJSON\n $result");
     return $result;
-    #module_invoke_all('exit');
-    exit();
   }
 
   function sianctapiGetSpeciesOptions($obstables, $obstablePids, &$sianctapiCache) {
@@ -839,12 +812,7 @@ class SIANCTAPI {
     }
     $params = 'q=' . urlencode($query) . '&rows=9999&sort=PID+asc' . $xsltParams;
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
-    #DEBUG:
-    #return var_export($query, TRUE);
-    #return var_export($params, TRUE);
-    #return var_export($solrResult, TRUE);
     return $solrResult;
-    exit();
   }
 
   function sianctapiGetObstablesCached() {
@@ -958,8 +926,6 @@ class SIANCTAPI {
       endtime: $endtime";
     $this->logger->writeLog($cacheCheckLine);
     return "$cacheCheckLine \n";
-    #module_invoke_all('exit');
-    exit();
   }
 
   /**
@@ -969,8 +935,6 @@ class SIANCTAPI {
     $result = $this->config['sianctapi_path'];
     $this->logger->writeLog("$this->app_id sianctapiGetModulePath $result");
     return "\n" . '<div id="sianctapiModulePathResult">' . $result . '</div>' . "\n";
-    #module_invoke_all('exit');
-    exit();
   }
 
   function path($path, $cron=true) {
