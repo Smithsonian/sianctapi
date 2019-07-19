@@ -745,7 +745,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpecies: obstablePids= $obstablePids countobstables= $countobstables");
-    $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids);
+    $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids, $sianctapiCache);
     $datestamp = $this->datetimems();
     fclose($logfp);
     return $result;
@@ -760,7 +760,7 @@ class SIANCTAPI {
     $logdatestamp = date('Y-m-d');
     $logfp = fopen('/tmp/sianctapi-' . $logdatestamp . '.log', 'a');
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGetSpeciesJSON: obstablePids= $obstablePids countobstables= $countobstables");
-    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids);
+    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids, $sianctapiCache);
     $datestamp = $this->datetimems();
     fclose($logfp);
     return $result;
