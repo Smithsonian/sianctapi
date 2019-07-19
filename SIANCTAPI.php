@@ -523,7 +523,31 @@ class SIANCTAPI {
     $countobstables = count($obstables);
     fwrite($logfp, "\n\n[$datestamp] $this->app_id sianctapiGettSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
-    $resultingObservations = 'Project, Subproject, Treatment, Deployment Name, ID Type, Deploy ID, Sequence ID, Begin Time, End Time, Species Name, Common Name, Age, Sex, Individually Identifiable, Count, Actual Lat, Actual Lon, Feature type, Publish Date, Project Lat, Project Lon, Access Constraints';
+    $csvHeaders = array(
+      'Project',
+      'Subproject',
+      'Treatment',
+      'Deployment Name',
+      'ID Type',
+      'Deploy ID',
+      'Sequence ID',
+      'Begin Time',
+      'End Time',
+      'Species Name',
+      'Common Name',
+      'Age',
+      'Sex',
+      'Individually Identifiable',
+      'Count',
+      'Actual Lat',
+      'Actual Lon',
+      'Feature type',
+      'Publish Date',
+      'Project Lat',
+      'Project Lon',
+      'Access Constraints'
+    );
+    $resultingObservations = implode($csvHeaders, ', ');
     $speciesnamesArray = str_getcsv($speciesNames);
     $countSpeciesnames=count($speciesnamesArray);
     if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
