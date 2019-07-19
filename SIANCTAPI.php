@@ -640,6 +640,8 @@ class SIANCTAPI {
     $currentlyLoadedProjectPid = '';
     $loadedProjectInfo = '';
 
+    $solrData = $this->sianctapiSelectObstables("PID:" . str_replace(':', '\:', $obstablePid), 'none');
+    $xmlDoc = @simplexml_load_string($solrData);
 
     for($j=0;$j<$countLines;$j++) {
       $line = trim($lines[$j]);
@@ -664,8 +666,7 @@ class SIANCTAPI {
         // This will give us projectPID & ctPID
         $projectPID = '';
         $ctPID = '';
-        $solrData = $this->sianctapiSelectObstables("PID:" . str_replace(':', '\:', $obstablePid), 'none');
-        if ($xmlDoc = @simplexml_load_string($solrData)) {
+        if ($xmlDoc !== FALSE) {
           $projectPID = $xmlDoc->result->doc->str[8];
           $ctPID = $xmlDoc->result->doc->str[2];
         }
