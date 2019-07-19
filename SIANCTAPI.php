@@ -378,20 +378,6 @@ class SIANCTAPI {
     return $solrResult;
   }
 
-  function sianctapiGetAllObstablePidsCached() {
-    $result = $this->sianctapiGettAllObstablePidsCached();
-    return $result;
-  }
-
-  function sianctapiGettAllObstablePidsCached() {
-    $this->logger->writeLog("$this->app_id sianctapiGettAllObstablePidsCached");
-    $result = file_get_contents($this->sianctapiGetCachePath() . 'obstablePids.txt');
-    $logString = substr($result,0,300);
-    if (strlen($result) > 300) $logString .= '...';
-    $this->logger->writeLog("$this->app_id sianctapiGettAllObstablePidsCached\n $logString");
-    return $result;
-  }
-
   function sianctapiGetSelectedObservationsCSV($obstablePids, $speciesNames) {
     $sianctapiCache = $this->sianctapiCacheGet();
     $obstables = $sianctapiCache['obstables'];
@@ -813,14 +799,6 @@ class SIANCTAPI {
     $params = 'q=' . urlencode($query) . '&rows=9999&sort=PID+asc' . $xsltParams;
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
-  }
-
-  function sianctapiGetObstablesCached() {
-    $this->logger->writeLog("$this->app_id sianctapiGetObstablesCached");
-    $obstables = $this->arrayFromFile($this->sianctapiGetCachePath() . 'obstables.txt');
-    $countobstables = count($obstables);
-    $this->logger->writeLog("$this->app_id sianctapiGetObstablesCached count=$countobstables");
-    return $obstables;
   }
 
   /**
