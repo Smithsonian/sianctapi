@@ -677,10 +677,14 @@ class SIANCTAPI {
 
         // Restrict the Fedora CSV to the first X fields
         $stream = fopen('php://temp', 'r+');
+
+        // For CSV columns, see https://confluence.si.edu/pages/viewpage.action?spaceKey=CT&title=Researcher+Observation
         $lineArray = str_getcsv($line);
         $values = array_slice($lineArray, 0, 9);
-        $values[] = $lineArray[11];
-        $values[] = $lineArray[10];
+        // Individually Identifiable
+        $values[] = !empty($lineArray[11]) ? $lineArray[11] : 'N';
+        // Count
+        $values[] = !empty($lineArray[10]) ? $lineArray[10] : 0;
         fputcsv($stream,  $values);
         rewind($stream);
         $abbrline = trim(stream_get_contents($stream), "\r\n");
