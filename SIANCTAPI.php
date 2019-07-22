@@ -55,12 +55,7 @@ class SIANCTAPI {
     $this->app_id = $app_id;
 
     // Set up a logger.
-    $log_file = 'sianctapi-' . date('Y-m-d') . '.log';
-    if ($this->config['sianctapi_log_prefix'] != '') {
-      $log_file = $this->config['sianctapi_log_prefix'] . '.' . $log_file;
-    }
-    $this->logger = new Logger($this->config['sianctapi_log_path'], $log_file);
-    $this->logger->setLevel($this->config['sianctapi_log_level']);
+    $this->logger = $this->createLogger('sianctapi-' . date('Y-m-d') . '.log');
 
     return;
   }
@@ -352,12 +347,12 @@ class SIANCTAPI {
   }
 
   function sianctapiGetProjectStructureMetadataFromSolr($params) {
-    $log_file = 'sianctapi-project-structure-' . date('Y-m-d') . '.log';
-    $project_structure_logger = new Logger($this->config['sianctapi_log_file'], $log_file);
-    $project_structure_logger->notice("$this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
+    $projectStructureLogger = $this->createLogger('sianctapi-project-structure-' . date('Y-m-d') . '.log');
+
+    $projectStructureLogger->notice("$this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
     $solrUrl = $this->config['sianctapi_block_solr'] . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on';
     $solrResults = $this->curlWithRetries($solrUrl);
-    $project_structure_logger->info("$this->app_id solrResult: \n" . $solrResults['log']);
+    $projectStructureLogger->info("$this->app_id solrResult: \n" . $solrResults['log']);
     return $solrResults['results'];
   }
 
@@ -801,8 +796,7 @@ class SIANCTAPI {
    * This isn't called within the API, but called from the .sh script.
    */
   function sianctapiCacheRefresh() {
-    $log_file = 'sianctapi-cache-' . date('Y-m-d') . '.log';
-    $cache_logger = new Logger($this->config['sianctapi_log_path'], $log_file);
+    $cacheLogger = $this->createLogger('sianctapi-cache-' . date('Y-m-d') . '.log');
 
     $file = $this->path('runtime/sianctapi-cache-file');
     if (!is_writable($file)) {
@@ -810,7 +804,7 @@ class SIANCTAPI {
     } else {
       echo "Writing cache to $file\n";
     }
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh begin");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh begin");
     $sianctapiCacheRefreshing = array(
       'beginTime'=> date('c'),
       'obstablePids'=>'',
@@ -823,35 +817,35 @@ class SIANCTAPI {
       );
 
     // Obstable PIDs
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh obstablePids started.");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh obstablePids started.");
     $sianctapiCacheRefreshing['obstablePids'] = $this->sianctapiGetAllObstablePidsFromSolr();
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh obstablePids complete.");
-    $cache_logger->debug($sianctapiCacheRefreshing['obstablePids']);
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh obstablePids complete.");
+    $cacheLogger->debug($sianctapiCacheRefreshing['obstablePids']);
 
     // Selected Observations
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh selectedObservations started.");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh selectedObservations started.");
     $sianctapiCacheRefreshing['selectedObservations'] = $this->sianctapiGettSelectedObservations($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], '');
     $countobstables = count($sianctapiCacheRefreshing['obstables']);
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh selectedObservations complete");
-    $cache_logger->notice("selectedObservations countobstables: $countobstables");
-    $cache_logger->debug("$this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations']);
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh selectedObservations complete");
+    $cacheLogger->notice("selectedObservations countobstables: $countobstables");
+    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations']);
 
     // Project Structure
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh projectStructure started.");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh projectStructure started.");
     $sianctapiCacheRefreshing['projectStructure'] = $this->sianctapiGetProjectStructureFromSolr('default');
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh projectStructure complete.");
-    $cache_logger->debug("$this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure']);
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh projectStructure complete.");
+    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure']);
 
     // Species Data
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh speciesOptions started.");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh speciesOptions started.");
     $sianctapiCacheRefreshing['speciesOptions'] = $this->sianctapiGetSpeciesOptions($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
     $sianctapiCacheRefreshing['speciesOptionsJSON'] = $this->sianctapiGetSpeciesOptionsJSON($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh speciesOptions complete.");
-    $cache_logger->debug("$this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions']);
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh speciesOptions complete.");
+    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions']);
 
     // Cache creation complete.
     $sianctapiCacheRefreshing['endTime'] = date('c');
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh end");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh end");
 
     $lenobstablePids = strlen($sianctapiCacheRefreshing['obstablePids']);
     $countobstables = count($sianctapiCacheRefreshing['obstables']);
@@ -865,7 +859,7 @@ class SIANCTAPI {
       lenselectedObservations: $lenselectedObservations
       lenprojectStructure: $lenprojectStructure
       lenspeciesOptions: $lenspeciesOptions";
-    $cache_logger->notice($cacheCheckLine);
+    $cacheLogger->notice($cacheCheckLine);
 
     if ($lenobstablePids < 1000 ||
         $countobstables < 100 ||
@@ -873,13 +867,13 @@ class SIANCTAPI {
         $lenprojectStructure < 1000 ||
         $lenspeciesOptions < 1000) {
       $this->logger->critical("sianctapiCacheRefresh FAILED");
-      $cache_logger->critical("sianctapiCacheRefresh FAILED");
+      $cacheLogger->critical("sianctapiCacheRefresh FAILED");
       return "CACHE FAILED";
     } else {
       $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
     }
     $this->logger->notice("$this->app_id sianctapiCacheRefresh end");
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh end");
+    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh end");
     exit();
   }
 
@@ -1153,5 +1147,22 @@ class SIANCTAPI {
 
     curl_close($ch);
     return $return;
+  }
+
+  /**
+   * Set up a logger instance.
+   *
+   * @param $file String The file name to use for logging.
+   *
+   * @return \Logger
+   */
+  private function createLogger($file) {
+    if ($this->config['sianctapi_log_prefix'] != '') {
+      $file = $this->config['sianctapi_log_prefix'] . '.' . $file;
+    }
+    $logger = new Logger($this->config['sianctapi_log_path'], $file);
+    $logger->setLevel($this->config['sianctapi_log_level']);
+
+    return $logger;
   }
 }
