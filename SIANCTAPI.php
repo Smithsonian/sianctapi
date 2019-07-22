@@ -46,6 +46,7 @@ class SIANCTAPI {
       'sianctapi_block_fedora_userpass' => 'nofedorauser:password',
       'sianctapi_block_cache_refreshing' => array(),  // Deprecate.
       'sianctapi_log_path' => '',
+      'sianctapi_log_prefix' => '',
       'sianctapi_path' => '',
     );
 
@@ -54,6 +55,9 @@ class SIANCTAPI {
 
     // Set up a logger.
     $log_file = 'sianctapi-' . date('Y-m-d') . '.log';
+    if ($this->config['sianctapi_log_prefix'] != '') {
+      $log_file = $this->config['sianctapi_log_prefix'] . '.' . $log_file;
+    }
     $this->logger = new Logger($this->config['sianctapi_log_path'], $log_file);
 
     return;
