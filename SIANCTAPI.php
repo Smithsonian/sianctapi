@@ -93,7 +93,7 @@ class SIANCTAPI {
     }
     $logString = substr($result,0,2000);
     if (strlen($result) > 2000) $logString .= '...';
-    $this->logger->notice("$this->app_id sianctapiGettFile $filepath result:\n $logString");
+    $this->logger->info("$this->app_id sianctapiGettFile $filepath result:\n $logString");
     return $result;
   }
 
@@ -111,7 +111,7 @@ class SIANCTAPI {
     } else {
       $result .= 'fopen failed ('.$filepath . ')';
     }
-    $this->logger->notice("$this->app_id sianctapiSaveInFile $result");
+    $this->logger->info("$this->app_id sianctapiSaveInFile $result");
     fclose($fp);
     return $result;
   }
@@ -124,7 +124,7 @@ class SIANCTAPI {
     } else {
       $result = 'No resulting observations';
     }
-    $this->logger->notice("$this->app_id sianctapiSaveSelectedObservations $result");
+    $this->logger->info("$this->app_id sianctapiSaveSelectedObservations $result");
     return $result;
   }
 
@@ -143,8 +143,6 @@ class SIANCTAPI {
     if (!in_array($ext, array('.csv', 'jpeg', 'json', '.png', '.jpg'))) {
       return NULL;
     }
-
-    $this->logger->notice("$this->app_id sianctapiDownload $filename");
 
     $file = $this->path('runtime/' . $filename);
     if (!is_file($file)) {
@@ -165,7 +163,7 @@ class SIANCTAPI {
     $csvfilepath = $this->config['sianctapi_path'] . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
     $result = $csvfilepath;
     $saveresult = $this->sianctapiSaveSelectedObservations($csvfilepath, $obstables, $obstablePids, $speciesNames);
-    $this->logger->notice("$this->app_id sianctapiRunWorkflow saving csv: $saveresult");
+    $this->logger->info("$this->app_id sianctapiRunWorkflow saving csv: $saveresult");
     $result_worked = FALSE;
 
     if (!file_exists($csvfilepath)) {
@@ -186,9 +184,9 @@ class SIANCTAPI {
           $result = 'SYSTEM ERROR: R script file is not readable: ' . $workflowfilepath;
         } else {
           $command = 'R CMD BATCH --vanilla "--args ' . $csvfilepath . ' ' . $resultfilepath . '" ' . $workflowfilepath . ' ' . $outfilepath . ' 2>&1';
-          $this->logger->notice("$this->app_id sianctapiRunWorkflow command: $command");
+          $this->logger->debug("$this->app_id sianctapiRunWorkflow command: $command");
           $rOut = shell_exec($command);
-          $this->logger->notice("$this->app_id sianctapiRunWorkflow R out:\n $rOut");
+          $this->logger->debug("$this->app_id sianctapiRunWorkflow R out:\n $rOut");
           if (!is_readable($resultfilepath)) {
             $result = 'SYSTEM ERROR: result file was not created: ' . $resultfilepath;
             //$routfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . 'out';
@@ -209,7 +207,7 @@ class SIANCTAPI {
       }
     }
 
-    $this->logger->notice("$this->app_id sianctapiRunWorkflow result: $result");
+    $this->logger->info("$this->app_id sianctapiRunWorkflow result: $result");
 
     if (!$result_worked) {
       //self::sendHeader(500);
@@ -275,9 +273,9 @@ class SIANCTAPI {
 
       $command = sprintf('R CMD BATCH --vanilla "--args %s %s %s %s" %s %s 2>&1', $projectCsvFilePath, $deploymentCsvFilePath, $clumpInterval, $resultFilePath, $workflowFilePath, $outFilePath );
 
-      $this->logger->notice("$this->app_id $logFunc command: $command");
+      $this->logger->debug("$this->app_id $logFunc command: $command");
       $rOut = shell_exec($command);
-      $this->logger->notice("$this->app_id $logFunc R out:\n $rOut");
+      $this->logger->debug("$this->app_id $logFunc R out:\n $rOut");
 
       if (!is_readable($resultFilePath)) {
         $result = 'SYSTEM ERROR: result file was not created: ' . $resultFilePath;
@@ -292,7 +290,7 @@ class SIANCTAPI {
       }
     }
 
-    $this->logger->notice("$this->app_id $logFunc result: $result");
+    $this->logger->info("$this->app_id $logFunc result: $result");
 
     if (!$result_worked) {
       //self::sendHeader(500);
@@ -328,7 +326,7 @@ class SIANCTAPI {
     $result = $sianctapiCache['projectStructure'];
     $logString = substr($result,0,300);
     if (strlen($result) > 300) $logString .= '...';
-    $this->logger->notice("$this->app_id sianctapiGetProjectStructureCached\n $logString");
+    $this->logger->info("$this->app_id sianctapiGetProjectStructureCached\n $logString");
     return $result;
   }
 
@@ -353,7 +351,7 @@ class SIANCTAPI {
     $project_structure_logger->notice("$this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
     $solrUrl = $this->config['sianctapi_block_solr'] . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on';
     $solrResults = $this->curlWithRetries($solrUrl);
-    $project_structure_logger->notice("$this->app_id solrResult: \n" . $solrResults['log']);
+    $project_structure_logger->info("$this->app_id solrResult: \n" . $solrResults['log']);
     return $solrResults['results'];
   }
 
@@ -486,7 +484,7 @@ class SIANCTAPI {
       $countLinesSum += $countLines;
       $lenselectedObservations = strlen($resultingObservations);
       $n = $i + 1;
-      $this->logger->notice("$this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
+      $this->logger->info("$this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
     }
     return $resultingObservations;
     //return str_replace('"', '', $resultingObservations);
@@ -504,7 +502,7 @@ class SIANCTAPI {
   function sianctapiGetObstableForSianct(&$obstables, $obstablePid) {
     $obstable = '';
 
-    $this->logger->notice("TESTING NEW WCS FIELDS...... $obstablePid");
+    $this->logger->debug("TESTING NEW WCS FIELDS...... $obstablePid");
 
     #$solrResult = $this->sianctapiGetProjectHierarchyLabelsFromSolr($obstablePid);
 
@@ -517,7 +515,7 @@ class SIANCTAPI {
 
     $params = 'objects/' . $obstablePid . '/datastreams/CSV/content';
     $fedoraResult = $this->sianctapiGetDataFromFedora($params);
-    $this->logger->notice("fedoraResult (CSV): " . print_r($fedoraResult, true));
+    $this->logger->debug("fedoraResult (CSV): " . print_r($fedoraResult, true));
     $lines = explode("\n", trim($fedoraResult));
     $countLines=count($lines);
     if ($countLines == 1 && !$lines[0]) {
@@ -589,7 +587,7 @@ class SIANCTAPI {
     $obstables[$obstablePid] = $obstable;
     //$this->sianctapiCacheSet('sianctapi_block_obstables', $obstables);
     $countobstables = count($obstables);
-    $this->logger->notice("sianctapiGetObstableForSianct: obstablePid: $obstablePid #csvLines: $countLines #obsLines: $countObsLines #obstables: $countobstables");
+    $this->logger->info("sianctapiGetObstableForSianct: obstablePid: $obstablePid #csvLines: $countLines #obsLines: $countObsLines #obstables: $countobstables");
     //echo $obstable . "\n";
     return $obstable;
   }
@@ -616,7 +614,7 @@ class SIANCTAPI {
       CURLOPT_USERPWD => $fedoraUserPass,
     );
     $fedoraResults = $this->curlWithRetries($fedoraUrl . '/' . $params, $curlOptions);
-    $this->logger->notice("$this->app_id fedoraResult: \n" + $fedoraResults['log']);
+    $this->logger->info("$this->app_id fedoraResult: \n" + $fedoraResults['log']);
     return $fedoraResults['results'];
   }
 
@@ -641,7 +639,7 @@ class SIANCTAPI {
   function sianctapiGetAllSpeciesNamesCached() {
     $sianctapiCache = $this->sianctapiCacheGet();
     $result = $sianctapiCache['speciesOptions'];
-    $this->logger->notice("$this->app_id sianctapiGetAllSpeciesNamesCached\n $result");
+    $this->logger->info("$this->app_id sianctapiGetAllSpeciesNamesCached\n $result");
     return $result;
   }
 
@@ -649,7 +647,7 @@ class SIANCTAPI {
     #global $user;
     $sianctapiCache = $this->sianctapiCacheGet();
     $result = $sianctapiCache['speciesOptionsJSON'];
-    $this->logger->notice("$this->app_id sianctapiGetAllSpeciesNamesCachedJSON\n $result");
+    $this->logger->info("$this->app_id sianctapiGetAllSpeciesNamesCachedJSON\n $result");
     return $result;
   }
 
@@ -712,7 +710,7 @@ class SIANCTAPI {
       $result .= "\n" . '<option value="' . $key . '">' . $key . ' (' . $value[0] . ') (' . $value[1] . ')</option>';
     }
     $result .= "\n" . '</div>' . "\n";
-    $this->logger->notice("$this->app_id result: $result");
+    $this->logger->info("$this->app_id result: $result");
 
     return $result;
   }
@@ -731,33 +729,33 @@ class SIANCTAPI {
     if (!$obstablePidArray[0]) {
       $countPids = 0;
     }
-    $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: countPids= $countPids");
+    $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countPids= $countPids");
     $countObsLines = 0;
     for($i=0;$i<$countPids;$i++) {
       $obstablePid = trim($obstablePidArray[$i]);
       $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . print_r($obstable, true));
+      $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . print_r($obstable, true));
       $lines = explode("\n", $obstable);
       $countLines = count($lines);
       //if ($countLines == 1 && !$lines[0]) {
       if (!$lines[0]) {
         $countLines = 0;
       }
-      $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: countLines= $countLines");
+      $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countLines= $countLines");
       for($j=0;$j<=$countLines;$j++) {
         if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
           continue;
         }
         $line = $lines[$j];
         $columns = str_getcsv($line);
-        $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . count($columns));
+        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . count($columns));
         // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
         //echo count($columns);
         //echo '\n';
         $begintime = trim($columns[7]);
         $speciesname = trim($columns[9]);
         $speciesname = trim($speciesname, '"');
-        $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: speciesname= $speciesname      begintime= $begintime");
+        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: speciesname= $speciesname      begintime= $begintime");
         if ($speciesname and $begintime) {
           $commonname = trim($columns[10]);
           $commonname = trim($commonname, '"');
@@ -818,35 +816,36 @@ class SIANCTAPI {
       'endTime'=>'',
       );
 
-    # DEBUG:
-    #$sianctapiCacheRefreshing = $this->sianctapiCacheGet();
-
+    // Obstable PIDs
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh obstablePids started.");
     $sianctapiCacheRefreshing['obstablePids'] = $this->sianctapiGetAllObstablePidsFromSolr();
-    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh obstablePids complete.");
+    $cache_logger->debug($sianctapiCacheRefreshing['obstablePids']);
 
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh obstablePids:\n " . $sianctapiCacheRefreshing['obstablePids']);
+    // Selected Observations
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh selectedObservations started.");
     $sianctapiCacheRefreshing['selectedObservations'] = $this->sianctapiGettSelectedObservations($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], '');
-    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
-
     $countobstables = count($sianctapiCacheRefreshing['obstables']);
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh countobstables: $countobstables");
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations']);
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh selectedObservations complete");
+    $cache_logger->notice("selectedObservations countobstables: $countobstables");
+    $cache_logger->debug("$this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations']);
 
+    // Project Structure
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh projectStructure started.");
     $sianctapiCacheRefreshing['projectStructure'] = $this->sianctapiGetProjectStructureFromSolr('default');
-    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh projectStructure complete.");
+    $cache_logger->debug("$this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure']);
 
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure']);
-
+    // Species Data
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh speciesOptions started.");
     $sianctapiCacheRefreshing['speciesOptions'] = $this->sianctapiGetSpeciesOptions($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
-    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
-
     $sianctapiCacheRefreshing['speciesOptionsJSON'] = $this->sianctapiGetSpeciesOptionsJSON($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
+    $cache_logger->notice("$this->app_id sianctapiCacheRefresh speciesOptions complete.");
+    $cache_logger->debug("$this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions']);
 
-    $cache_logger->notice("$this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions']);
-
+    // Cache creation complete.
     $sianctapiCacheRefreshing['endTime'] = date('c');
     $cache_logger->notice("$this->app_id sianctapiCacheRefresh end");
-    #$this->sianctapiCacheSet('sianctapi_block_cache_refreshing', $sianctapiCacheRefreshing); #FIX
 
     $lenobstablePids = strlen($sianctapiCacheRefreshing['obstablePids']);
     $countobstables = count($sianctapiCacheRefreshing['obstables']);
@@ -861,9 +860,14 @@ class SIANCTAPI {
       lenprojectStructure: $lenprojectStructure
       lenspeciesOptions: $lenspeciesOptions";
     $cache_logger->notice($cacheCheckLine);
-    if ($lenobstablePids<1000 || $countobstables<100 || $lenselectedObservations<1000 || $lenprojectStructure<1000 || $lenspeciesOptions<1000) {
-      $cache_logger->notice("sianctapiCacheRefresh FAILED");
-      $this->logger->notice("sianctapiCacheRefresh FAILED");
+
+    if ($lenobstablePids < 1000 ||
+        $countobstables < 100 ||
+        $lenselectedObservations < 1000 ||
+        $lenprojectStructure < 1000 ||
+        $lenspeciesOptions < 1000) {
+      $this->logger->critical("sianctapiCacheRefresh FAILED");
+      $cache_logger->critical("sianctapiCacheRefresh FAILED");
       return "CACHE FAILED";
     } else {
       $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
@@ -903,7 +907,7 @@ class SIANCTAPI {
    */
   function sianctapiGetModulePath($moduleName) {
     $result = $this->config['sianctapi_path'];
-    $this->logger->notice("$this->app_id sianctapiGetModulePath $result");
+    $this->logger->info("$this->app_id sianctapiGetModulePath $result");
     return "\n" . '<div id="sianctapiModulePathResult">' . $result . '</div>' . "\n";
   }
 
