@@ -124,7 +124,7 @@ class Logger {
     }
 
     // If the message's level is lower than the configured level, no-op.
-    if ($level < $this->level) {
+    if ($this->level < $level) {
       return;
     }
 
