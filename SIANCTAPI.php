@@ -77,14 +77,6 @@ class SIANCTAPI {
   function sianctapiGettFile($filepath) {
     #global $user;
     $this->logger->notice("$this->app_id sianctapiGettFile $filepath ");
-    $i = strpos($filepath, '/');
-    if ($i === false || !$i === 0) {
-      /* CHANGES WERE REQUIRED TO THE API THAT REQUIRED TRAILING SLASHES */
-      //$filepath = trim($this->config['sianctapi_path'], '/') . '/' . $filepath;
-      $filepath = $filepath;
-    }
-
-    $this->logger->notice("$this->app_id sianctapiGettFile $i $filepath ");
     if (!is_readable($filepath)) {
       $result = 'SYSTEM ERROR: file is not readable: ' . $filepath;
     } else {
