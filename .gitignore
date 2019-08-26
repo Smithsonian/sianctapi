@@ -6,3 +6,5 @@ api.config
 
 sianctapiSolrRefresh.sh
 sianctapiCacheRefresh.sh
+
+/mysql/sianct.ini

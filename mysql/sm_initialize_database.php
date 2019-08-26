@@ -28,6 +28,7 @@
     // Check connection
     if ($conn->connect_error)
     {
+      error_log("\nConnection failed: " . $conn->connect_error, 3, parse_ini_file('sianct.ini')['log']);
       die("Connection failed: " . $conn->connect_error);
     }
 
@@ -55,11 +56,11 @@
 
     if ($conn->query($sql) === TRUE)
     {
-      echo "Database created successfully";
+      //echo "Database created successfully";
     }
     else
     {
-      echo "Error creating database: " . $conn->error . "\n";
+      error_log("\nError creating database: " . $conn->error . "\n", 3, parse_ini_file('sianct.ini')['log']);
     }
   }
 
@@ -67,10 +68,10 @@
   {
     if ($conn->query($sql) === TRUE)
     {
-        echo "Table $table created successfully\n";
+        //echo "Table $table created successfully\n";
     }
     else
     {
-        echo "Error creating table: " . $conn->error . "\n";
+        error_log("Error creating table: " . $conn->error . "\n", 3, parse_ini_file('sianct.ini')['log']);
     }
   }
