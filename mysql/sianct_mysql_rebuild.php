@@ -1,5 +1,5 @@
 <?php
-  require("sianct_data_populator.php");
+  require("sianct_mysql_populator.php");
 
   require 'vendor/autoload.php';
 

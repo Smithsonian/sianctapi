@@ -244,6 +244,8 @@
 
         $sub_vals = $this->getParentSubproject($parent);
 
+        //$camera_data = $this->getCameraMetadata($PID);
+
         $tableValues = Array(
           'sidora_deployment_id' => $PID,
           'sidora_subproject_id' => $sub_vals['subproject'],
@@ -260,8 +262,8 @@
           'proposed_lon' => $manifest->xpath('//ProposedLongitude/text()')[0],
           'actual_lat' => $manifest->xpath('//ActualLatitude/text()')[0],
           'actual_lon' => $manifest->xpath('//ActualLongitude/text()')[0],
-          'camera_make' => 'placeholder',
-          'camera_model' => 'placeholder',
+          'camera_make' => $camera_data['make'],
+          'camera_model' => $camera_data['model'],
           'camera_failure_details' => $manifest->xpath('//CameraFailureDetails/text()')[0],
           'detection_distance' => $manifest->xpath('//DetectionDistance/text()')[0],
           'sensitivity_setting' => $manifest->xpath('//SensitivitySetting/text()')[0],
@@ -468,12 +470,115 @@
       }
     }
 
+    public function getCameraMetadata($PID)
+    {
+      $results = Array
+      (
+        'make' => 'undefined',
+        'model' => 'undefined'
+       );
+
+      try
+      {
+        $rels = $this->getRelsExtData($PID);
+
+        foreach($rels['children'] as $child)
+        {
+          $type = $this->getRelsExtData($child)['type'];
+
+          if($type == 'si:generalImageCModel')
+          {
+            $url = "objects/$child/datastreams/FITS/content";
+            $res = $this->sianctapiGetDataFromFedora($url);
+
+            $xml = new SimpleXMLElement($res);
+
+            $xml->registerXPathNamespace("fits", "http://hul.harvard.edu/ois/xml/ns/fits/fits_output");
+            $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+
+            $make = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraManufacturer/text()")[0];
+
+            if($make != "" && $make != NULL)
+            {
+                $results['make'] = $make;
+            }
+
+            $model = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraModelName/text()")[0];
+
+            if($model != "" && $model != NULL)
+            {
+                $results['model'] = $model;
+            }
+          }
+        }
+      }
+      catch(Exception $e)
+      {
+        $this->log($e, $this->error);
+      }
+
+      return $results;
+    }
+
+    public function getRelsExtData($PID)
+    {
+      $Values = Array(
+        'type' => 'undefined',
+        'parent' => NULL,
+        'children' => []
+      );
+
+      $url = "objects/$PID/datastreams/RELS-EXT/content";
+
+      $rels = $this->sianctapiGetDataFromFedora($url);
+
+      if($rels)
+      {
+        EasyRdf_Namespace::set('fedora','info:fedora/fedora-system:def/relations-external#');
+        EasyRdf_Namespace::set('fedoramodel','info:fedora/fedora-system:def/model#');
+        EasyRdf_Namespace::set('dc', "http://purl.org/dc/elements/1.1/");
+
+        $qpid = 'info:fedora/' . $PID;
+        $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
+
+        $admin = $graph->allResources($qpid, 'administered:isAdministeredBy')[0];
+
+        if($admin != NULL)
+        {
+          $Values['parent'] = preg_replace('/info:fedora\//', '', $admin->getUri());
+        }
+
+        $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
+
+        $Values['type'] = preg_replace('/info:fedora\//', '', $model->getUri());
+
+        $concepts  = $graph->allResources($qpid,'fedora:hasConcept');
+        $resources = $graph->allResources($qpid, 'fedora:hasResource');
+        $codebook  = $graph->allResources($qpid, 'fedora:managesCodebook');
+
+        $children = array_merge($concepts, $resources, $codebook);
+
+
+        foreach ($children as $child)
+        {
+          $child_pid = preg_replace('/info:fedora\//', '', $child->getUri());
+
+          if ($child_pid != $pid)
+          {
+            $Values['children'][] = $child_pid;
+          }
+        }
+      }
+
+      return $Values;
+    }
+
     /**
      * Get specific sianct object from Fedora
      * @param  string $params params to include in fedora query
      * @return boolean        true for success, false for failure
      */
-    private function sianctapiGetDataFromFedora($params)
+    public function sianctapiGetDataFromFedora($params)
     {
       try
       {
