@@ -283,7 +283,7 @@
           $this->log($sql['message'], $this->error);
         }
 
-        $this->getObservations($PID, $manifest);
+        $this->getObservations($PID);
       }
       catch(Exception $e)
       {
@@ -296,23 +296,24 @@
      * @param  string $PID      Deployment pid
      * @param  SimpleXMLElement $manifest deployment manifest xml
      */
-    private function getObservations($PID, $manifest)
+    private function getObservations($PID)
     {
+      $manifest = $this->getDatastream($PID, "MANIFEST");
+
       try
       {
         $sequences = $manifest->xpath("//ImageSequence/ImageSequenceId");
 
-        $count = count($sequences);
-
         foreach($sequences as $seq)
         {
           $xpath = "//ImageSequence[ImageSequenceId='$seq']";
-          $resXPATH = "$xpath/VolunteerIdentifications/Identification";
+          $resXPATH = "$xpath/ResearcherIdentifications/Identification";
 
           $resCount = count($manifest->xpath("$resXPATH"));
 
-          for($i = 1; $i < count($resCount) + 1; $i++)
+          for($i = 1; $i < $resCount + 1; $i++)
           {
+            //echo "Parsing identification $i/$resCount for deployment: $PID, sequence: $seq\n";
             $this->parseObservation($PID, $manifest, $seq, $i, $xpath, "Researcher");
           }
         }
@@ -321,6 +322,8 @@
       {
         $this->log($e, $this->error);
       }
+
+
     }
 
     /**
@@ -520,6 +523,61 @@
       return $results;
     }
 
+    /**
+     * Extract observations from deployment manifest
+     * @param  string $PID      Deployment pid
+     * @param  SimpleXMLElement $manifest deployment manifest xml
+     */
+    public function getObservationsCount($deploymentPid)
+    {
+      $count = 0;
+      $manifest = $this->getDatastream($deploymentPid, "MANIFEST");
+
+      try
+      {
+        $sequences = $manifest->xpath("//ImageSequence/ImageSequenceId");
+
+        foreach($sequences as $seq)
+        {
+          $xpath = "//ImageSequence[ImageSequenceId='$seq']";
+          $resXPATH = "$xpath/ResearcherIdentifications/Identification";
+
+          $resCount = count($manifest->xpath("$resXPATH"));
+
+          $count += $resCount;
+        }
+      }
+      catch(Exception $e)
+      {
+        $this->log($e, $this->error);
+      }
+      finally
+      {
+        return $count;
+      }
+    }
+
+    public function getDatastream($PID, $ds)
+    {
+      $datastream = NULL;
+
+      try
+      {
+        $url = "objects/$PID/datastreams/$ds/content";
+        $result = $this->sianctapiGetDataFromFedora($url);
+
+        $datastream = new SimpleXMLElement($result);
+      }
+      catch(Exception $e)
+      {
+        $this->log($e, $this->error);
+      }
+      finally
+      {
+        return $datastream;
+      }
+    }
+
     public function getRelsExtData($PID)
     {
       $Values = Array(
@@ -537,11 +595,12 @@
         EasyRdf_Namespace::set('fedora','info:fedora/fedora-system:def/relations-external#');
         EasyRdf_Namespace::set('fedoramodel','info:fedora/fedora-system:def/model#');
         EasyRdf_Namespace::set('dc', "http://purl.org/dc/elements/1.1/");
+        EasyRdf_Namespace::set('oris', "http://oris.si.edu/2017/01/relations#");
 
         $qpid = 'info:fedora/' . $PID;
         $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
 
-        $admin = $graph->allResources($qpid, 'administered:isAdministeredBy')[0];
+        $admin = $graph->allResources($qpid, 'oris:isAdministeredBy')[0];
 
         if($admin != NULL)
         {
@@ -850,6 +909,89 @@
       }
 
       return $results;
+    }
+
+    public function getTableLength($table)
+    {
+      $count = 0;
+
+      $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
+
+      // Check connection
+      if ($conn->connect_error)
+      {
+        //$this->log($conn->connect_error, $this->error);
+        die("Connection failed: " . $conn->connect_error);
+      }
+
+      $sql = "SELECT * FROM $table";
+
+      if ($result = $conn->query($sql))
+      {
+        /* determine number of rows result set */
+        $count = $result->num_rows;
+        /* close result set */
+        $result->close();
+      }
+
+      /* close connection */
+      $conn->close();
+
+      return $count;
+    }
+
+    public function getObservationSubsetLength($deployment)
+    {
+      $count = 0;
+
+      $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
+
+      // Check connection
+      if ($conn->connect_error)
+      {
+        //$this->log($conn->connect_error, $this->error);
+        die("Connection failed: " . $conn->connect_error);
+      }
+
+      $sql = "SELECT observation_id FROM observations WHERE sidora_deployment_id=\"$deployment\"";
+
+      if ($result = $conn->query($sql))
+      {
+        /* determine number of rows result set */
+        $count = $result->num_rows;
+        /* close result set */
+        $result->close();
+      }
+
+      /* close connection */
+      $conn->close();
+
+      return $count;
+    }
+
+    public function dropObservations($deployment)
+    {
+      // Create connection
+      $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
+      // Check connection
+      if ($conn->connect_error)
+      {
+        die("Connection failed: " . $conn->connect_error);
+      }
+
+      // sql to delete a record
+      $sql = "DELETE FROM observations WHERE sidora_deployment_id=\"$deployment\"";
+
+      if ($conn->query($sql) === TRUE)
+      {
+        echo "Record deleted successfully";
+      }
+      else
+      {
+        echo "Error deleting record: " . $conn->error;
+      }
+
+      $conn->close();
     }
 
   }

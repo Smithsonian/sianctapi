@@ -18,10 +18,13 @@
         'si:121909'
       );
 
-      $projects = Array();
-      $subprojects = Array();
-      $plots = Array();
-      $deployments = Array();
+      $fedora_counts = $mysql_counts = Array(
+        'projects' => 0,
+        'subprojects' => 0,
+        'plots' => 0,
+        'deployments' => 0,
+        'observations' => 0
+      );
 
       $parent = NULL;
       $parentProject = FALSE;
@@ -30,35 +33,60 @@
       {
         $rels = $migrator->getRelsExtData($pids[$i]);
 
-        if($rels['type'] == 'si:projectCModel' && $pids[$i] != 'si:121909')
+        if($pids[$i] != 'si:121909')
         {
-          if($migrator->getRelsExtData($rels['parent']) == 'si:projectCModel' && $rels['parent'] != 'si:121909')
+          if($rels['type'] == 'si:projectCModel')
           {
-            $subprojects[] = $pids[$i];
+            $parent = $migrator->getRelsExtData($rels['parent'])['type'];
+
+            if($parent == 'si:projectCModel' && $rels['parent'] != 'si:121909')
+            {
+              $fedora_counts['subprojects'] += 1;
+            }
+            else
+            {
+              $fedora_counts['projects'] += 1;
+            }
           }
-          else
+          elseif($rels['type'] == "si:ctPlotCModel")
           {
-            $projects[] = $pids[$i];
+            $fedora_counts['plots'] += 1;
           }
-        }
-        elseif($rels['type'] == "si:ctPlotCModel")
-        {
-          $plots[] = $pids[$i];
-        }
-        elseif($rels['type'] == "si:cameraTrapCModel")
-        {
-          $deployments[] = $pids[$i];
+          elseif($rels['type'] == "si:cameraTrapCModel")
+          {
+            $fedora_counts['deployments'] += 1;
+            $fedora_counts['observations'] += $migrator->getObservationsCount($pids[$i]);
+          }
         }
 
-        //echo "count of pids before merge: " . count($pids) . "\n";
         $pids = array_merge($pids, $rels['children']);
-        //echo "count of pids after merge: " . count($pids) . "\n";
       }
 
-      echo "# of project: " . count($projects) . "\n";
-      echo "# of subprojects: " . count($subprojects) . "\n";
-      echo "# of plots: " . count($plots) . "\n";
-      echo "# of deployments: " . count($deployments) . "\n";
+      $migrator->deleteDatabase();
+      $migrator->initializeSianctDatabase();
+
+      $start = microtime(true);
+      $migrator->findDeployments('si:121909');
+      $time_elapsed_secs = microtime(true) - $start;
+
+      echo "\nTotal elapsed time to populate the database: $time_elapsed_secs seconds\n\n";
+
+      $mysql_counts = Array(
+        'projects' => $migrator->getTableLength("projects"),
+        'subprojects' => $migrator->getTableLength("subprojects"),
+        'plots' => $migrator->getTableLength("plots"),
+        'deployments' => $migrator->getTableLength("deployments"),
+        'observations' => $migrator->getTableLength("observations")
+      );
+
+
+      echo "# of Projects in Fedora: " . $fedora_counts['projects'] . "\n# of Projects in MySQL: " . $mysql_counts['projects'] . "\nSuccessful Migration: " . (($fedora_counts['projects'] == $mysql_counts['projects']) ? "TRUE" : 'FALSE') . "\n\n";
+      echo "# of Subrojects in Fedora: " . $fedora_counts['subprojects'] . "\n# of Subprojects in MySQL: " . $mysql_counts['subprojects'] . "\nSuccessful Migration: " . (($fedora_counts['subprojects'] == $mysql_counts['subprojects']) ? "TRUE" : 'FALSE') . "\n\n";
+      echo "# of Plots in Fedora: " . $fedora_counts['plots'] . "\n# of Plots in MySQL: " . $mysql_counts['plots'] . "\nSuccessful Migration: " . (($fedora_counts['plots'] == $mysql_counts['plots']) ? "TRUE" : 'FALSE') . "\n\n";
+      echo "# of Deployments in Fedora: " . $fedora_counts['deployments'] . "\n# of Deployments in MySQL: " . $mysql_counts['deployments'] . "\nSuccessful Migration: " . (($fedora_counts['deployments'] == $mysql_counts['deployments']) ? "TRUE" : 'FALSE') . "\n\n";
+      echo "# of Observations in Fedora: " . $fedora_counts['observations'] . "\n# of Observations in MySQL: " . $mysql_counts['observations'] . "\nSuccessful Migration: " . (($fedora_counts['observations'] == $mysql_counts['observations']) ? "TRUE" : 'FALSE') . "\n\n";
+
+      //$migrator->dropObservations('test.smx.home:50');
   }
 
 ?>
