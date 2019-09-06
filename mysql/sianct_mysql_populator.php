@@ -1,7 +1,18 @@
 <?php
-
+  /**
+   * SIANCT MySQL Data Populator Class
+   *
+   * Recursively cycles through PIDS in fedora repo, extracting information for
+   * MySQL data tables.
+   */
   class sianct_mysql_populator
   {
+    /**
+     * Constructor for SIANCT MySQL Data Populator Class
+     * @param array $db array of database information
+     *
+     * NOTE if $db is NULL, constructor uses values in sianct.ini config file
+     */
     public function __construct($db=NULL)
     {
       $this->config = parse_ini_file('sianct.ini');
@@ -12,12 +23,110 @@
       $this->user = $dbvals['user'];
       $this->pass = $dbvals['pass'];
       $this->dbname = $dbvals['dbname'];
+    }
 
+    /**
+     * Main method of class. Initializes log and timing data and then passes a
+     * list of PIDs to the recursive findObjects method.
+     *
+     * @param  array  $PIDs        list of fedora PIDs
+     * @param  boolean $repopulate If TRUE, delete database and repopulate.
+     */
+    public function populateDatabase($PIDs=NULL, $repopulate=FALSE)
+    {
+      //initialize log data
+      $this->resetLogData();
+
+      //if $repopulate is TRUE, delete existing database.
+      if($repopulate)
+      {
+        $this->deleteDatabase();
+      }
+
+      //Initialize database if it hasn't been already.
+      $this->initializeSianctDatabase();
+
+      //if $PIDs is empty or null, add root pid to the list
+      if(!$PIDs || count($PIDs) == 0)
+      {
+        $PIDs = ['si:121909'];
+      }
+
+      //start timer
+      $start = microtime(true);
+
+      //pass each $PID to findObjects method
+      foreach($PIDs as $PID)
+      {
+        $this->findObjects($PID);
+      }
+
+      //end timer and get execution time
+      $time_elapsed_secs = microtime(true) - $start;
+
+      //create log file prefix from current date
       $date = new DateTime('NOW');
       $prefix= $date->format('m-d-Y_H:i:s');
 
-      $this->error= './log/' . $prefix . '_error.log';
-      $this->debug = './log/' . $prefix . '_debug.log';
+      //output log contains error and debug messages
+      $output_log = './log/' . $prefix . '_output.log';
+      //pids log contains a list of PIDs that failed to be added to the database.
+      $pids_log = './log/' . $prefix . '_failed_pids.log';
+
+      //write failed PIDS to pids log
+      foreach($this->errorpids as $pid)
+      {
+        $this->log($pid, $pids_log);
+      }
+
+      //log debug and error data
+      $this->logDebugData($time_elapsed_secs, $output_log);
+
+      //reset log data.
+      $this->resetLogData();
+    }
+
+    /**
+     * Function to write error and debug data to log file
+     * @param  double $time     Execution time for database population
+     * @param  string $filepath path to log file
+     */
+    private function logDebugData($time, $filepath)
+    {
+      //get row count for each datatable
+      $db_projects = $this->getTableLength('projects');
+      $db_subprojects = $this->getTableLength('subprojects');
+      $db_plots = $this->getTableLength('plots');
+      $db_deployments = $this->getTableLength('deployments');
+      $db_observations = $this->getTableLength('observations');
+
+      //log execution time
+      $this->log("Execution time for database population: $time", $filepath);
+
+      //log comparisons of fedora data objects and mysql entries for projects, subprojects, plots, deployments, and observations
+      $this->log("\nFedora Project Count: $this->projectCount", $filepath);
+      $this->log("MySQL Project Count: $db_projects", $filepath);
+      $this->log("Population Success: " . (($this->projectCount == $db_projects) ? "TRUE" : "FALSE"), $filepath);
+
+      $this->log("\nFedora Subproject Count: $this->subprojectCount", $filepath);
+      $this->log("MySQL Subproject Count: $db_subprojects", $filepath);
+      $this->log("Population Success: " . (($this->subprojectCount == $db_subprojects) ? "TRUE" : "FALSE"), $filepath);
+
+      $this->log("\nFedora Plot Count: $this->plotCount", $filepath);
+      $this->log("MySQL Plot Count: $db_plots", $filepath);
+      $this->log("Population Success: " . (($this->plotCount == $db_plots) ? "TRUE" : "FALSE"), $filepath);
+
+      $this->log("\nFedora Deployment Count: $this->deploymentCount", $filepath);
+      $this->log("MySQL Deployment Count: $db_deployments", $filepath);
+      $this->log("Population Success: " . (($this->deploymentCount == $db_deployments) ? "TRUE" : "FALSE"), $filepath);
+
+      $this->log("\nFedora Observation Count: $this->observationCount", $filepath);
+      $this->log("MySQL Observation Count: $db_observations", $filepath);
+      $this->log("Population Success: " . (($this->observationCount == $db_observations) ? "TRUE" : "FALSE"), $filepath);
+
+      //write log data to file.
+      $this->log("\nLog: \n", $filepath);
+      $this->log($this->executionlog, $filepath);
     }
 
     /**
@@ -26,70 +135,61 @@
      * @param  boolean $parentproject true if object parent is of type project
      * @param  string  $parent        pid of object parent
      */
-    public function findDeployments($PID, $parentproject=FALSE, $parent=NULL)
+    public function findObjects($PID, $parent=NULL)
     {
-      $url = "objects/$PID/datastreams/RELS-EXT/content";
+      //get RELS-EXT datastream information for Fedora PID
+      $rels = $this->getRelsExtData($PID);
 
-      $rels = $this->sianctapiGetDataFromFedora($url);
-
-      if($rels)
+      //if parent parameter is NULL, get information from FEDORA
+      if($parent == NULL)
       {
-        EasyRdf_Namespace::set('fedora','info:fedora/fedora-system:def/relations-external#');
-        EasyRdf_Namespace::set('fedoramodel','info:fedora/fedora-system:def/model#');
+        $parent = Array(
+          'pid' => $rels['parent'],
+          'type' => $this->getRelsExtData($rels['parent'])['type'],
+        );
+      }
 
-        $qpid = 'info:fedora/' . $PID;
-        $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
 
-        $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
-
-        $fedora_type = preg_replace('/info:fedora\//', '', $model->getUri());
-
-        $concepts = $graph->allResources($qpid,'fedora:hasConcept');
-        $children = array();
-
-        foreach ($concepts as $concept)
+      if($rels['type'] == 'si:cameraTrapCModel') //Fedora Deployment Object
+      {
+        $this->deploymentCount++;
+        $this->writeDeploymentTable($PID, $parent['pid']);
+      }
+      else
+      {
+        if($rels['type'] == 'si:projectCModel' && $PID != 'si:121909')
         {
-          $child = preg_replace('/info:fedora\//', '', $concept->getUri());
-
-          if ($child != $pid) {
-            $children[] = $child;
+          if($parent['pid'] != 'si:121909' && $parent['type'] == 'si:projectCModel') //Fedora Subproject Object
+          {
+            $this->subprojectCount++;
+            $this->writeSubprojectTable($PID, $parent['pid']);
+          }
+          else //Fedora Project Object
+          {
+            $this->projectCount++;
+            $this->writeProjectTable($PID);
           }
         }
-
-        if($fedora_type == "si:cameraTrapCModel")
+        elseif($rels['type'] == 'si:ctPlotCModel') //Fedora Plot Object
         {
-          $this->log("Deployment $PID: \n", $this->debug);
-          $this->writeDeploymentTable($PID, $parent);
+          $this->plotCount++;
+          $this->writePlotTable($PID, $parent['pid']);
         }
-        else
+
+        //recursively call children of fedora object
+        foreach($rels['children'] as $child)
         {
-          if($fedora_type == "si:projectCModel" && $PID != "si:121909")
-          {
-            if($parentproject)
-            {
-              $this->log("Subproject $PID:", $this->debug);
-              $this->writeSubprojectTable($PID, $parent);
-            }
-            else
-            {
-              $this->log("Project $PID:", $this->debug);
-              $this->writeProjectTable($PID);
-            }
-          }
-          elseif($fedora_type == "si:ctPlotCModel")
-          {
-            $this->log("Plot $PID:", $this->debug);
-            $this->writePlotTable($PID, $parent);
-          }
+          /*
+            Use current PID and type to pass as parent information for children
+            This prevents an excess of Fedora queries for RELS-EXT data.
+           */
+          $parent = Array(
+            'pid' => $PID,
+            'type' => $rels['type']
+          );
 
-          $this->log("$fedora_type $PID child count: " . count($children), $this->debug);
-
-          //recursively call children
-          foreach($children as $child)
-          {
-            $hasProjectParent = ($fedora_type == "si:projectCModel" && $PID != "si:121909");
-            $this->findDeployments($child, $hasProjectParent, $PID);
-          }
+          //recursive call to findObjects with child
+          $this->findObjects($child, $parent);
         }
       }
     }
@@ -102,15 +202,15 @@
     {
       try
       {
-        $url = "objects/$PID/datastreams/EAC-CPF/content";
-        $res = $this->sianctapiGetDataFromFedora($url);
+        //get EAC-CPF datastream for Project
+        $xml = $this->getDatastream($PID, "EAC-CPF");
 
-        $xml = new SimpleXMLElement($res);
-
+        //register namespaces for EAC-CPF xml
         $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
         $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
         $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
 
+        //get project table data from EAC-CPF xml
         $tableValues = Array(
           'sidora_project_id' => $PID,
           'ct_project_id' => (string) $xml->xpath('//eac:recordId/text()')[0],
@@ -126,21 +226,28 @@
           'principal_investigator' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Principal Investigator"]/eac:relationEntry/text()')[0]
         );
 
-        $sql = $this->table_insert("projects", $tableValues);
+        //insert data into projects table
+        $sql = $this->tableInsert("projects", $tableValues);
 
-        if($sql['status'])
+        if($sql['status']) //successful insert
         {
-          $this->log($sql['message'], $this->debug);
+          $this->executionlog .= "DEBUG: PROJECT $PID - Message: " . $sql['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql['message'], $this->error);
+          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+          if (strpos($sql['message'], 'Duplicate entry') === false)
+          {
+            $this->executionlog .= "ERROR: PROJECT $PID - " . $sql['message'] . "\n";
+            array_push($this->errorpids, $PID);
+          }
         }
 
       }
       catch(Exceptions $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: PROJECT $PID - $e\n";
+        array_push($this->errorpids, $PID);
       }
     }
 
@@ -153,14 +260,15 @@
     {
       try
       {
-        $url = "objects/$PID/datastreams/EAC-CPF/content";
-        $res = $this->sianctapiGetDataFromFedora($url);
-        $xml = new SimpleXMLElement($res);
+        //get EAC-CPF datastream for Subproject
+        $xml = $this->getDatastream($PID, "EAC-CPF");
 
+        //register namespaces for EAC-CPF xml
         $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
         $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
         $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
 
+        //get subproject table data from EAC-CPF xml
         $tableValues = Array(
           'sidora_subproject_id' => $PID,
           'ct_subproject_id' => $xml->xpath('//eac:recordId/text()')[0],
@@ -170,20 +278,28 @@
           'project_design' => $xml->xpath('//eac:function[eac:term/text()="Project Design"]/eac:descriptiveNote/*')[0]
         );
 
-        $sql = $this->table_insert("subprojects", $tableValues);
+        //insert data into subprojects table
+        $sql = $this->tableInsert("subprojects", $tableValues);
 
-        if($sql['status'])
+
+        if($sql['status']) //successful insert
         {
-          $this->log($sql['message'], $this->debug);
+          $this->executionlog .= "DEBUG: SUBPROJECT $PID - Message: " . $sql['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql['message'], $this->error);
+          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+          if (strpos($sql['message'], 'Duplicate entry') === false)
+          {
+            $this->executionlog .= "ERROR: SUBPROJECT $PID - " . $sql['message'] . "\n";
+            array_push($this->errorpids, $PID);
+          }
         }
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .="ERROR: SUBPROJECT $PID - $e\n";
+        array_push($this->errorpids, $PID);
       }
     }
 
@@ -196,35 +312,42 @@
     {
       try
       {
-        $url = "objects/$PID/datastreams/FGDC-CTPlot/content";
-        $res = $this->sianctapiGetDataFromFedora($url);
+        //get FGDC-CTPlot datastream for plot
+        $xml = $this->getDatastream($PID, 'FGDC-CTPlot');
 
-        $xml = new SimpleXMLElement($res);
-
+        //register namespaces for FGDC-CTPlot xml
         $xml->registerXPathNamespace("fgdc", "http://localhost/");
         $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 
+        //get plot table data from FGDC-CTPlot xml
         $tableValues = Array(
           'sidora_plot_id' => $PID,
           'name' => $xml->xpath('//title/text()')[0],
-          'treatment' => $xml->xpath('//fgdc:citeinfo/fgdc:treatment/text()')[0],
+          'treatment' => $xml->xpath('//fgdc:dataqual/fgdc:lineage/fgdc:method/fgdc:methdesc/text()')[0],
           'sidora_subproject_id' => $parent
         );
 
-        $sql = $this->table_insert("plots", $tableValues);
+        //insert data into plots table
+        $sql = $this->tableInsert("plots", $tableValues);
 
-        if($sql['status'])
+        if($sql['status']) //successful insert
         {
-          $this->log($sql['message'], $this->debug);
+          $this->executionlog .= "DEBUG: PLOT $PID - Message: " . $sql['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql['message'], $this->error);
+          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+          if (strpos($sql['message'], 'Duplicate entry') === false)
+          {
+            $this->executionlog .= "ERROR: PLOT $PID - " . $sql['message'] . "\n";
+            array_push($this->errorpids, $PID);
+          }
         }
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: PLOT $PID - $e\n";
+        array_push($this->errorpids, $PID);
       }
     }
 
@@ -237,15 +360,16 @@
     {
       try
       {
-        $url = "objects/$PID/datastreams/MANIFEST/content";
-        $result = $this->sianctapiGetDataFromFedora($url);
+        //get manifest datastream for deployment
+        $manifest = $this->getDatastream($PID, "MANIFEST");
 
-        $manifest = new SimpleXMLElement($result);
-
+        //get the parent subproject pid for the deployment
         $sub_vals = $this->getParentSubproject($parent);
 
-        //$camera_data = $this->getCameraMetadata($PID);
+        //get deployment camera metadata
+        $camera_data = $this->getCameraMetadata($PID);
 
+        //get deployment data from manifest xml
         $tableValues = Array(
           'sidora_deployment_id' => $PID,
           'sidora_subproject_id' => $sub_vals['subproject'],
@@ -272,22 +396,36 @@
           'deployment_notes' => (string) $manifest->xpath('//CameraDeploymentNotes')[0]
         );
 
-        $sql = $this->table_insert("deployments", $tableValues);
+        //insert data into deployments table
+        $sql = $this->tableInsert("deployments", $tableValues);
 
-        if($sql['status'])
+        if($sql['status']) //successful insert
         {
-          $this->log($sql['message'], $this->debug);
+          $this->executionlog .= "DEBUG: DEPLOYMENT $PID - Message: " . $sql['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql['message'], $this->error);
+          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+          if (strpos($sql['message'], 'Duplicate entry') === false)
+          {
+            $this->executionlog .= "ERROR: Deployment $PID - " . $sql['message'] . "\n";
+            array_push($this->errorpids, $PID);
+          }
         }
 
-        $this->getObservations($PID);
+        /*
+          get # of observations for this deployment and add it to the running total of
+          observations gathered from fedora
+        */
+        $this->observationCount += $this->getObservationsCount($PID);
+
+        //call getObservations to populate observations datatable.
+        $this->getObservations($PID, $manifest);
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR Deployment $PID - $e\n";
+        array_push($this->errorpids, $PID);
       }
     }
 
@@ -296,34 +434,54 @@
      * @param  string $PID      Deployment pid
      * @param  SimpleXMLElement $manifest deployment manifest xml
      */
-    private function getObservations($PID)
+    private function getObservations($PID, $manifest)
     {
-      $manifest = $this->getDatastream($PID, "MANIFEST");
+      /*
+        get the number of observations under corresponding deployment PID in both
+        fedora and mysql
+      */
+      $mysql_observation_count  = $this->getObservationSubsetLength($PID);
+      $fedora_observation_count = $this->getObservationsCount($PID);
 
-      try
+      /*
+        if the #observations in fedora under the deployment do not match the number
+        in the mysql database, repopulate the data in mysql.
+      */
+      if($mysql_observation_count != $fedora_observation_count)
       {
-        $sequences = $manifest->xpath("//ImageSequence/ImageSequenceId");
-
-        foreach($sequences as $seq)
+        //if there are already observations in the db, drop them and repopulate
+        if($mysql_observation_count > 0)
         {
-          $xpath = "//ImageSequence[ImageSequenceId='$seq']";
-          $resXPATH = "$xpath/ResearcherIdentifications/Identification";
+          $this->dropObservations($PID);
+        }
 
-          $resCount = count($manifest->xpath("$resXPATH"));
+        try
+        {
+          //get a list of image sequence IDs from manifest
+          $sequences = $manifest->xpath("//ImageSequence/ImageSequenceId");
 
-          for($i = 1; $i < $resCount + 1; $i++)
+          foreach($sequences as $seq)
           {
-            //echo "Parsing identification $i/$resCount for deployment: $PID, sequence: $seq\n";
-            $this->parseObservation($PID, $manifest, $seq, $i, $xpath, "Researcher");
+            //base xpath using sequence ID
+            $xpath = "//ImageSequence[ImageSequenceId='$seq']";
+
+            //xpath to researcher identification
+            $resXPATH = "$xpath/ResearcherIdentifications/Identification";
+
+            //get # of researcher identifications corresponding to the sequence ID
+            $resCount = count($manifest->xpath("$resXPATH"));
+
+            for($i = 1; $i < $resCount + 1; $i++) //parse each researcher observation
+            {
+              $this->parseObservation($PID, $manifest, $seq, $i, "Researcher");
+            }
           }
         }
+        catch(Exception $e)
+        {
+          $this->executionlog .= "ERROR: getObservations() Deployment $PID - Message: " . $e->getMessage() . "\n";
+        }
       }
-      catch(Exception $e)
-      {
-        $this->log($e, $this->error);
-      }
-
-
     }
 
     /**
@@ -335,21 +493,20 @@
      * @param  string $xpath    xpath base for querying manifest
      * @param  string $id_type  how the observation was id'd
      */
-    private function parseObservation($PID, $manifest, $seq, $index, $xpath, $id_type)
+    private function parseObservation($PID, $manifest, $seq, $index, $id_type)
     {
       try
       {
-        if($id_type == "Researcher")
-        {
-          $idXPATH = "$xpath/ResearcherIdentifications";
-        }
-        else
-        {
-          $idXPATH = "$xpath/VolunteerIdentifications";
-        }
+        //base xpath
+        $xpath = "//ImageSequence[ImageSequenceId='$seq']";
 
+        //xpath to researcher identifications
+        $idXPATH = "$xpath/ResearcherIdentifications";
+
+        //get species iucn nubmer for researcher identification
         $iucn_id = (string) $manifest->xpath("$idXPATH/Identification[$index]/IUCNId")[0];
 
+        //get species data from manifest xml
         $speciesValues = Array(
           "iucn_id" => $iucn_id,
           "tsn_id" => (string) $manifest->xpath("$idXPATH/Identification[$index]/TSNId")[0],
@@ -358,17 +515,24 @@
           "common_name" => (string) $manifest->xpath("$idXPATH/Identification[$index]/SpeciesCommonName")[0]
         );
 
-        $sql_species = $this->table_insert("species", $speciesValues);
+        //insert data into species table
+        $sql_species = $this->tableInsert("species", $speciesValues);
 
-        if($sql_species['status'])
+        if($sql_species['status']) //successful insert
         {
-          $this->log($sql_species['message'], $this->debug);
+          $this->executionlog .= "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql_species['message'], $this->error);
+          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+          //there will be a lot of duplicate species even on a fresh rebuild
+          if(strpos($sql_species['message'], 'Duplicate entry') === false)
+          {
+            $this->executionlog .= "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
+          }
         }
 
+        //get observation data from manifest xml
         $observationValues = Array(
           "sequence_id" => $seq,
           "sidora_deployment_id" => $PID,
@@ -382,24 +546,43 @@
           "id_type" => $id_type
         );
 
-        $sql_observations = $this->table_insert("observations", $observationValues);
+        //insert data into observations table
+        $sql_observations = $this->tableInsert("observations", $observationValues);
 
-        if($sql_observations['status'])
+        if($sql_observations['status']) //successful insert
         {
-          $this->log($sql_observations['message'], $this->debug);
+          $this->executionlog .= "DEBUG: DEPLOYMENT $PID/OBSERVATION $index - Message: " . $sql_observations['message'] . "\n";
         }
-        else
+        else //failed insert
         {
-          $this->log($sql_observations['message'], $this->error);
+          //NOTE there is no way to determine duplicate observation entries from the data alone. This is why we compare contents in fedora and mysql instead
+          $this->executionlog .= "ERROR: Failed to Insert Deployment $PID/Observation $index - Message: " . $sql_observations['message'] . "\n";
         }
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: Failer to Insert Deployment $PID/Observation $index - Message: " . $e->getMessage() . "\n";
       }
     }
 
     /**Helper Functions**/
+
+    /**
+     * Reset log data so that logs do not carry data from rebuild to rebuild if
+     * the class is reused.
+     */
+    private function resetLogData()
+    {
+      $this->projectCount = 0;
+      $this->subprojectCount = 0;
+      $this->plotCount = 0;
+      $this->deploymentCount = 0;
+      $this->observationCount = 0;
+
+      $this->errorpids = Array();
+
+      $this->executionlog = '';
+    }
 
     /**
      * log function for sianct mysql operations
@@ -420,59 +603,32 @@
     {
       $results = Array(
         "subproject" => "",
-        "plot" => "",
-        "error" => FALSE
+        "plot" => ""
       );
 
-      try
+      //get RELS-EXT datastream for PID
+      $rels = $this->getRelsExtData($PID);
+
+      //if plot, get subproject parent
+      if($rels['type'] == 'si:ctPlotCModel')
       {
-        $url = "objects/$PID/datastreams/RELS-EXT/content";
-
-        $rels = $this->sianctapiGetDataFromFedora($url);
-
-        if($rels)
-        {
-          EasyRdf_Namespace::set('fedora','info:fedora/fedora-system:def/relations-external#');
-          EasyRdf_Namespace::set('fedoramodel','info:fedora/fedora-system:def/model#');
-          EasyRdf_Namespace::set('administered', 'http://oris.si.edu/2017/01/relations#');
-
-          $qpid = 'info:fedora/' . $PID;
-          $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
-
-          $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
-
-          $type = preg_replace('/info:fedora\//', '', $model->getUri());
-
-          if($type=="si:ctPlotCModel")
-          {
-            $admin = $graph->allResources($qpid, 'administered:isAdministeredBy')[0];
-
-            $results["subproject"] = preg_replace('/info:fedora\//', '', $admin->getUri());
-            $results["plot"] = $PID;
-          }
-          else
-          {
-            $results["subproject"] = $PID;
-            $results["plot"] = NULL;
-          }
-        }
-        else
-        {
-          $results["error"] = TRUE;
-          $this->log("ERROR: UNABLE TO RETRIEVE RELS-EXT FOR OBJECT: $PID", $this->error);
-        }
+        $results["subproject"] = $rels['parent'];
+        $results["plot"] = $PID;
       }
-      catch(Exception $e)
+      else //assume $PID IS a subproject
       {
-        $this->log($e, $this->error);
-        $results["error"] = TRUE;
+        $results["subproject"] = $PID;
+        $results["plot"] = NULL;
       }
-      finally
-      {
-        return $results;
-      }
+
+      return $results;
     }
 
+    /**
+     * Get camera metadata for deployment
+     * @param  string $PID deployment PID
+     * @return array      camera make and model values
+     */
     public function getCameraMetadata($PID)
     {
       $results = Array
@@ -483,31 +639,44 @@
 
       try
       {
+        //get deployment RELS-EXT datastream
         $rels = $this->getRelsExtData($PID);
 
+        //get deployment child objects
         foreach($rels['children'] as $child)
         {
           $type = $this->getRelsExtData($child)['type'];
 
+          //if image object
           if($type == 'si:generalImageCModel')
           {
-            $url = "objects/$child/datastreams/FITS/content";
-            $res = $this->sianctapiGetDataFromFedora($url);
+            //get FITS datastream xml for child image object
+            $xml = $this->getDatastream($child, "FITS");
 
-            $xml = new SimpleXMLElement($res);
+            if(!$xml)
+            {
+              //if FITS datastream failed to parse, try next child
+              continue;
+              //return $results;
+            }
 
+            //register FITS xml namespaces
             $xml->registerXPathNamespace("fits", "http://hul.harvard.edu/ois/xml/ns/fits/fits_output");
             $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 
+            //get camera make
             $make = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraManufacturer/text()")[0];
 
+            //if not null or empty, set camera make
             if($make != "" && $make != NULL)
             {
                 $results['make'] = $make;
             }
 
+            //get camera model
             $model = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraModelName/text()")[0];
 
+            //if not null or empty, set camera model
             if($model != "" && $model != NULL)
             {
                 $results['model'] = $model;
@@ -517,24 +686,26 @@
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: Unable to Retrieve Camera Metadata for Deployment $PID - Message: " . $e->getMessage() . "\n";
       }
 
       return $results;
     }
 
     /**
-     * Extract observations from deployment manifest
+     * Get the number of observations contained in a deployment manifest
      * @param  string $PID      Deployment pid
-     * @param  SimpleXMLElement $manifest deployment manifest xml
      */
     public function getObservationsCount($deploymentPid)
     {
       $count = 0;
+
+      //get manifest datastream xml for deployment
       $manifest = $this->getDatastream($deploymentPid, "MANIFEST");
 
       try
       {
+        //get a list of image sequence IDs
         $sequences = $manifest->xpath("//ImageSequence/ImageSequenceId");
 
         foreach($sequences as $seq)
@@ -542,14 +713,16 @@
           $xpath = "//ImageSequence[ImageSequenceId='$seq']";
           $resXPATH = "$xpath/ResearcherIdentifications/Identification";
 
+          //get number of researcher identifications under each sequence
           $resCount = count($manifest->xpath("$resXPATH"));
 
+          //add to count
           $count += $resCount;
         }
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: Unable to retrieve observation count from Deployment $deploymentPid - Message: " . $e->getMessage() . "\n";
       }
       finally
       {
@@ -557,6 +730,12 @@
       }
     }
 
+    /**
+     * helper function to retrieve specific datastream xml for a fedora object
+     * @param  string $PID fedora object PID
+     * @param  string $ds  fedora datastream identifier
+     * @return SimpleXMLElement   Datastream XML or NULL if failed
+     */
     public function getDatastream($PID, $ds)
     {
       $datastream = NULL;
@@ -564,13 +743,14 @@
       try
       {
         $url = "objects/$PID/datastreams/$ds/content";
+
         $result = $this->sianctapiGetDataFromFedora($url);
 
         $datastream = new SimpleXMLElement($result);
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: Failed to Retrieve Datastream $ds for Object $PID - Message: " . $e->getMessage() . "\n";
       }
       finally
       {
@@ -578,6 +758,14 @@
       }
     }
 
+    /**
+     * helper function to retrieve specific RELS-EXT data for a fedora object
+     *
+     * NOTE: Uses EasyRdf library
+     *
+     * @param  string $PID Fedora Object PID
+     * @return array       set of pertinent RELS-EXT information
+     */
     public function getRelsExtData($PID)
     {
       $Values = Array(
@@ -590,8 +778,9 @@
 
       $rels = $this->sianctapiGetDataFromFedora($url);
 
-      if($rels)
+      if($rels) //if results aren't empty or NULL
       {
+        //set RELS-EXT rdf namespaces
         EasyRdf_Namespace::set('fedora','info:fedora/fedora-system:def/relations-external#');
         EasyRdf_Namespace::set('fedoramodel','info:fedora/fedora-system:def/model#');
         EasyRdf_Namespace::set('dc', "http://purl.org/dc/elements/1.1/");
@@ -600,24 +789,28 @@
         $qpid = 'info:fedora/' . $PID;
         $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
 
+        //get isAdministeredBy node in RELS-EXT
         $admin = $graph->allResources($qpid, 'oris:isAdministeredBy')[0];
 
         if($admin != NULL)
         {
+          //get parent object for $PID
           $Values['parent'] = preg_replace('/info:fedora\//', '', $admin->getUri());
         }
 
+        //get fedora type for $PID object
         $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
-
         $Values['type'] = preg_replace('/info:fedora\//', '', $model->getUri());
 
+        //Get all possible children for $PID object
         $concepts  = $graph->allResources($qpid,'fedora:hasConcept');
         $resources = $graph->allResources($qpid, 'fedora:hasResource');
         $codebook  = $graph->allResources($qpid, 'fedora:managesCodebook');
 
+        //merge into one array
         $children = array_merge($concepts, $resources, $codebook);
 
-
+        //iterate through children and strip away excess text, leaving only PIDs
         foreach ($children as $child)
         {
           $child_pid = preg_replace('/info:fedora\//', '', $child->getUri());
@@ -657,13 +850,13 @@
         }
         else
         {
-          $this->log($fedoraResults['log'], $this->error);
+          $this->executionlog .= "ERROR: " . $fedoraResults['log'] . "\n";
           return FALSE;
         }
       }
       catch(Exception $e)
       {
-        $this->log($e, $this->error);
+        $this->executionlog .= "ERROR: " . $e->getMessage() . "\n";
         return FALSE;
       }
     }
@@ -760,17 +953,20 @@
      */
     public function initializeSianctDatabase()
     {
+      //create new database if one has not been created
       $this->createDatabase();
 
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
 
       // Check connection
       if ($conn->connect_error)
       {
-        $this->log("Connection failed: " . $conn->connect_error, $this->error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
         die("Connection failed: " . $conn->connect_error);
       }
 
+      //get sql scripts for creating datatables
       $sql_projects = file_get_contents($this->config["projects"]);
       $sql_subprojects = file_get_contents($this->config['subprojects']);
       $sql_plots = file_get_contents($this->config['plots']);
@@ -778,6 +974,7 @@
       $sql_species = file_get_contents($this->config['species']);
       $sql_observations = file_get_contents($this->config['observations']);
 
+      //create datatables if they aren't already created
       $this->createTable($conn, $sql_projects, "projects");
       $this->createTable($conn, $sql_subprojects, "subprojects");
       $this->createTable($conn, $sql_plots, "plots");
@@ -785,6 +982,7 @@
       $this->createTable($conn, $sql_species, "species");
       $this->createTable($conn, $sql_observations, "observations");
 
+      //close connection
       $conn->close();
     }
 
@@ -798,20 +996,20 @@
       // Check connection
       if ($conn->connect_error)
       {
-        $this->log("Connection failed: " . $conn->connect_error, $this->error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
         die("Connection failed: " . $conn->connect_error);
       }
 
-      // Create database
+      //query to create database
       $sql = "CREATE DATABASE $this->dbname";
 
-      if ($conn->query($sql) === TRUE)
+      if ($conn->query($sql) === TRUE) //on success
       {
-        $this->log("Database created successfully", $this->debug);
+        $this->executionlog .= "DEBUG: Database '$this->dbname' created successfully" . "\n";
       }
-      else
+      elseif(strpos($conn->error, 'database exists') === false) //on failure, filtering out 'database exists' errors
       {
-        $this->log("Error creating database: " . $conn->error, $this->error);
+        $this->executionlog .= "ERROR: creating database - Message: " . $conn->error . "\n";
       }
     }
 
@@ -821,25 +1019,26 @@
      */
     public function deleteDatabase()
     {
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass);
 
       // Check connection
       if ($conn->connect_error)
       {
-        $this->log("Connection failed: " . $conn->connect_error, $this->error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
         die("Connection failed: " . $conn->connect_error);
       }
 
-      // Create database
+      //query to delete database
       $sql = "DROP DATABASE $this->dbname";
 
-      if ($conn->query($sql) === TRUE)
+      if ($conn->query($sql) === TRUE) //on success
       {
-        $this->log("Database deleted successfully", $this->debug);
+        $this->executionlog .= "DEBUG: Database $this->dbname Deleted Successfully" . "\n";
       }
-      else
+      else //on failure
       {
-        $this->log("Error deleting database: " . $conn->error, $this->error);
+        $this->executionlog .= "ERROR: " . $conn->error . "\n";
       }
     }
 
@@ -851,30 +1050,36 @@
      */
     private function createTable($conn, $sql, $table)
     {
-      if ($conn->query($sql) === TRUE)
+      if ($conn->query($sql) === TRUE) //on success
       {
-          $this->log("Table $table created successfully", $this->debug);
+        $this->executionlog .= "DEBUG: Table $table created successfully in Database '$this->dbname'" . "\n";
       }
-      else
+      elseif(strpos($conn->error, 'already exists') === false) //on failure, filtering out 'already exists' errors
       {
-          $this->log("Error creating table: " . $conn->error, $this->error);
+        $this->executionlog .= "ERROR: " . $conn->error . "\n";
       }
     }
 
-    public function table_insert($table, $data)
+    /**
+     * Insert a row of data into a specific table in the database
+     * @param  string $table name of table
+     * @param  array $data   array of key=>value pairs corresponding to a data entry
+     * @return array         an array containing a status (TRUE or FALSE) and error or success message from MySQL
+     */
+    public function tableInsert($table, $data)
     {
       $results = Array(
         'status' => TRUE,
         'message' => ''
       );
 
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
 
       // Check connection
       if ($conn->connect_error)
       {
-        $this->log($conn->connect_error, $this->error);
-        die("Connection failed: " . $conn->connect_error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
       }
 
       $cols = "";
@@ -882,6 +1087,7 @@
 
       $count = 1;
 
+      //parse row names and data
       foreach($data as $key => $value)
       {
         $cols .= $key;
@@ -896,13 +1102,14 @@
         $count++;
       }
 
+      //query to insert data
       $sql = "INSERT INTO $table ($cols) VALUES ($vals)";
 
-      if ($conn->query($sql) === TRUE)
+      if ($conn->query($sql) === TRUE) //on success
       {
         $results['message'] = "New record created successfully in $table";
       }
-      else
+      else //on failure
       {
         $results['message'] = "Error: " . $sql . "<br>" . $conn->error;
         $results['status'] = FALSE;
@@ -911,22 +1118,28 @@
       return $results;
     }
 
+    /**
+     * Get the # of rows in a specified table
+     * @param  string $table name of table
+     * @return int           Row count of table
+     */
     public function getTableLength($table)
     {
       $count = 0;
 
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
 
       // Check connection
       if ($conn->connect_error)
       {
-        //$this->log($conn->connect_error, $this->error);
-        die("Connection failed: " . $conn->connect_error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
       }
 
+      //query selecting all rows from specified table
       $sql = "SELECT * FROM $table";
 
-      if ($result = $conn->query($sql))
+      if ($result = $conn->query($sql)) //on success
       {
         /* determine number of rows result set */
         $count = $result->num_rows;
@@ -940,22 +1153,28 @@
       return $count;
     }
 
+    /**
+     * Get # of observation table rows corresponding to a specified deployment
+     * @param string $deployment  $PID of deployment
+     * @return int   Row count of observations corresponding to deployment
+     */
     public function getObservationSubsetLength($deployment)
     {
       $count = 0;
 
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
 
       // Check connection
       if ($conn->connect_error)
       {
-        //$this->log($conn->connect_error, $this->error);
-        die("Connection failed: " . $conn->connect_error);
+        $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
       }
 
+      //query to select all observation table rows corresponding to deployment
       $sql = "SELECT observation_id FROM observations WHERE sidora_deployment_id=\"$deployment\"";
 
-      if ($result = $conn->query($sql))
+      if ($result = $conn->query($sql)) //on success
       {
         /* determine number of rows result set */
         $count = $result->num_rows;
@@ -969,30 +1188,37 @@
       return $count;
     }
 
+    /**
+     * Remove observation table rows corresponding to specified deployment
+     * @param  string $deployment PID of fedora deployment
+     */
     public function dropObservations($deployment)
     {
-      // Create connection
+      //get current # of observations under deployment in observations table
+      $obscount = $this->getObservationSubsetLength($deployment);
+
+      //connect to the database using passed or configured credentials
       $conn = new mysqli($this->host, $this->user, $this->pass, $this->dbname);
+
       // Check connection
       if ($conn->connect_error)
       {
-        die("Connection failed: " . $conn->connect_error);
+        $this->log("ERROR: Failed to delete observation rows corresponding to deployment $deployment - Message: $conn->connect_error\n");
       }
 
-      // sql to delete a record
+      //query to delete observation records
       $sql = "DELETE FROM observations WHERE sidora_deployment_id=\"$deployment\"";
 
-      if ($conn->query($sql) === TRUE)
+      if ($conn->query($sql) === TRUE) //on success
       {
-        echo "Record deleted successfully";
+        $this->executionlog .= "DEBUG: Deleting " . $obscount . " Observations under Deployment $deployment From Table Observations in Database '$this->dbname'\n";
       }
-      else
+      else //on failure
       {
-        echo "Error deleting record: " . $conn->error;
+        $this->executionlog .= "ERROR: Failed to Delete Observations Under Deployment $deployment - Message: " . $conn->error . "\n";
       }
 
       $conn->close();
     }
-
   }
 ?>
