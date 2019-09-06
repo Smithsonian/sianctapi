@@ -17,13 +17,13 @@ data tables and a log directory.
 
 ## Usage Instructions
 
-The `sianct_mysql_rebuild` script can be run on the command line with or without
+The *sianct_mysql_rebuild* script can be run on the command line with or without
 user provided parameters:
 
 `php sianct_mysql_rebuild.php`
 
 Run without parameters, the script will start with the root object of a Fedora
-repository (this fedora repository is configured in sianct.ini). It will then
+repository (this fedora repository is configured in *sianct.ini*). It will then
 work recursively, finding each fedora object from projects down to deployments,
 parsing necessary data from each object and inserting into the appropriate
 data table within the database.
@@ -38,10 +38,10 @@ of these parameters is listed below.
 
 ### Overview of optional parameters:
 
-* -d | --database : Specifies database information. Format - host:username:password:databasename
-* -f | --file     : Specifies path to a file containing a list of fedora pids populate in the database
-* -p | --pids     : A list of pids separated by commas. Format - test.pid:1,test.pid:2,test.pid:3 (no spaces)
-* -r | --rebuild  : If rebuild option flag set to true, the whole database is dropped and rebuilt. Format - TRUE:FALSE
+* -d|--database : Specifies database information. Format - host:username:password:databasename
+* -f|--file     : Specifies path to a file containing a list of fedora pids populate in the database
+* -p|--pids     : A list of pids separated by commas. Format - test.pid:1,test.pid:2,test.pid:3 (no spaces)
+* -r|--rebuild  : If rebuild option flag set to true, the whole database is dropped and rebuilt. Format - TRUE:FALSE
 
 #### database parameter:
 
@@ -52,7 +52,7 @@ use. This information is provided in the following format:
 
 If the user does not provide database information or provides incomplete or
 incorrectly formatted database information, the script will default to the
-database information provided in sianct.ini.
+database information provided in *sianct.ini*.
 
 #### file and pids parameters:
 
@@ -81,7 +81,7 @@ rendered unusable.
 
 ## Configuration
 
-The SIANCT MySQL Cache Migration Module contains configuration options for:
+The SIANCT MySQL Cache Migration Module contains configuration options in *sianc.ini* for:
 
 * database
 * sql
