@@ -38,10 +38,13 @@ of these parameters is listed below.
 
 ### Overview of optional parameters:
 
-* -d|--database : Specifies database information. Format - host:username:password:databasename
-* -f|--file     : Specifies path to a file containing a list of fedora pids populate in the database
-* -p|--pids     : A list of pids separated by commas. Format - test.pid:1,test.pid:2,test.pid:3 (no spaces)
-* -r|--rebuild  : If rebuild option flag set to true, the whole database is dropped and rebuilt. Format - TRUE:FALSE
+* -d or --database : Specifies database information. Format - *<host>:<username>:<password>:<databasename>*
+* -f or --file     : Specifies path to a file containing a list of fedora pids populate in the database
+* -p or --pids     : A list of pids separated by commas. Format - *test.pid:1,test.pid:2,test.pid:3* (no spaces)
+* -r or --rebuild  : If rebuild option flag set to true, the whole database is dropped and rebuilt. Format - TRUE:FALSE
+
+**NOTE:** if both short options (*-d*) and long options (*--database*) are used in the same
+command, the short opts take prescedent.
 
 #### database parameter:
 
