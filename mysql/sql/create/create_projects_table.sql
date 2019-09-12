@@ -5,7 +5,6 @@ CREATE TABLE projects (
   lon VARCHAR(256) NOT NULL COMMENT 'Longitude of Project',
   lat VARCHAR(256) NOT NULL COMMENT 'Latitude of Project',
   publish_date VARCHAR(256) NOT NULL COMMENT 'Publish date of Project',
-  summary VARCHAR(256) NULL COMMENT 'Summary of Camera Trap Project',
   objectives VARCHAR(5000) NULL COMMENT 'Project Objectives',
   data_constraints VARCHAR(256) NULL COMMENT 'Project data constraints',
   owner VARCHAR(256) NULL COMMENT 'Project owner',

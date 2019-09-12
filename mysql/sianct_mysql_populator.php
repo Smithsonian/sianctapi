@@ -417,10 +417,11 @@
           get # of observations for this deployment and add it to the running total of
           observations gathered from fedora
         */
-        $this->observationCount += $this->getObservationsCount($PID);
+        $this->observationCount += $this->getObstableObservationsCount($PID);
 
         //call getObservations to populate observations datatable.
-        $this->getObservations($PID, $manifest);
+        //$this->getObservations($PID, $manifest);
+        $this->getObstableObservations($PID);
       }
       catch(Exception $e)
       {
@@ -441,7 +442,7 @@
         fedora and mysql
       */
       $mysql_observation_count  = $this->getObservationSubsetLength($PID);
-      $fedora_observation_count = $this->getObservationsCount($PID);
+      $fedora_observation_count = $this->getObstableObservationsCount($PID);
 
       /*
         if the #observations in fedora under the deployment do not match the number
@@ -482,6 +483,149 @@
           $this->executionlog .= "ERROR: getObservations() Deployment $PID - Message: " . $e->getMessage() . "\n";
         }
       }
+    }
+
+    private function getObstableObservations($PID)
+    {
+      $mysql_observation_count  = $this->getObservationSubsetLength($PID);
+      $fedora_observation_count = $this->getObservationsCount($PID);
+
+      /*
+        if the #observations in fedora under the deployment do not match the number
+        in the mysql database, repopulate the data in mysql.
+      */
+      if($mysql_observation_count != $fedora_observation_count)
+      {
+        //if there are already observations in the db, drop them and repopulate
+        if($mysql_observation_count > 0)
+        {
+          $this->dropObservations($PID);
+        }
+
+        $rels = $this->getRelsExtData($PID);
+
+        foreach($rels['children'] as $child)
+        {
+          $dc = $this->checkDublinCoreTitle($child, "Researcher Observations");
+
+          if($dc)
+          {
+            $url = "objects/$child/datastreams/CSV/content";
+            $obstable = $this->sianctapiGetDataFromFedora($url);
+
+            if(!$obstable)
+            {
+              $this->log("ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n");
+            }
+            else
+            {
+              $lines = explode("\n", trim($obstable));
+
+              foreach($lines as $line)
+              {
+                $line = trim($line);
+                $values = explode(',', $line);
+
+                $speciesValues = Array(
+                  "iucn_id" => $values[14],
+                  "tsn_id" => $values[13],
+                  "iucn_status" => "placeholder",
+                  "scientific_name" => str_replace("\"", "", $values[5]),
+                  "common_name" => str_replace("\"", "", $values[6])
+                );
+
+                $sql_species = $this->tableInsert("species", $speciesValues);
+
+                if($sql_species['status']) //successful insert
+                {
+                  $this->executionlog .= "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
+                }
+                else //failed insert
+                {
+                  //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+                  //there will be a lot of duplicate species even on a fresh rebuild
+                  if(strpos($sql_species['message'], 'Duplicate entry') === false)
+                  {
+                    $this->executionlog .= "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
+                  }
+                }
+
+                //get observation data from manifest xml
+                $observationValues = Array(
+                  "obstable_id" => $child,
+                  "sequence_id" => $values[2],
+                  "sidora_deployment_id" => $PID,
+                  "begin_time" => $values[3],
+                  "end_time" => $values[4],
+                  "iucn_id" => $values[14],
+                  "age" => $values[7],
+                  "sex" => $values[8],
+                  "individual" => $values[9],
+                  "count" => $values[10],
+                  "id_type" => $values[0]
+                );
+
+                foreach($observationValues as $key=>$value)
+                {
+                  if(!$value || trim($value) == "")
+                  {
+                    $observationValues[$key] = "Unlisted";
+                  }
+                }
+
+                //insert data into observations table
+                $sql_observations = $this->tableInsert("observations", $observationValues);
+
+                if($sql_observations['status']) //successful insert
+                {
+                  $this->executionlog .= "DEBUG: DEPLOYMENT $PID/OBSERVATION $index - Message: " . $sql_observations['message'] . "\n";
+                }
+                else //failed insert
+                {
+                  //NOTE there is no way to determine duplicate observation entries from the data alone. This is why we compare contents in fedora and mysql instead
+                  $this->executionlog .= "ERROR: Failed to Insert Deployment $PID/Observation $index - Message: " . $sql_observations['message'] . "\n";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    /**
+     * Get the number of observations contained in a researcher observations csv
+     * @param  string $PID Deployment pid
+     * @return int         Number of observation rows in the observation table csv
+     */
+    public function getObstableObservationsCount($PID)
+    {
+      $count = 0;
+
+      $rels = $this->getRelsExtData($PID);
+
+      foreach($rels['children'] as $child)
+      {
+        $dc = $this->checkDublinCoreTitle($child, "Researcher Observations");
+
+        if($dc)
+        {
+          $url = "objects/$child/datastreams/CSV/content";
+          $obstable = $this->sianctapiGetDataFromFedora($url);
+
+          if(!$obstable)
+          {
+            $this->log("ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n");
+          }
+          else
+          {
+            $lines = explode("\n", trim($obstable));
+            $count = count($lines);
+            break;
+          }
+        }
+      }
+
+      return $count;
     }
 
     /**
@@ -746,6 +890,12 @@
 
         $result = $this->sianctapiGetDataFromFedora($url);
 
+        if($ds == "DC")
+        {
+          echo "DC RESULTS:\n$result\n";
+          return $result;
+        }
+
         $datastream = new SimpleXMLElement($result);
       }
       catch(Exception $e)
@@ -755,6 +905,33 @@
       finally
       {
         return $datastream;
+      }
+    }
+
+    private function checkDublinCoreTitle($PID, $title)
+    {
+      $isPresent = FALSE;
+
+      try
+      {
+        $url = "objects/$PID/datastreams/DC/content";
+
+        $result = $this->sianctapiGetDataFromFedora($url);
+
+
+        if(stripos($result, $title))
+        {
+          //echo "$title was found in \n$result";
+          $isPresent = TRUE;
+        }
+      }
+      catch(Exception $e)
+      {
+        $this->log = "ERROR: Could not retrieve DC information for $PID - Message: ". $e->getMessage() . "\n";
+      }
+      finally
+      {
+        return $isPresent;
       }
     }
 
