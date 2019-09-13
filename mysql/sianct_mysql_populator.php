@@ -49,7 +49,7 @@
       //if $PIDs is empty or null, add root pid to the list
       if(!$PIDs || count($PIDs) == 0)
       {
-        $PIDs = ['si:121909'];
+        $PIDs = Array('si:121909');
       }
 
       //start timer
