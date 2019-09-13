@@ -1400,7 +1400,7 @@ class SIANCTAPI
   private function sianctapiQueryMySQLDatabase($sql)
   {
     // Create connection
-    $conn = new mysqli($config['mysql_host'], $config['mysql_user'], $config['mysql_pass'], $config['mysql_dbname']);
+    $conn = new mysqli($config['mysql_host'], $config['mysql_username'], $config['mysql_password'], $config['mysql_dbname']);
 
     // Check connection
     if ($conn->connect_error)

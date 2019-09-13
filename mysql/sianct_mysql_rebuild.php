@@ -166,7 +166,7 @@
   {
     if(!$list || $list == '')
     {
-      return [];
+      return Array();
     }
 
     $data = str_replace(' ', '', trim($list));
@@ -189,7 +189,7 @@
   {
     if(!$path)
     {
-      return [];
+      return Array();
     }
 
     try
@@ -199,7 +199,7 @@
     catch(Exception $e)
     {
       echo "Error: File could not be read! Message: $e\n";
-      return [];
+      return Array();
     }
   }
 ?>
