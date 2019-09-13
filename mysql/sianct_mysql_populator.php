@@ -143,9 +143,10 @@
       //if parent parameter is NULL, get information from FEDORA
       if($parent == NULL)
       {
+        $parentRels = $this->getRelsExtData($rels['parent']);
         $parent = Array(
           'pid' => $rels['parent'],
-          'type' => $this->getRelsExtData($rels['parent'])['type'],
+          'type' => $parentRels['type'],
         );
       }
 
