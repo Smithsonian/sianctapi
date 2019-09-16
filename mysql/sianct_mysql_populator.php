@@ -49,6 +49,7 @@
       //if $PIDs is empty or null, add root pid to the list
       if(!$PIDs || count($PIDs) == 0)
       {
+        $this->isSubsetOfRepo = TRUE;
         $PIDs = Array('si:121909');
       }
 
@@ -93,36 +94,39 @@
      */
     private function logDebugData($time, $filepath)
     {
-      //get row count for each datatable
-      $db_projects = $this->getTableLength('projects');
-      $db_subprojects = $this->getTableLength('subprojects');
-      $db_plots = $this->getTableLength('plots');
-      $db_deployments = $this->getTableLength('deployments');
-      $db_observations = $this->getTableLength('observations');
-
       //log execution time
       $this->log("Execution time for database population: $time", $filepath);
 
-      //log comparisons of fedora data objects and mysql entries for projects, subprojects, plots, deployments, and observations
-      $this->log("\nFedora Project Count: $this->projectCount", $filepath);
-      $this->log("MySQL Project Count: $db_projects", $filepath);
-      $this->log("Population Success: " . (($this->projectCount == $db_projects) ? "TRUE" : "FALSE"), $filepath);
+      if($this->isSubsetOfRepo)
+      {
+        //get row count for each datatable
+        $db_projects = $this->getTableLength('projects');
+        $db_subprojects = $this->getTableLength('subprojects');
+        $db_plots = $this->getTableLength('plots');
+        $db_deployments = $this->getTableLength('deployments');
+        $db_observations = $this->getTableLength('observations');
 
-      $this->log("\nFedora Subproject Count: $this->subprojectCount", $filepath);
-      $this->log("MySQL Subproject Count: $db_subprojects", $filepath);
-      $this->log("Population Success: " . (($this->subprojectCount == $db_subprojects) ? "TRUE" : "FALSE"), $filepath);
+        //log comparisons of fedora data objects and mysql entries for projects, subprojects, plots, deployments, and observations
+        $this->log("\nFedora Project Count: $this->projectCount", $filepath);
+        $this->log("MySQL Project Count: $db_projects", $filepath);
+        $this->log("Population Success: " . (($this->projectCount == $db_projects) ? "TRUE" : "FALSE"), $filepath);
 
-      $this->log("\nFedora Plot Count: $this->plotCount", $filepath);
-      $this->log("MySQL Plot Count: $db_plots", $filepath);
-      $this->log("Population Success: " . (($this->plotCount == $db_plots) ? "TRUE" : "FALSE"), $filepath);
+        $this->log("\nFedora Subproject Count: $this->subprojectCount", $filepath);
+        $this->log("MySQL Subproject Count: $db_subprojects", $filepath);
+        $this->log("Population Success: " . (($this->subprojectCount == $db_subprojects) ? "TRUE" : "FALSE"), $filepath);
 
-      $this->log("\nFedora Deployment Count: $this->deploymentCount", $filepath);
-      $this->log("MySQL Deployment Count: $db_deployments", $filepath);
-      $this->log("Population Success: " . (($this->deploymentCount == $db_deployments) ? "TRUE" : "FALSE"), $filepath);
+        $this->log("\nFedora Plot Count: $this->plotCount", $filepath);
+        $this->log("MySQL Plot Count: $db_plots", $filepath);
+        $this->log("Population Success: " . (($this->plotCount == $db_plots) ? "TRUE" : "FALSE"), $filepath);
 
-      $this->log("\nFedora Observation Count: $this->observationCount", $filepath);
-      $this->log("MySQL Observation Count: $db_observations", $filepath);
-      $this->log("Population Success: " . (($this->observationCount == $db_observations) ? "TRUE" : "FALSE"), $filepath);
+        $this->log("\nFedora Deployment Count: $this->deploymentCount", $filepath);
+        $this->log("MySQL Deployment Count: $db_deployments", $filepath);
+        $this->log("Population Success: " . (($this->deploymentCount == $db_deployments) ? "TRUE" : "FALSE"), $filepath);
+
+        $this->log("\nFedora Observation Count: $this->observationCount", $filepath);
+        $this->log("MySQL Observation Count: $db_observations", $filepath);
+        $this->log("Population Success: " . (($this->observationCount == $db_observations) ? "TRUE" : "FALSE"), $filepath);
+      }
 
       //write log data to file.
       $this->log("\nLog: \n", $filepath);
@@ -718,6 +722,8 @@
      */
     private function resetLogData()
     {
+      $this->isSubsetOfRepo = TRUE;
+
       $this->projectCount = 0;
       $this->subprojectCount = 0;
       $this->plotCount = 0;

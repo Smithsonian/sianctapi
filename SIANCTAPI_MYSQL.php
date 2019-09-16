@@ -909,8 +909,6 @@ class SIANCTAPI
     $obstables = $this->sianctapiGetObstablesFromMySQL();
     $countobstables = count($obstables);
     $this->logger->notice("$this->app_id sianctapiGetSpecies: obstablePids= $obstablePids countobstables= $countobstables");
-
-    //modify
     $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids);
     return $result;
   }
@@ -1180,6 +1178,7 @@ class SIANCTAPI
     }
 
     $conn->close();
+    exit(); 
   }
 
   /*
@@ -1211,6 +1210,15 @@ class SIANCTAPI
 
     $this->logger->notice($cacheCheckLine);
     return "$cacheCheckLine \n";
+  }
+
+  /**
+   * TODO: This isn't really relevant to the API and should be deprecated. It is not used now
+   */
+  function sianctapiGetModulePath($moduleName) {
+    $result = $this->config['sianctapi_path'];
+    $this->logger->info("$this->app_id sianctapiGetModulePath $result");
+    return "\n" . '<div id="sianctapiModulePathResult">' . $result . '</div>' . "\n";
   }
 
   /*
