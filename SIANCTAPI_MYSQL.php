@@ -477,17 +477,27 @@ class SIANCTAPI
   }
 
   /*
-    - Project Structure needs to be worked out.
-    - This field is not stored in the database at the moment
+      UPDATED
    */
   function sianctapiGetProjectStructureCached()
   {
-    //$sianctapiCache = $this->sianctapiCacheGet(); #FIX
-    //$result = $sianctapiCache['projectStructure'];
-    $result = $this->sianctapiGetProjectStructureFromSolr('default');
+    $sql = "SELECT * FROM project_structure";
+    $sqlResult = $this->sianctapiQueryMySQLDatabase($sql);
+
+    if($sqlResult)
+    {
+      $vals = $sqlResult->fetch_assoc();
+      $result = $vals['project_structure_html'];
+    }
+    else
+    {
+      $result = $this->sianctapiGetProjectStructureFromSolr('default');
+    }
+
     $logString = substr($result,0,300);
     if (strlen($result) > 300) $logString .= '...';
     $this->logger->info("$this->app_id sianctapiGetProjectStructureCached\n $logString");
+    echo $result;
     return $result;
   }
 
@@ -1118,6 +1128,58 @@ class SIANCTAPI
     $params = 'q=' . urlencode($query) . '&rows=9999&sort=PID+asc' . $xsltParams;
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
+  }
+
+  /**
+   * This isn't called within the API, but called from the .sh script.
+   */
+  function sianctapiCacheRefresh()
+  {
+    $conn = new mysqli($servername, $username, $password, $dbname);
+
+    // Check connection
+    if ($conn->connect_error)
+    {
+      die("Connection failed: " . $conn->connect_error);
+    }
+
+    $sql = "SELECT * FROM project_structure";
+    $result = $this->sianctapiQueryMySQLDatabase($sql);
+
+    if($result->num_rows > 0)
+    {
+      //clear existing cache data
+      $sql = "DELETE FROM project_structure";
+      $result = $conn->query($sql);
+
+      //kill script if there are rows in the data table and you cannot remove them
+      if (!$result)
+      {
+        echo "ERROR: Could not remove existing cache data from project_structure table\n";
+        die("MySQL ERROR: $conn->error");
+      }
+      else
+      {
+        echo "Existing cache data cleared\n";
+      }
+    }
+
+    //get the project structure html string
+    $projectStructure = $this->sianctapiGetProjectStructureFromSolr('default');
+
+    //query to insert data
+    $sql = "INSERT INTO project_structure (project_structure_html) VALUES ('$projectStructure')";
+
+    if ($conn->query($sql) === TRUE) //on success
+    {
+      echo "New record created successfully in project_structure\n";
+    }
+    else //on failure
+    {
+      echo "Error: in sql syntax\n" . $conn->error;
+    }
+
+    $conn->close();
   }
 
   /*

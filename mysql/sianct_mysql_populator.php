@@ -1145,12 +1145,16 @@
       }
 
       //get sql scripts for creating datatables
-      $sql_projects = file_get_contents($this->config["projects"]);
-      $sql_subprojects = file_get_contents($this->config['subprojects']);
-      $sql_plots = file_get_contents($this->config['plots']);
-      $sql_deployments = file_get_contents($this->config['deployments']);
-      $sql_species = file_get_contents($this->config['species']);
-      $sql_observations = file_get_contents($this->config['observations']);
+
+      $prefix = "./sql/create";
+
+      $sql_projects = file_get_contents("$prefix/create_projects_table.sql");
+      $sql_subprojects = file_get_contents("$prefix/create_subprojects_table.sql");
+      $sql_plots = file_get_contents("$prefix/create_plots_table.sql");
+      $sql_deployments = file_get_contents("$prefix/create_deployments_table.sql");
+      $sql_species = file_get_contents("$prefix/create_species_table.sql");
+      $sql_observations = file_get_contents("$prefix/create_observations_table.sql");
+      $sql_project_structure = file_get_contents("$prefix/create_project_structure_table.sql");
 
       //create datatables if they aren't already created
       $this->createTable($conn, $sql_projects, "projects");
@@ -1159,6 +1163,7 @@
       $this->createTable($conn, $sql_deployments, "deployments");
       $this->createTable($conn, $sql_species, "species");
       $this->createTable($conn, $sql_observations, "observations");
+      $this->createTable($conn, $sql_project_structure, "project_structure");
 
       //close connection
       $conn->close();
