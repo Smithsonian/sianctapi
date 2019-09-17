@@ -178,7 +178,7 @@ function &_factory($class_name, $cfg = null, $app_id = null) {
     throw new Exception('Invalid class name specified: ' . var_export($class_name, TRUE) . '.');
   }
 
-  require_once($class_name . '.php');
+  require_once $class_name . '.php';
 
   // TODO: Clean up arg handling
   if (class_exists($class_name)) {
