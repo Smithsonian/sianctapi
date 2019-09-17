@@ -481,23 +481,10 @@ class SIANCTAPI
    */
   function sianctapiGetProjectStructureCached()
   {
-    $sql = "SELECT * FROM project_structure";
-    $sqlResult = $this->sianctapiQueryMySQLDatabase($sql);
-
-    if($sqlResult)
-    {
-      $vals = $sqlResult->fetch_assoc();
-      $result = $vals['project_structure_html'];
-    }
-    else
-    {
-      $result = $this->sianctapiGetProjectStructureFromSolr('default');
-    }
-
+    $result = $this->sianctapiGetProjectStructureFromSolr('default');
     $logString = substr($result,0,300);
     if (strlen($result) > 300) $logString .= '...';
     $this->logger->info("$this->app_id sianctapiGetProjectStructureCached\n $logString");
-    echo $result;
     return $result;
   }
 
@@ -1131,7 +1118,7 @@ class SIANCTAPI
   /**
    * This isn't called within the API, but called from the .sh script.
    */
-  function sianctapiCacheRefresh()
+  /*function sianctapiCacheRefresh()
   {
     $conn = new mysqli($servername, $username, $password, $dbname);
 
@@ -1178,8 +1165,8 @@ class SIANCTAPI
     }
 
     $conn->close();
-    exit(); 
-  }
+    exit();
+  }*/
 
   /*
      UPDATED
