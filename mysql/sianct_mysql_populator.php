@@ -1198,6 +1198,17 @@
       {
         $this->executionlog .= "ERROR: creating database - Message: " . $conn->error . "\n";
       }
+
+      $sql = "GRANT ALL PRIVILEGES ON $this->dbname TO '$this->user'@'$this->host'";
+
+      if ($conn->query($sql) === TRUE)
+      {
+        $this->executionlog .= "DEBUG: All privileges on '$this->dbname' granted to '$this->user'@'$this->host' successfully" . "\n";
+      }
+      elseif($conn->error === FALSE) //on failure, filtering out 'database exists' errors
+      {
+        $this->executionlog .= "ERROR: Granting privelges on $this->dbname failed for '$this->user'@'$this->host' - Message: " . $conn->error . "\n";
+      }
     }
 
     /**
