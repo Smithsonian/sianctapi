@@ -2,8 +2,8 @@
 
 use EDAN\Connection as EdanConnection;
 
-require_once './SIANCTAPI.php';
-require_once './lib/edan-module/includes/EDANInterface.class.php';
+require_once 'SIANCTAPI.php';
+require_once 'lib/edan-module/includes/EDANInterface.class.php';
 
 /**
  * EDAN interface API for Camera Trap images.

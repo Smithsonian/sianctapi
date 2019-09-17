@@ -16,7 +16,7 @@
 // Date/timezone for portability
 date_default_timezone_set(@date_default_timezone_get());
 
-require_once './lib/Logger.php';
+require_once 'lib/Logger.php';
 
 // Class definition
 class SIANCTAPI {
