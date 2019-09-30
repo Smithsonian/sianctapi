@@ -824,7 +824,12 @@
             $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 
             //get camera make
-            $make = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraManufacturer/text()")[0];
+            $mk_result = $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraManufacturer/text()");
+
+            if(!empty($mk_result))
+            {
+              $make = (string)$mk_result[0];
+            }
 
             //if not null or empty, set camera make
             if($make != "" && $make != NULL)
@@ -833,7 +838,13 @@
             }
 
             //get camera model
-            $model = (string) $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraModelName/text()")[0];
+            $md_result = $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraModelName/text()");
+
+            if(!empty($md_result))
+            {
+              $model = (string)$md_result[0];
+            }
+
 
             //if not null or empty, set camera model
             if($model != "" && $model != NULL)
@@ -982,9 +993,13 @@
         $graph = new EasyRdf_Graph($qpid, $rels, 'rdfxml');
 
         //get isAdministeredBy node in RELS-EXT
-        $admin = $graph->allResources($qpid, 'oris:isAdministeredBy')[0];
+        $admin_array = $graph->allResources($qpid, 'oris:isAdministeredBy');
+        if(!empty($admin_array))
+        {
+          $admin = $admin_array[0];
+        };
 
-        if($admin != NULL)
+        if(!empty($admin))
         {
           //get parent object for $PID
           $Values['parent'] = preg_replace('/info:fedora\//', '', $admin->getUri());
