@@ -60,47 +60,47 @@
       'rebuild' => FALSE
     );
 
-    if($opts['d'])
+    if(!empty($opts['d']))
     {
       $params['database'] = $opts['d'];
     }
-    elseif($opts['database'])
+    elseif(!empty($opts['database']))
     {
       $params['database'] = $opts['database'];
     }
 
-    if($opts['f'])
+    if(!empty($opts['f']))
     {
       $params['file'] = $opts['f'];
     }
-    elseif($opts['file'])
+    elseif(!empty($opts['file']))
     {
       $params['file'] = $opts['file'];
     }
 
-    if($opts['p'])
+    if(!empty($opts['p']))
     {
       $params['pids'] = $opts['p'];
     }
-    elseif($opts['pids'])
+    elseif(!empty($opts['pids']))
     {
       $params['pids'] = $opts['pids'];
     }
 
-    if($opts['l'])
+    if(!empty($opts['l']))
     {
       $params['debug'] = $opts['l'];
     }
-    elseif($opts['debug'])
+    elseif(!empty($opts['debug']))
     {
       $params['debug'] = $opts['debug'];
     }
 
-    if($opts['r'])
+    if(!empty($opts['r']))
     {
       $params['rebuild'] = $opts['r'];
     }
-    elseif($opts['rebuild'])
+    elseif(!empty($opts['rebuild']))
     {
       $params['rebuild'] = $opts['rebuild'];
     }
