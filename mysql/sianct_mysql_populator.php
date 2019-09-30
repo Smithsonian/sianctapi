@@ -210,44 +210,46 @@
         //get EAC-CPF datastream for Project
         $xml = $this->getDatastream($PID, "EAC-CPF");
 
-        //register namespaces for EAC-CPF xml
-        $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
-        $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
-        $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
-
-        //get project table data from EAC-CPF xml
-        $tableValues = Array(
-          'sidora_project_id' => $PID,
-          'ct_project_id' => (string) $xml->xpath('//eac:recordId/text()')[0],
-          'name' => (string) $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part')[0],
-          'country_code' => (string) $xml->xpath('//eac:placeEntry/@countryCode')[0],
-          'lat' => (string) $xml->xpath('//eac:placeEntry/@latitude')[0],
-          'lon' => (string) $xml->xpath('//eac:placeEntry/@longitude')[0],
-          'publish_date' => (string) $xml->xpath('//eac:localControl[@localType="Publication Date"]/eac:date/text()')[0],
-          'objectives' => strip_tags((string) $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Objectives"]/eac:descriptiveNote/*')[0]),
-          'data_constraints' => $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Data Access and Use Constraints"]/eac:descriptiveNote/*')[0],
-          'owner' => (string) $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Owner"]/eac:relationEntry/text()')[0],
-          'email' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Contact"]/eac:placeEntry/text()')[0],
-          'principal_investigator' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Principal Investigator"]/eac:relationEntry/text()')[0]
-        );
-
-        //insert data into projects table
-        $sql = $this->tableInsert("projects", $tableValues);
-
-        if($sql['status']) //successful insert
+        if($xml)
         {
-          $this->executionlog .= "DEBUG: PROJECT $PID - Message: " . $sql['message'] . "\n";
-        }
-        else //failed insert
-        {
-          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
-          if (strpos($sql['message'], 'Duplicate entry') === false)
+          //register namespaces for EAC-CPF xml
+          $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
+          $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
+          $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
+
+          //get project table data from EAC-CPF xml
+          $tableValues = Array(
+            'sidora_project_id' => $PID,
+            'ct_project_id' => (string) $xml->xpath('//eac:recordId/text()')[0],
+            'name' => (string) $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part')[0],
+            'country_code' => (string) $xml->xpath('//eac:placeEntry/@countryCode')[0],
+            'lat' => (string) $xml->xpath('//eac:placeEntry/@latitude')[0],
+            'lon' => (string) $xml->xpath('//eac:placeEntry/@longitude')[0],
+            'publish_date' => (string) $xml->xpath('//eac:localControl[@localType="Publication Date"]/eac:date/text()')[0],
+            'objectives' => strip_tags((string) $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Objectives"]/eac:descriptiveNote/*')[0]),
+            'data_constraints' => $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Data Access and Use Constraints"]/eac:descriptiveNote/*')[0],
+            'owner' => (string) $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Owner"]/eac:relationEntry/text()')[0],
+            'email' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Contact"]/eac:placeEntry/text()')[0],
+            'principal_investigator' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Principal Investigator"]/eac:relationEntry/text()')[0]
+          );
+
+          //insert data into projects table
+          $sql = $this->tableInsert("projects", $tableValues);
+
+          if($sql['status']) //successful insert
           {
-            $this->executionlog .= "ERROR: PROJECT $PID - " . $sql['message'] . "\n";
-            array_push($this->errorpids, $PID);
+            $this->executionlog .= "DEBUG: PROJECT $PID - Message: " . $sql['message'] . "\n";
+          }
+          else //failed insert
+          {
+            //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+            if (strpos($sql['message'], 'Duplicate entry') === false)
+            {
+              $this->executionlog .= "ERROR: PROJECT $PID - " . $sql['message'] . "\n";
+              array_push($this->errorpids, $PID);
+            }
           }
         }
-
       }
       catch(Exceptions $e)
       {
@@ -268,36 +270,39 @@
         //get EAC-CPF datastream for Subproject
         $xml = $this->getDatastream($PID, "EAC-CPF");
 
-        //register namespaces for EAC-CPF xml
-        $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
-        $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
-        $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
-
-        //get subproject table data from EAC-CPF xml
-        $tableValues = Array(
-          'sidora_subproject_id' => $PID,
-          'ct_subproject_id' => $xml->xpath('//eac:recordId/text()')[0],
-          'name' => $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part/text()')[0],
-          'sidora_project_id' => $parent,
-          'abbreviation' => $xml->xpath('//eac:nameEntry[@localType="abbreviation"]/eac:part/text()')[0],
-          'project_design' => $xml->xpath('//eac:function[eac:term/text()="Project Design"]/eac:descriptiveNote/*')[0]
-        );
-
-        //insert data into subprojects table
-        $sql = $this->tableInsert("subprojects", $tableValues);
-
-
-        if($sql['status']) //successful insert
+        if($xml)
         {
-          $this->executionlog .= "DEBUG: SUBPROJECT $PID - Message: " . $sql['message'] . "\n";
-        }
-        else //failed insert
-        {
-          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
-          if (strpos($sql['message'], 'Duplicate entry') === false)
+          //register namespaces for EAC-CPF xml
+          $xml->registerXPathNamespace("isbn", "urn:isbn:1-931666-33-4");
+          $xml->registerXPathNamespace("eac", "urn:isbn:1-931666-33-4");
+          $xml->registerXPathNamespace("xlink", "http://www.w3.org/1999/xlink");
+
+          //get subproject table data from EAC-CPF xml
+          $tableValues = Array(
+            'sidora_subproject_id' => $PID,
+            'ct_subproject_id' => $xml->xpath('//eac:recordId/text()')[0],
+            'name' => $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part/text()')[0],
+            'sidora_project_id' => $parent,
+            'abbreviation' => $xml->xpath('//eac:nameEntry[@localType="abbreviation"]/eac:part/text()')[0],
+            'project_design' => $xml->xpath('//eac:function[eac:term/text()="Project Design"]/eac:descriptiveNote/*')[0]
+          );
+
+          //insert data into subprojects table
+          $sql = $this->tableInsert("subprojects", $tableValues);
+
+
+          if($sql['status']) //successful insert
           {
-            $this->executionlog .= "ERROR: SUBPROJECT $PID - " . $sql['message'] . "\n";
-            array_push($this->errorpids, $PID);
+            $this->executionlog .= "DEBUG: SUBPROJECT $PID - Message: " . $sql['message'] . "\n";
+          }
+          else //failed insert
+          {
+            //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+            if (strpos($sql['message'], 'Duplicate entry') === false)
+            {
+              $this->executionlog .= "ERROR: SUBPROJECT $PID - " . $sql['message'] . "\n";
+              array_push($this->errorpids, $PID);
+            }
           }
         }
       }
@@ -320,32 +325,35 @@
         //get FGDC-CTPlot datastream for plot
         $xml = $this->getDatastream($PID, 'FGDC-CTPlot');
 
-        //register namespaces for FGDC-CTPlot xml
-        $xml->registerXPathNamespace("fgdc", "http://localhost/");
-        $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
-
-        //get plot table data from FGDC-CTPlot xml
-        $tableValues = Array(
-          'sidora_plot_id' => $PID,
-          'name' => $xml->xpath('//title/text()')[0],
-          'treatment' => $xml->xpath('//fgdc:dataqual/fgdc:lineage/fgdc:method/fgdc:methdesc/text()')[0],
-          'sidora_subproject_id' => $parent
-        );
-
-        //insert data into plots table
-        $sql = $this->tableInsert("plots", $tableValues);
-
-        if($sql['status']) //successful insert
+        if($xml)
         {
-          $this->executionlog .= "DEBUG: PLOT $PID - Message: " . $sql['message'] . "\n";
-        }
-        else //failed insert
-        {
-          //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
-          if (strpos($sql['message'], 'Duplicate entry') === false)
+          //register namespaces for FGDC-CTPlot xml
+          $xml->registerXPathNamespace("fgdc", "http://localhost/");
+          $xml->registerXPATHNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+
+          //get plot table data from FGDC-CTPlot xml
+          $tableValues = Array(
+            'sidora_plot_id' => $PID,
+            'name' => $xml->xpath('//title/text()')[0],
+            'treatment' => $xml->xpath('//fgdc:dataqual/fgdc:lineage/fgdc:method/fgdc:methdesc/text()')[0],
+            'sidora_subproject_id' => $parent
+          );
+
+          //insert data into plots table
+          $sql = $this->tableInsert("plots", $tableValues);
+
+          if($sql['status']) //successful insert
           {
-            $this->executionlog .= "ERROR: PLOT $PID - " . $sql['message'] . "\n";
-            array_push($this->errorpids, $PID);
+            $this->executionlog .= "DEBUG: PLOT $PID - Message: " . $sql['message'] . "\n";
+          }
+          else //failed insert
+          {
+            //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+            if (strpos($sql['message'], 'Duplicate entry') === false)
+            {
+              $this->executionlog .= "ERROR: PLOT $PID - " . $sql['message'] . "\n";
+              array_push($this->errorpids, $PID);
+            }
           }
         }
       }
@@ -999,7 +1007,7 @@
         {
           $child_pid = preg_replace('/info:fedora\//', '', $child->getUri());
 
-          if ($child_pid != $pid)
+          if ($child_pid != $PID)
           {
             $Values['children'][] = $child_pid;
           }

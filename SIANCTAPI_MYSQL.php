@@ -553,7 +553,7 @@ class SIANCTAPI
    */
   function sianctapiGetSelectedObservationsCSV($obstablePids, $speciesNames)
   {
-    $obstables = $this->sianctGetCachedObstables();
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
     $countobstables = count($obstables);
 
     $this->logger->notice("$this->app_id sianctapiGetSelectedObservationsCSV: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
@@ -930,7 +930,7 @@ class SIANCTAPI
   {
     #global $user;
     $obstables = $this->sianctapiGetObstablesFromMySQL();
-    $result = $this->sianctapiGetSpeciesOptions($obstables, 'ALL');
+    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, 'ALL');
     $this->logger->info("$this->app_id sianctapiGetAllSpeciesNamesCachedJSON\n $result");
     return $result;
   }
@@ -1628,7 +1628,6 @@ class SIANCTAPI
             $idType,
             $deployId,
             $sequenceId,
-            $beginTime,
             $beginTime,
             $endTime,
             $speciesName,
