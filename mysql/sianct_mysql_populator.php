@@ -826,31 +826,31 @@
             //get camera make
             $mk_result = $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraManufacturer/text()");
 
-            if(!empty($mk_result))
+            if(!empty($mk_result[0]))
             {
-              $make = (string)$mk_result[0];
+              $results['make'] = (string)$mk_result[0];
             }
 
             //if not null or empty, set camera make
-            if($make != "" && $make != NULL)
+            /*if($make != "" && $make != NULL)
             {
                 $results['make'] = $make;
-            }
+            }*/
 
             //get camera model
             $md_result = $xml->xpath("/fits:fits/fits:metadata/fits:image/fits:digitalCameraModelName/text()");
 
-            if(!empty($md_result))
+            if(!empty($md_result[0]))
             {
-              $model = (string)$md_result[0];
+              $results['model'] = (string)$md_result[0];
             }
 
 
             //if not null or empty, set camera model
-            if($model != "" && $model != NULL)
+            /*if($model != "" && $model != NULL)
             {
                 $results['model'] = $model;
-            }
+            }*/
           }
         }
       }
