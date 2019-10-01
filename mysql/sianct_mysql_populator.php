@@ -220,17 +220,17 @@
           //get project table data from EAC-CPF xml
           $tableValues = Array(
             'sidora_project_id' => $PID,
-            'ct_project_id' => (string) $xml->xpath('//eac:recordId/text()')[0],
-            'name' => (string) $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part')[0],
-            'country_code' => (string) $xml->xpath('//eac:placeEntry/@countryCode')[0],
-            'lat' => (string) $xml->xpath('//eac:placeEntry/@latitude')[0],
-            'lon' => (string) $xml->xpath('//eac:placeEntry/@longitude')[0],
-            'publish_date' => (string) $xml->xpath('//eac:localControl[@localType="Publication Date"]/eac:date/text()')[0],
-            'objectives' => strip_tags((string) $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Objectives"]/eac:descriptiveNote/*')[0]),
-            'data_constraints' => $xml->xpath('//eac:functions/eac:function[eac:term/text()="Project Data Access and Use Constraints"]/eac:descriptiveNote/*')[0],
-            'owner' => (string) $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Owner"]/eac:relationEntry/text()')[0],
-            'email' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Contact"]/eac:placeEntry/text()')[0],
-            'principal_investigator' => $xml->xpath('//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Principal Investigator"]/eac:relationEntry/text()')[0]
+            'ct_project_id' => $this->validate_xpath($xml, '//eac:recordId/text()'),
+            'name' => $this->validate_xpath($xml, '//eac:nameEntry[@localType="primary"]/eac:part'),
+            'country_code' => $this->validate_xpath($xml, '//eac:placeEntry/@countryCode'),
+            'lat' => $this->validate_xpath($xml, '//eac:placeEntry/@latitude'),
+            'lon' => $this->validate_xpath($xml, '//eac:placeEntry/@longitude'),
+            'publish_date' => $this->validate_xpath($xml, '//eac:localControl[@localType="Publication Date"]/eac:date/text()'),
+            'objectives' => strip_tags($this->validate_xpath($xml, '//eac:functions/eac:function[eac:term/text()="Project Objectives"]/eac:descriptiveNote/*')),
+            'data_constraints' => $this->validate_xpath($xml, '//eac:functions/eac:function[eac:term/text()="Project Data Access and Use Constraints"]/eac:descriptiveNote/*'),
+            'owner' => $this->validate_xpath($xml, '//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Owner"]/eac:relationEntry/text()'),
+            'email' => $this->validate_xpath($xml, '//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Project Contact"]/eac:placeEntry/text()'),
+            'principal_investigator' => $this->validate_xpath($xml, '//eac:relations/eac:cpfRelation[eac:descriptiveNote/eac:p/text()="Principal Investigator"]/eac:relationEntry/text()')
           );
 
           //insert data into projects table
@@ -258,6 +258,20 @@
       }
     }
 
+    private function validate_xpath($xml, $xpath)
+    {
+      $raw = $xml->xpath($xpath);
+
+      if(!empty($raw[0]))
+      {
+        return (string) $raw[0];
+      }
+      else
+      {
+        return "";
+      }
+    }
+
     /**
      * Extract Subproject table values and insert row into mysql
      * @param  string $PID    pid of subproject fedora object
@@ -280,11 +294,11 @@
           //get subproject table data from EAC-CPF xml
           $tableValues = Array(
             'sidora_subproject_id' => $PID,
-            'ct_subproject_id' => $xml->xpath('//eac:recordId/text()')[0],
-            'name' => $xml->xpath('//eac:nameEntry[@localType="primary"]/eac:part/text()')[0],
+            'ct_subproject_id' => $this->validate_xpath($xml, '//eac:recordId/text()'),
+            'name' => $this->validate_xpath($xml, '//eac:nameEntry[@localType="primary"]/eac:part/text()'),
             'sidora_project_id' => $parent,
-            'abbreviation' => $xml->xpath('//eac:nameEntry[@localType="abbreviation"]/eac:part/text()')[0],
-            'project_design' => $xml->xpath('//eac:function[eac:term/text()="Project Design"]/eac:descriptiveNote/*')[0]
+            'abbreviation' => $this->validate_xpath($xml, '//eac:nameEntry[@localType="abbreviation"]/eac:part/text()'),
+            'project_design' => $this->validate_xpath($xml, '//eac:function[eac:term/text()="Project Design"]/eac:descriptiveNote/*')
           );
 
           //insert data into subprojects table
@@ -334,8 +348,8 @@
           //get plot table data from FGDC-CTPlot xml
           $tableValues = Array(
             'sidora_plot_id' => $PID,
-            'name' => $xml->xpath('//title/text()')[0],
-            'treatment' => $xml->xpath('//fgdc:dataqual/fgdc:lineage/fgdc:method/fgdc:methdesc/text()')[0],
+            'name' => $this->validate_xpath($xml, '//title/text()'),
+            'treatment' => $this->validate_xpath($xml, '//fgdc:dataqual/fgdc:lineage/fgdc:method/fgdc:methdesc/text()'),
             'sidora_subproject_id' => $parent
           );
 
@@ -387,26 +401,26 @@
           'sidora_deployment_id' => $PID,
           'sidora_subproject_id' => $sub_vals['subproject'],
           'sidora_plot_id' => $sub_vals['plot'],
-          'ct_deployment_id' => $manifest->xpath('//CameraDeploymentID/text()')[0],
-          'name' => $manifest->xpath('//CameraSiteName/text()')[0],
-          'access_constraints' => $manifest->xpath('//AccessConstraints/text()')[0],
-          'feature_type' => $manifest->xpath('//FeatureMethodology/text()')[0],
-          'feature_description' => $manifest->xpath('//Feature/text()')[0],
-          'bait_type' => $manifest->xpath('//Bait/text()')[0],
-          'bait_description' => $manifest->xpath('//BaitDescription/text()')[0],
-          'camera_id' => $manifest->xpath('//CameraID/text()')[0],
-          'proposed_lat' => $manifest->xpath('//ProposedLatitude/text()')[0],
+          'ct_deployment_id' => $this->validate_xpath($manifest, '//CameraDeploymentID/text()'),
+          'name' => $this->validate_xpath($manifest, '//CameraSiteName/text()'),
+          'access_constraints' => $this->validate_xpath($manifest, '//AccessConstraints/text()'),
+          'feature_type' => $this->validate_xpath($manifest, '//FeatureMethodology/text()'),
+          'feature_description' => $this->validate_xpath($manifest, '//Feature/text()'),
+          'bait_type' => $this->validate_xpath($manifest, '//Bait/text()'),
+          'bait_description' => $this->validate_xpath($manifest, '//BaitDescription/text()'),
+          'camera_id' => $this->validate_xpath($manifest, '//CameraID/text()'),
+          'proposed_lat' => $this->validate_xpath($manifest, '//ProposedLatitude/text()'),
           'proposed_lon' => $manifest->xpath('//ProposedLongitude/text()')[0],
           'actual_lat' => $manifest->xpath('//ActualLatitude/text()')[0],
           'actual_lon' => $manifest->xpath('//ActualLongitude/text()')[0],
           'camera_make' => $camera_data['make'],
           'camera_model' => $camera_data['model'],
-          'camera_failure_details' => $manifest->xpath('//CameraFailureDetails/text()')[0],
-          'detection_distance' => $manifest->xpath('//DetectionDistance/text()')[0],
-          'sensitivity_setting' => $manifest->xpath('//SensitivitySetting/text()')[0],
-          'quiet_period_setting' => $manifest->xpath('//QuietPeriodSetting/text()')[0],
-          'image_resolution_setting' => $manifest->xpath('//ImageResolutionSetting/text()')[0],
-          'deployment_notes' => (string) $manifest->xpath('//CameraDeploymentNotes')[0]
+          'camera_failure_details' => $this->validate_xpath($manifest, '//CameraFailureDetails/text()'),
+          'detection_distance' => $this->validate_xpath($manifest, '//DetectionDistance/text()'),
+          'sensitivity_setting' => $this->validate_xpath($manifest, '//SensitivitySetting/text()'),
+          'quiet_period_setting' => $this->validate_xpath($manifest, '//QuietPeriodSetting/text()'),
+          'image_resolution_setting' => $this->validate_xpath($manifest, '//ImageResolutionSetting/text()'),
+          'deployment_notes' => $this->validate_xpath($manifest, '//CameraDeploymentNotes')
         );
 
         //insert data into deployments table
@@ -539,13 +553,16 @@
                 $line = trim($line);
                 $values = explode(',', $line);
 
-                $speciesValues = Array(
-                  "iucn_id" => $values[14],
-                  "tsn_id" => $values[13],
-                  "iucn_status" => "placeholder",
-                  "scientific_name" => str_replace("\"", "", $values[5]),
-                  "common_name" => str_replace("\"", "", $values[6])
-                );
+                if(!empty($values[14]))
+                {
+                  $speciesValues = Array(
+                    "iucn_id" => $values[14],
+                    "tsn_id" => $this->validate_array_value($values, 13),
+                    "iucn_status" => "placeholder",
+                    "scientific_name" => str_replace("\"", "", $values[5]),
+                    "common_name" => str_replace("\"", "", $values[6])
+                  );
+                }
 
                 $sql_species = $this->tableInsert("species", $speciesValues);
 
@@ -566,16 +583,16 @@
                 //get observation data from manifest xml
                 $observationValues = Array(
                   "obstable_id" => $child,
-                  "sequence_id" => $values[2],
+                  "sequence_id" => $this->validate_array_value($values, 2),
                   "sidora_deployment_id" => $PID,
-                  "begin_time" => $values[3],
-                  "end_time" => $values[4],
-                  "iucn_id" => $values[14],
-                  "age" => $values[7],
-                  "sex" => $values[8],
-                  "individual" => $values[9],
-                  "count" => $values[10],
-                  "id_type" => $values[0]
+                  "begin_time" => $this->validate_array_value($values, 3),
+                  "end_time" => $this->validate_array_value($values, 4),
+                  "iucn_id" => $this->validate_array_value($values, 14),
+                  "age" => $this->validate_array_value($values, 7),
+                  "sex" => $this->validate_array_value($values, 8),
+                  "individual" => $this->validate_array_value($values, 9),
+                  "count" => $this->validate_array_value($values, 10),
+                  "id_type" => $this->validate_array_value($values, 0)
                 );
 
                 foreach($observationValues as $key=>$value)
@@ -602,6 +619,18 @@
             }
           }
         }
+      }
+    }
+
+    private function validate_array_value($array, $index)
+    {
+      if(!empty($array[$index]))
+      {
+        return $array[$index];
+      }
+      else
+      {
+        return "";
       }
     }
 
