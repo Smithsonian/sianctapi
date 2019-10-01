@@ -531,6 +531,8 @@
 
         $rels = $this->getRelsExtData($PID);
 
+        $count = 1;
+
         foreach($rels['children'] as $child)
         {
           $dc = $this->checkDublinCoreTitle($child, "Researcher Observations");
@@ -562,21 +564,21 @@
                     "scientific_name" => str_replace("\"", "", $values[5]),
                     "common_name" => str_replace("\"", "", $values[6])
                   );
-                }
 
-                $sql_species = $this->tableInsert("species", $speciesValues);
+                  $sql_species = $this->tableInsert("species", $speciesValues);
 
-                if($sql_species['status']) //successful insert
-                {
-                  $this->executionlog .= "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
-                }
-                else //failed insert
-                {
-                  //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
-                  //there will be a lot of duplicate species even on a fresh rebuild
-                  if(strpos($sql_species['message'], 'Duplicate entry') === false)
+                  if($sql_species['status']) //successful insert
                   {
-                    $this->executionlog .= "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
+                    $this->executionlog .= "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
+                  }
+                  else //failed insert
+                  {
+                    //we filter out 'Duplicate entry' errors because these will occur if we rebuild without dropping database
+                    //there will be a lot of duplicate species even on a fresh rebuild
+                    if(strpos($sql_species['message'], 'Duplicate entry') === false)
+                    {
+                      $this->executionlog .= "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
+                    }
                   }
                 }
 
@@ -595,26 +597,33 @@
                   "id_type" => $this->validate_array_value($values, 0)
                 );
 
-                foreach($observationValues as $key=>$value)
+                if($observationValues['count'] == "")
+                {
+                  $observationValues['count'] = 0;
+                }
+
+                /*foreach($observationValues as $key=>$value)
                 {
                   if(!$value || trim($value) == "")
                   {
                     $observationValues[$key] = "Unlisted";
                   }
-                }
+                }*/
 
                 //insert data into observations table
                 $sql_observations = $this->tableInsert("observations", $observationValues);
 
                 if($sql_observations['status']) //successful insert
                 {
-                  $this->executionlog .= "DEBUG: DEPLOYMENT $PID/OBSERVATION $index - Message: " . $sql_observations['message'] . "\n";
+                  $this->executionlog .= "DEBUG: DEPLOYMENT $PID/OBSERVATION $count - Message: " . $sql_observations['message'] . "\n";
                 }
                 else //failed insert
                 {
                   //NOTE there is no way to determine duplicate observation entries from the data alone. This is why we compare contents in fedora and mysql instead
-                  $this->executionlog .= "ERROR: Failed to Insert Deployment $PID/Observation $index - Message: " . $sql_observations['message'] . "\n";
+                  $this->executionlog .= "ERROR: Failed to Insert Deployment $PID/Observation $count - Message: " . $sql_observations['message'] . "\n";
                 }
+
+                $count ++;
               }
             }
           }
