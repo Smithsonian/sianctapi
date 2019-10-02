@@ -160,7 +160,7 @@
 
       if($parent['type'] == "si:projectCModel" && !$parent['isSubproject'] && !$rels['isSubproject'])
       {
-        echo "Skipping $PID. It has a project parent but is not a subproject";
+        echo "Skipping $PID. It has a project parent but is not a subproject\n";
         return;
       }
 
@@ -203,7 +203,8 @@
            */
           $parent = Array(
             'pid' => $PID,
-            'type' => $rels['type']
+            'type' => $rels['type'],
+            'isSubproject' => $rels['isSubproject']
           );
 
           //recursive call to findObjects with child
