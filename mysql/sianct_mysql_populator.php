@@ -143,7 +143,7 @@
      */
     public function findObjects($PID, $parent=NULL)
     {
-      echo "$PID\n";
+      //echo "$PID\n";
       //get RELS-EXT datastream information for Fedora PID
       $rels = $this->getRelsExtData($PID);
 
@@ -158,9 +158,6 @@
         );
       }
 
-      echo "$PID is Subproject " . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
-      echo "$PID Parent is Subproject " . ($parent['isSubproject']?"TRUE":"FALSE") . "\n ";
-
       if($parent['type'] == "si:projectCModel" && !$parent['isSubproject'] && !$rels['isSubproject'])
       {
         echo "Skipping $PID. It has a project parent but is not a subproject";
@@ -169,6 +166,7 @@
 
       if($rels['type'] == 'si:cameraTrapCModel') //Fedora Deployment Object
       {
+        echo "Deployment $PID\n";
         $this->deploymentCount++;
         $this->writeDeploymentTable($PID, $parent['pid']);
       }
@@ -178,17 +176,20 @@
         {
           if($parent['pid'] != 'si:121909' && $parent['type'] == 'si:projectCModel') //Fedora Subproject Object
           {
+            echo "Subproject $PID\n";
             $this->subprojectCount++;
             $this->writeSubprojectTable($PID, $parent['pid']);
           }
           else //Fedora Project Object
           {
+            echo "Project $PID\n";
             $this->projectCount++;
             $this->writeProjectTable($PID);
           }
         }
         elseif($rels['type'] == 'si:ctPlotCModel') //Fedora Plot Object
         {
+          echo "Plot $PID\n";
           $this->plotCount++;
           $this->writePlotTable($PID, $parent['pid']);
         }
