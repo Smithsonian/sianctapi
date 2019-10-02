@@ -147,7 +147,7 @@
       $rels = $this->getRelsExtData($PID);
 
       //if parent parameter is NULL, get information from FEDORA
-      if($parent == NULL)
+      if($parent == NULL && $PID != "si:121909")
       {
         $parentRels = $this->getRelsExtData($rels['parent']);
 
