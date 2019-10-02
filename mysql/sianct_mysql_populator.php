@@ -162,8 +162,6 @@
         );
       }
 
-      echo "$PID: TYPE is " . $rels['type'];
-
       if($rels['type'] == 'si:cameraTrapCModel') //Fedora Deployment Object
       {
         $this->deploymentCount++;
