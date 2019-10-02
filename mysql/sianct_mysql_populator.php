@@ -239,6 +239,7 @@
           if($sql['status']) //successful insert
           {
             $this->executionlog .= "DEBUG: PROJECT $PID - Message: " . $sql['message'] . "\n";
+            echo "DEBUG: PROJECT $PID - Message: " . $sql['message'] . "\n";
           }
           else //failed insert
           {
@@ -246,6 +247,7 @@
             if (strpos($sql['message'], 'Duplicate entry') === false)
             {
               $this->executionlog .= "ERROR: PROJECT $PID - " . $sql['message'] . "\n";
+              echo "ERROR: PROJECT $PID - " . $sql['message'] . "\n";
               array_push($this->errorpids, $PID);
             }
           }
@@ -254,6 +256,7 @@
       catch(Exceptions $e)
       {
         $this->executionlog .= "ERROR: PROJECT $PID - $e\n";
+        echo "ERROR: PROJECT $PID - $e\n";
         array_push($this->errorpids, $PID);
       }
     }
@@ -308,6 +311,7 @@
           if($sql['status']) //successful insert
           {
             $this->executionlog .= "DEBUG: SUBPROJECT $PID - Message: " . $sql['message'] . "\n";
+            echo "DEBUG: SUBPROJECT $PID - Message: " . $sql['message'] . "\n";
           }
           else //failed insert
           {
@@ -315,6 +319,7 @@
             if (strpos($sql['message'], 'Duplicate entry') === false)
             {
               $this->executionlog .= "ERROR: SUBPROJECT $PID - " . $sql['message'] . "\n";
+              echo "ERROR: SUBPROJECT $PID - " . $sql['message'] . "\n";
               array_push($this->errorpids, $PID);
             }
           }
@@ -323,6 +328,7 @@
       catch(Exception $e)
       {
         $this->executionlog .="ERROR: SUBPROJECT $PID - $e\n";
+        echo "ERROR: SUBPROJECT $PID - $e\n";
         array_push($this->errorpids, $PID);
       }
     }
@@ -359,6 +365,7 @@
           if($sql['status']) //successful insert
           {
             $this->executionlog .= "DEBUG: PLOT $PID - Message: " . $sql['message'] . "\n";
+            echo "DEBUG: PLOT $PID - Message: " . $sql['message'] . "\n";
           }
           else //failed insert
           {
@@ -366,6 +373,7 @@
             if (strpos($sql['message'], 'Duplicate entry') === false)
             {
               $this->executionlog .= "ERROR: PLOT $PID - " . $sql['message'] . "\n";
+              echo "ERROR: PLOT $PID - " . $sql['message'] . "\n";
               array_push($this->errorpids, $PID);
             }
           }
@@ -374,6 +382,7 @@
       catch(Exception $e)
       {
         $this->executionlog .= "ERROR: PLOT $PID - $e\n";
+        echo "ERROR: PLOT $PID - $e\n";
         array_push($this->errorpids, $PID);
       }
     }
@@ -429,6 +438,7 @@
         if($sql['status']) //successful insert
         {
           $this->executionlog .= "DEBUG: DEPLOYMENT $PID - Message: " . $sql['message'] . "\n";
+          echo "DEBUG: DEPLOYMENT $PID - Message: " . $sql['message'] . "\n";
         }
         else //failed insert
         {
@@ -436,6 +446,7 @@
           if (strpos($sql['message'], 'Duplicate entry') === false)
           {
             $this->executionlog .= "ERROR: Deployment $PID - " . $sql['message'] . "\n";
+            echo "ERROR: Deployment $PID - " . $sql['message'] . "\n";
             array_push($this->errorpids, $PID);
           }
         }
@@ -453,6 +464,7 @@
       catch(Exception $e)
       {
         $this->executionlog .= "ERROR Deployment $PID - $e\n";
+        echo "ERROR Deployment $PID - $e\n";
         array_push($this->errorpids, $PID);
       }
     }
@@ -508,6 +520,7 @@
         catch(Exception $e)
         {
           $this->executionlog .= "ERROR: getObservations() Deployment $PID - Message: " . $e->getMessage() . "\n";
+          echo "ERROR: getObservations() Deployment $PID - Message: " . $e->getMessage() . "\n";
         }
       }
     }
@@ -544,7 +557,8 @@
 
             if(!$obstable)
             {
-              $this->log("ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n");
+              $this->executionlog = "ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n";
+              echo "ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n";
             }
             else
             {
@@ -570,6 +584,7 @@
                   if($sql_species['status']) //successful insert
                   {
                     $this->executionlog .= "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
+                    echo "DEBUG: Species " . $speciesValues['iucn_id'] . " - Message: " . $sql_species['message'] . "\n";
                   }
                   else //failed insert
                   {
@@ -578,6 +593,7 @@
                     if(strpos($sql_species['message'], 'Duplicate entry') === false)
                     {
                       $this->executionlog .= "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
+                      echo  "ERROR: Failed to insert species " . $speciesValues['iucn_id'] . " - Message:  " . $sql_species['message'] . "\n";
                     }
                   }
                 }
@@ -616,11 +632,13 @@
                 if($sql_observations['status']) //successful insert
                 {
                   $this->executionlog .= "DEBUG: DEPLOYMENT $PID/OBSERVATION $count - Message: " . $sql_observations['message'] . "\n";
+                  echo "DEBUG: DEPLOYMENT $PID/OBSERVATION $count - Message: " . $sql_observations['message'] . "\n";
                 }
                 else //failed insert
                 {
                   //NOTE there is no way to determine duplicate observation entries from the data alone. This is why we compare contents in fedora and mysql instead
                   $this->executionlog .= "ERROR: Failed to Insert Deployment $PID/Observation $count - Message: " . $sql_observations['message'] . "\n";
+                  echo "ERROR: Failed to Insert Deployment $PID/Observation $count - Message: " . $sql_observations['message'] . "\n";
                 }
 
                 $count ++;
@@ -665,7 +683,8 @@
 
           if(!$obstable)
           {
-            $this->log("ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n");
+            $this->executionlog = "ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n";
+            echo "ERROR: Researcher Observations Table For Deployment $PID Could Not Be Read\n";
           }
           else
           {
@@ -895,6 +914,7 @@
       catch(Exception $e)
       {
         $this->executionlog .= "ERROR: Unable to Retrieve Camera Metadata for Deployment $PID - Message: " . $e->getMessage() . "\n";
+        echo "ERROR: Unable to Retrieve Camera Metadata for Deployment $PID - Message: " . $e->getMessage() . "\n";
       }
 
       return $results;
@@ -965,6 +985,7 @@
       catch(Exception $e)
       {
         $this->executionlog .= "ERROR: Failed to Retrieve Datastream $ds for Object $PID - Message: " . $e->getMessage() . "\n";
+        echo "ERROR: Failed to Retrieve Datastream $ds for Object $PID - Message: " . $e->getMessage() . "\n";
       }
       finally
       {
@@ -991,7 +1012,8 @@
       }
       catch(Exception $e)
       {
-        $this->log = "ERROR: Could not retrieve DC information for $PID - Message: ". $e->getMessage() . "\n";
+        $this->executionlog = "ERROR: Could not retrieve DC information for $PID - Message: ". $e->getMessage() . "\n";
+        echo  "ERROR: Could not retrieve DC information for $PID - Message: ". $e->getMessage() . "\n";
       }
       finally
       {
@@ -1428,6 +1450,7 @@
       if ($conn->connect_error)
       {
         $this->executionlog .= "ERROR: " . $conn->connect_error . "\n";
+        echo "ERROR: " . $conn->connect_error . "\n";
       }
 
       //query to select all observation table rows corresponding to deployment
@@ -1462,7 +1485,8 @@
       // Check connection
       if ($conn->connect_error)
       {
-        $this->log("ERROR: Failed to delete observation rows corresponding to deployment $deployment - Message: $conn->connect_error\n");
+        $this->executionlog = "ERROR: Failed to delete observation rows corresponding to deployment $deployment - Message: $conn->connect_error\n";
+        echo "ERROR: Failed to delete observation rows corresponding to deployment $deployment - Message: $conn->connect_error\n";
       }
 
       //query to delete observation records
@@ -1471,10 +1495,12 @@
       if ($conn->query($sql) === TRUE) //on success
       {
         $this->executionlog .= "DEBUG: Deleting " . $obscount . " Observations under Deployment $deployment From Table Observations in Database '$this->dbname'\n";
+        echo "DEBUG: Deleting " . $obscount . " Observations under Deployment $deployment From Table Observations in Database '$this->dbname'\n";
       }
       else //on failure
       {
         $this->executionlog .= "ERROR: Failed to Delete Observations Under Deployment $deployment - Message: " . $conn->error . "\n";
+        echo "ERROR: Failed to Delete Observations Under Deployment $deployment - Message: " . $conn->error . "\n";
       }
 
       $conn->close();
