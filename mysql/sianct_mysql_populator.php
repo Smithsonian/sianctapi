@@ -151,18 +151,20 @@
       if($parent == NULL && $PID != "si:121909")
       {
         $parentRels = $this->getRelsExtData($rels['parent']);
-        echo "$PID is Subproject" . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
-        echo "$PID Parent is Subproject" . ($parentRels['isSubproject']?"TRUE":"FALSE") . "\n ";
-
-        if($parentRels['type'] == "si:projectCModel" && !$parentRels['isSubproject'] && !$rels['isSubproject'])
-        {
-          echo "Skipping $PID. It has a project parent but is not a subproject";
-          return;
-        }
         $parent = Array(
           'pid' => $rels['parent'],
           'type' => $parentRels['type'],
+          'isSubproject' => $parentRels['isSubproject']
         );
+      }
+
+      echo "$PID is Subproject" . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
+      echo "$PID Parent is Subproject" . ($parentRels['isSubproject']?"TRUE":"FALSE") . "\n ";
+
+      if($parent['type'] == "si:projectCModel" && !$parent['isSubproject'] && !$rels['isSubproject'])
+      {
+        echo "Skipping $PID. It has a project parent but is not a subproject";
+        return;
       }
 
       if($rels['type'] == 'si:cameraTrapCModel') //Fedora Deployment Object
@@ -354,6 +356,11 @@
       {
         //get FGDC-CTPlot datastream for plot
         $xml = $this->getDatastream($PID, 'FGDC-CTPlot');
+
+        if(!$xml)
+        {
+          $xml = $this->getDatastream($PID, 'FGDC-Research');
+        }
 
         if($xml)
         {
