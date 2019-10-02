@@ -1079,7 +1079,7 @@
         $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
         $Values['type'] = preg_replace('/info:fedora\//', '', $model->getUri());
 
-        if($Values['type'] = 'si:projectCModel' && $Values['parent'] != 'si:121909')
+        if($Values['type'] == 'si:projectCModel' && $Values['parent'] != 'si:121909')
         {
           $Values['isSubproject'] = TRUE;
         }
