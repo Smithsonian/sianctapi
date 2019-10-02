@@ -143,6 +143,7 @@
      */
     public function findObjects($PID, $parent=NULL)
     {
+      echo "$PID\n";
       //get RELS-EXT datastream information for Fedora PID
       $rels = $this->getRelsExtData($PID);
 
@@ -150,6 +151,8 @@
       if($parent == NULL && $PID != "si:121909")
       {
         $parentRels = $this->getRelsExtData($rels['parent']);
+        echo "$PID is Subproject" . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
+        echo "$PID Parent is Subproject" . ($parentRels['isSubproject']?"TRUE":"FALSE") . "\n ";
 
         if($parentRels['type'] == "si:projectCModel" && !$parentRels['isSubproject'] && !$rels['isSubproject'])
         {
