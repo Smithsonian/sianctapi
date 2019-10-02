@@ -34,6 +34,8 @@
      */
     public function populateDatabase($PIDs=NULL, $repopulate=FALSE)
     {
+      ini_set("memory_limit", "-1");
+      
       //initialize log data
       $this->resetLogData();
 
