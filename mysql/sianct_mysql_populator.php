@@ -158,8 +158,8 @@
         );
       }
 
-      echo "$PID is Subproject" . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
-      echo "$PID Parent is Subproject" . ($parentRels['isSubproject']?"TRUE":"FALSE") . "\n ";
+      echo "$PID is Subproject " . ($rels['isSubproject']?"TRUE":"FALSE") . "\n ";
+      echo "$PID Parent is Subproject " . ($parent['isSubproject']?"TRUE":"FALSE") . "\n ";
 
       if($parent['type'] == "si:projectCModel" && !$parent['isSubproject'] && !$rels['isSubproject'])
       {
