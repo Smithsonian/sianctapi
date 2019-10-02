@@ -35,7 +35,7 @@
     public function populateDatabase($PIDs=NULL, $repopulate=FALSE)
     {
       ini_set("memory_limit", "-1");
-      
+
       //initialize log data
       $this->resetLogData();
 
@@ -150,6 +150,12 @@
       if($parent == NULL)
       {
         $parentRels = $this->getRelsExtData($rels['parent']);
+
+        if($parentRels['type'] == "si:projectCModel" && !$parentRels['isSubproject'] && !$rels['isSubproject'])
+        {
+          echo "Skipping $PID. It has a project parent but is not a subproject";
+          return;
+        }
         $parent = Array(
           'pid' => $rels['parent'],
           'type' => $parentRels['type'],
@@ -1036,7 +1042,8 @@
       $Values = Array(
         'type' => 'undefined',
         'parent' => NULL,
-        'children' => []
+        'children' => [],
+        'isSubproject' => FALSE
       );
 
       $url = "objects/$PID/datastreams/RELS-EXT/content";
@@ -1070,6 +1077,11 @@
         //get fedora type for $PID object
         $model = $graph->allResources($qpid, 'fedoramodel:hasModel')[0];
         $Values['type'] = preg_replace('/info:fedora\//', '', $model->getUri());
+
+        if($Values['type'] = 'si:projectCModel' && $Values['parent'] != 'si:121909')
+        {
+          $Values['isSubproject'] = TRUE;
+        }
 
         //Get all possible children for $PID object
         $concepts  = $graph->allResources($qpid,'fedora:hasConcept');
