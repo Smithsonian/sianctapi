@@ -1180,7 +1180,7 @@ class SIANCTAPI
 
     $cacheCheckLine = "";
 
-    $conn = new mysqli($config['mysql_host'], $config['mysql_user'], $config['mysql_pass'], $config['mysql_dbname']);
+    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_user'], $this->config['mysql_pass'], $this->config['mysql_dbname']);
 
     // Check connection
     if ($conn->connect_error)
@@ -1461,7 +1461,7 @@ class SIANCTAPI
   private function sianctapiQueryMySQLDatabase($sql)
   {
     // Create connection
-    $conn = new mysqli($config['mysql_host'], $config['mysql_username'], $config['mysql_password'], $config['mysql_dbname']);
+    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_username'], $this->config['mysql_password'], $this->config['mysql_dbname']);
 
     // Check connection
     if ($conn->connect_error)
