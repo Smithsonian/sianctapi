@@ -1189,7 +1189,7 @@ class SIANCTAPI
       $cacheCheckLine .= "MYSQL_USER: " . $this->config['mysql_user'] . "\n";
       $cacheCheckLine .= "MYSQL_PASS: " . $this->config['mysql_pass'] . "\n";
       $cacheCheckLine .= "MYSQL_DBNAME: " . $this->config['mysql_dbname'] . "\n";
-      $cacheCheckLine = "Connection to MySQL database failed - $conn->connect_error";
+      $cacheCheckLine .= "Connection to MySQL database failed - $conn->connect_error";
     }
     else
     {
