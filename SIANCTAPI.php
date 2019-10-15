@@ -49,6 +49,10 @@ class SIANCTAPI {
       'sianctapi_log_path' => '',
       'sianctapi_log_prefix' => '',
       'sianctapi_path' => '',
+      "mysql_host" => '',
+      "mysql_username" => '',
+      "mysql_password" => '',
+      "mysql_dbname" => ''
     );
 
     // Set app_id
