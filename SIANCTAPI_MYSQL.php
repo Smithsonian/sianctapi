@@ -1180,14 +1180,14 @@ class SIANCTAPI
 
     $cacheCheckLine = "";
 
-    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_user'], $this->config['mysql_pass'], $this->config['mysql_dbname']);
+    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_username'], $this->config['mysql_password'], $this->config['mysql_dbname']);
 
     // Check connection
     if ($conn->connect_error)
     {
       $cacheCheckLine .= "MYSQL_HOST: " .  $this->config['mysql_host'] . "\n";
-      $cacheCheckLine .= "MYSQL_USER: " . $this->config['mysql_user'] . "\n";
-      $cacheCheckLine .= "MYSQL_PASS: " . $this->config['mysql_pass'] . "\n";
+      $cacheCheckLine .= "MYSQL_USER: " . $this->config['mysql_username'] . "\n";
+      $cacheCheckLine .= "MYSQL_PASS: " . $this->config['mysql_password'] . "\n";
       $cacheCheckLine .= "MYSQL_DBNAME: " . $this->config['mysql_dbname'] . "\n";
       $cacheCheckLine .= "Connection to MySQL database failed - $conn->connect_error";
     }
