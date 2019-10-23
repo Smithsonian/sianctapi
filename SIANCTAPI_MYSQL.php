@@ -1515,8 +1515,6 @@ class SIANCTAPI
     {
       $prefix = "./mysql/sql/query";
 
-      $obstables = "";
-
       $obstable_query = file_get_contents("$prefix/obstable.sql");
       $plots_query = file_get_contents("$prefix/plots.sql");
       $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
@@ -1554,51 +1552,74 @@ class SIANCTAPI
 
       if($obstable_res)
       {
+        $obstables = array();
         while($row = $obstable_res->fetch_assoc())
         {
-          $ob = "";
-          $ob .= $row["project"] . ", ";
-          $ob .= $row["subproject"] . ", ";
+          //$ob = [];
+          $project = $row["project"] . ", ";
+          $subproject = $row["subproject"] . ", ";
 
           $treatment = "\"\"";
           if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
           {
             $treatment = $plots[$row["plot"]];
           }
-          $ob .= $treatment . ", ";
 
-          $ob .= $row["deploymentName"] . ", ";
-          $ob .= $row["idType"] . ", ";
-          $ob .= $row["deployId"] . ", ";
-          $ob .= $row["sequenceId"] . ", ";
-          $ob .= $row["beginTime"] . ", ";
-          $ob .= $row["endTime"] . ", ";
-          $ob .= $row["speciesName"] . ", ";
-          $ob .= $row["commonName"] . ", ";
-          $ob .= $row["age"] . ", ";
-          $ob .= $row["sex"] . ", ";
-          $ob .= $row["individual"] . ", ";
-          $ob .= $row["count"] . ", ";
-          $ob .= $row["actualLat"] . ", ";
-          $ob .= $row["actualLon"] . ", ";
-          $ob .= $row["featureType"] . ", ";
-          $ob .= $row["publishDate"] . ", ";
-          $ob .= $row["projectLat"] . ", ";
-          $ob .= $row["projectLon"] . ", ";
-          $ob .= $row["accessConstraints"];
+          $deploymentName = $row["deploymentName"] . ", ";
+          $idType = $row["idType"] . ", ";
+          $deployId = $row["deployId"] . ", ";
+          $sequenceId = $row["sequenceId"] . ", ";
+          $beginTime = $row["beginTime"] . ", ";
+          $endTime = $row["endTime"] . ", ";
+          $speciesName = $row["speciesName"] . ", ";
+          $commonName = $row["commonName"] . ", ";
+          $age = $row["age"] . ", ";
+          $sex = $row["sex"] . ", ";
+          $individual = $row["individual"] . ", ";
+          $count = $row["count"] . ", ";
+          $actualLat = $row["actualLat"] . ", ";
+          $actualLon = $row["actualLon"] . ", ";
+          $featureType = $row["featureType"] . ", ";
+          $publishDate = $row["publishDate"] . ", ";
+          $projectLat = $row["projectLat"] . ", ";
+          $projectLon = $row["projectLon"] . ", ";
+          $accessConstraints = $row["accessConstraints"];
 
-          $obstables .= $ob . "\n";
+          $observation = [
+            $project,
+            $subproject,
+            $treatment,
+            $deploymentName,
+            $idType,
+            $deployId,
+            $sequenceId,
+            $beginTime,
+            $endTime,
+            $speciesName,
+            $commonName,
+            $age,
+            $sex,
+            $individual,
+            $count,
+            $actualLat,
+            $actualLon,
+            $featureType,
+            $publishDate,
+            $projectLat,
+            $projectLon,
+            $accessConstraints
+          ];
+
+          if(trim(str_replace(',', '', implode(",", $observation))) != "")
+          {
+            array_push($obstables, implode(",", $observation));
+          }
         }
+
+        return implode("\n", $obstable);
       }
 
-      if(trim($obstables) != "")
-      {
-        return trim($obstables);
-      }
-      else
-      {
-        return NULL;
-      }
+      return NULL; 
     }
     catch(Exception $e)
     {
