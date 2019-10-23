@@ -1529,6 +1529,10 @@ class SIANCTAPI
         $plots[$row['id']] = $row['treatment'];
       }
     }
+    else
+    {
+      error_log("Failed to retrieve plots", 3, "error.log");
+    }
 
     if($obstablePids && $obstablePids.sizeof() > 0)
     {
@@ -1544,6 +1548,7 @@ class SIANCTAPI
       }
 
       $query_string .= ")";
+      error_log("\n$query_string", 3, "error.log");
       $obstable_query .= " AND " . $query_string;
     }
 
@@ -1588,6 +1593,12 @@ class SIANCTAPI
         $obstables .= $ob . "\n";
       }
     }
+    else
+    {
+      error_log("Failed to retrieve obstables. Better luck next time, buddy", 3, "error.log");
+    }
+
+    error_log($obstables, 3, "error.log");
 
     if(trim($obstables) != "")
     {
