@@ -1560,7 +1560,7 @@ class SIANCTAPI
           $ob .= $row["project"] . ", ";
           $ob .= $row["subproject"] . ", ";
 
-          $treatment = "";
+          $treatment = "\"\"";
           if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
           {
             $treatment = $plots[$row["plot"]];
