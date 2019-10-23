@@ -1511,6 +1511,96 @@ class SIANCTAPI
 
   private function sianctapiGetObstablesFromMySQL($obstablePids=NULL)
   {
+    $prefix = "./mysql/sql/query";
+
+    $obstables = "";
+
+    $obstable_query = file_get_contents("$prefix/obstable.sql");
+    $plots_query = file_get_contents("$prefix/plots.sql");
+
+    $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
+
+    $plots = array();
+
+    if($plots_res)
+    {
+      while($row = $result->fetch_assoc())
+      {
+        $plots[$row['id']] = $row['treatment'];
+      }
+    }
+
+    if($obstablePids && $obstablePids.sizeof() > 0)
+    {
+      $query_string = "observations.obstable_id IN (";
+      $count = 1;
+      foreach($obstablePids as $pid)
+      {
+        $query_string .= "\"$pid\"";
+        if($count < $obstablePids.sizeof())
+        {
+          $query_string .= ",";
+        }
+      }
+
+      $query_string .= ")";
+      $obstable_query .= " AND " . $query_string;
+    }
+
+    $obstables_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
+    $plot_check = ($plots.sizeof() > 0);
+
+    if($obstable_res)
+    {
+      while($row = $result->fetch_assoc())
+      {
+        $ob = "";
+        $ob .= $row["project"] . ", ";
+        $ob .= $row["subproject"] . ", ";
+
+        $treatment = "";
+        if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
+        {
+          $treatment = $plots[$row["plot"]];
+        }
+        $ob .= $treatment . ", ";
+
+        $ob .= $row["deploymentName"] . ", ";
+        $ob .= $row["idType"] . ", ";
+        $ob .= $row["deployId"] . ", ";
+        $ob .= $row["sequenceId"] . ", ";
+        $ob .= $row["beginTime"] . ", ";
+        $ob .= $row["endTime"] . ", ";
+        $ob .= $row["speciesName"] . ", ";
+        $ob .= $row["commonName"] . ", ";
+        $ob .= $row["age"] . ", ";
+        $ob .= $row["sex"] . ", ";
+        $ob .= $row["individual"] . ", ";
+        $ob .= $row["count"] . ", ";
+        $ob .= $row["actualLat"] . ", ";
+        $ob .= $row["actualLon"] . ", ";
+        $ob .= $row["featureType"] . ", ";
+        $ob .= $row["publishDate"] . ", ";
+        $ob .= $row["projectLat"] . ", ";
+        $ob .= $row["projectLon"] . ", ";
+        $ob .= $row["accessConstraints"];
+
+        $obstables .= $ob . "\n";
+      }
+    }
+
+    if(trim($obstables) != "")
+    {
+      return trim($obstables);
+    }
+    else
+    {
+      return NULL;
+    }
+  }
+
+  private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL)
+  {
     if(!$obstablePids)
     {
       $obstablePids = $this->sianctapiGetObstablePidsArrayFromMySQL();
@@ -1531,6 +1621,7 @@ class SIANCTAPI
         while($vals = $observations->fetch_assoc())
         {
           //initialize observation table row values
+          //project
           $project = "";
           $subproject = "";
           $treatment = "";
