@@ -1511,103 +1511,114 @@ class SIANCTAPI
 
   private function sianctapiGetObstablesFromMySQL($obstablePids=NULL)
   {
-    $prefix = "./mysql/sql/query";
-
-    $obstables = "";
-
-    $obstable_query = file_get_contents("$prefix/obstable.sql");
-    $plots_query = file_get_contents("$prefix/plots.sql");
-
-    $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
-
-    $plots = array();
-
-    if($plots_res)
+    error_log("starting sianctapiGetObstablesFromMySQL\n", 3, "./error.log");
+    try
     {
-      while($row = $result->fetch_assoc())
+      $prefix = "./mysql/sql/query";
+
+      $obstables = "";
+
+      $obstable_query = file_get_contents("$prefix/obstable.sql");
+      $plots_query = file_get_contents("$prefix/plots.sql");
+
+      $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
+
+      $plots = array();
+
+      if($plots_res)
       {
-        $plots[$row['id']] = $row['treatment'];
-      }
-    }
-    else
-    {
-      error_log("Failed to retrieve plots", 3, "error.log");
-    }
-
-    if($obstablePids && $obstablePids.sizeof() > 0)
-    {
-      $query_string = "observations.obstable_id IN (";
-      $count = 1;
-      foreach($obstablePids as $pid)
-      {
-        $query_string .= "\"$pid\"";
-        if($count < $obstablePids.sizeof())
+        while($row = $result->fetch_assoc())
         {
-          $query_string .= ",";
+          $plots[$row['id']] = $row['treatment'];
         }
       }
-
-      $query_string .= ")";
-      error_log("\n$query_string", 3, "error.log");
-      $obstable_query .= " AND " . $query_string;
-    }
-
-    $obstables_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
-    $plot_check = ($plots.sizeof() > 0);
-
-    if($obstable_res)
-    {
-      while($row = $result->fetch_assoc())
+      else
       {
-        $ob = "";
-        $ob .= $row["project"] . ", ";
-        $ob .= $row["subproject"] . ", ";
+        error_log("Failed to retrieve plots", 3, "error.log");
+      }
 
-        $treatment = "";
-        if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
+      if($obstablePids && $obstablePids.sizeof() > 0)
+      {
+        $query_string = "observations.obstable_id IN (";
+        $count = 1;
+        foreach($obstablePids as $pid)
         {
-          $treatment = $plots[$row["plot"]];
+          $query_string .= "\"$pid\"";
+          if($count < $obstablePids.sizeof())
+          {
+            $query_string .= ",";
+          }
         }
-        $ob .= $treatment . ", ";
 
-        $ob .= $row["deploymentName"] . ", ";
-        $ob .= $row["idType"] . ", ";
-        $ob .= $row["deployId"] . ", ";
-        $ob .= $row["sequenceId"] . ", ";
-        $ob .= $row["beginTime"] . ", ";
-        $ob .= $row["endTime"] . ", ";
-        $ob .= $row["speciesName"] . ", ";
-        $ob .= $row["commonName"] . ", ";
-        $ob .= $row["age"] . ", ";
-        $ob .= $row["sex"] . ", ";
-        $ob .= $row["individual"] . ", ";
-        $ob .= $row["count"] . ", ";
-        $ob .= $row["actualLat"] . ", ";
-        $ob .= $row["actualLon"] . ", ";
-        $ob .= $row["featureType"] . ", ";
-        $ob .= $row["publishDate"] . ", ";
-        $ob .= $row["projectLat"] . ", ";
-        $ob .= $row["projectLon"] . ", ";
-        $ob .= $row["accessConstraints"];
+        $query_string .= ")";
+        error_log("\n$query_string", 3, "error.log");
+        $obstable_query .= " AND " . $query_string;
+      }
 
-        $obstables .= $ob . "\n";
+      $obstables_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
+      $plot_check = ($plots.sizeof() > 0);
+
+      if($obstable_res)
+      {
+        while($row = $result->fetch_assoc())
+        {
+          $ob = "";
+          $ob .= $row["project"] . ", ";
+          $ob .= $row["subproject"] . ", ";
+
+          $treatment = "";
+          if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
+          {
+            $treatment = $plots[$row["plot"]];
+          }
+          $ob .= $treatment . ", ";
+
+          $ob .= $row["deploymentName"] . ", ";
+          $ob .= $row["idType"] . ", ";
+          $ob .= $row["deployId"] . ", ";
+          $ob .= $row["sequenceId"] . ", ";
+          $ob .= $row["beginTime"] . ", ";
+          $ob .= $row["endTime"] . ", ";
+          $ob .= $row["speciesName"] . ", ";
+          $ob .= $row["commonName"] . ", ";
+          $ob .= $row["age"] . ", ";
+          $ob .= $row["sex"] . ", ";
+          $ob .= $row["individual"] . ", ";
+          $ob .= $row["count"] . ", ";
+          $ob .= $row["actualLat"] . ", ";
+          $ob .= $row["actualLon"] . ", ";
+          $ob .= $row["featureType"] . ", ";
+          $ob .= $row["publishDate"] . ", ";
+          $ob .= $row["projectLat"] . ", ";
+          $ob .= $row["projectLon"] . ", ";
+          $ob .= $row["accessConstraints"];
+
+          $obstables .= $ob . "\n";
+        }
+      }
+      else
+      {
+        error_log("Failed to retrieve obstables. Better luck next time, buddy", 3, "error.log");
+      }
+
+      error_log($obstables, 3, "error.log");
+
+      if(trim($obstables) != "")
+      {
+        return trim($obstables);
+      }
+      else
+      {
+        return NULL;
       }
     }
-    else
+    catch(Exception $e)
     {
-      error_log("Failed to retrieve obstables. Better luck next time, buddy", 3, "error.log");
-    }
-
-    error_log($obstables, 3, "error.log");
-
-    if(trim($obstables) != "")
-    {
-      return trim($obstables);
-    }
-    else
-    {
+      echo "$e";
+      error_log("$e\n", 3, "./error.log");
       return NULL;
     }
+
   }
 
   private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL)
