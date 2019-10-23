@@ -1511,7 +1511,6 @@ class SIANCTAPI
 
   private function sianctapiGetObstablesFromMySQL($obstablePids=NULL)
   {
-    error_log("starting sianctapiGetObstablesFromMySQL\n", 3, "./error.log");
     try
     {
       $prefix = "./mysql/sql/query";
@@ -1520,47 +1519,42 @@ class SIANCTAPI
 
       $obstable_query = file_get_contents("$prefix/obstable.sql");
       $plots_query = file_get_contents("$prefix/plots.sql");
-
       $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
 
       $plots = array();
 
-      if($plots_res)
+      if($plots_res != NULL)
       {
-        while($row = $result->fetch_assoc())
+        while($row = $plots_res->fetch_assoc())
         {
           $plots[$row['id']] = $row['treatment'];
         }
       }
-      else
-      {
-        error_log("Failed to retrieve plots", 3, "error.log");
-      }
 
-      if($obstablePids && $obstablePids.sizeof() > 0)
+      if($obstablePids && sizeof($obstablePids) > 0)
       {
         $query_string = "observations.obstable_id IN (";
         $count = 1;
         foreach($obstablePids as $pid)
         {
           $query_string .= "\"$pid\"";
-          if($count < $obstablePids.sizeof())
+          if($count < sizeof($obstablePids))
           {
             $query_string .= ",";
+            $count++;
           }
         }
 
         $query_string .= ")";
-        error_log("\n$query_string", 3, "error.log");
         $obstable_query .= " AND " . $query_string;
       }
 
-      $obstables_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
-      $plot_check = ($plots.sizeof() > 0);
+      $obstable_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
+      $plot_check = (sizeof($plots) > 0);
 
       if($obstable_res)
       {
-        while($row = $result->fetch_assoc())
+        while($row = $obstable_res->fetch_assoc())
         {
           $ob = "";
           $ob .= $row["project"] . ", ";
@@ -1596,12 +1590,6 @@ class SIANCTAPI
           $obstables .= $ob . "\n";
         }
       }
-      else
-      {
-        error_log("Failed to retrieve obstables. Better luck next time, buddy", 3, "error.log");
-      }
-
-      error_log($obstables, 3, "error.log");
 
       if(trim($obstables) != "")
       {
@@ -1614,11 +1602,8 @@ class SIANCTAPI
     }
     catch(Exception $e)
     {
-      echo "$e";
-      error_log("$e\n", 3, "./error.log");
       return NULL;
     }
-
   }
 
   private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL)
