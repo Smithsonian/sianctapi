@@ -1577,7 +1577,7 @@ class SIANCTAPI
             $treatment = $plots[$row["plot"]];
           }
 
-          $deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
+          /*$deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
           $idType = ($row["idType"] != "" && $row["idType"] != NULL)? $row["idType"] : "\"\"";
           $deployId = ($row["deployId"] != "" && $row["deployId"] != NULL)? $row["deployId"] : "\"\"";
           $sequenceId = ($row["sequenceId"] != "" && $row["sequenceId"] != NULL)? $row["sequenceId"] : "\"\"";
@@ -1595,7 +1595,27 @@ class SIANCTAPI
           $publishDate = ($row["publishDate"] != "" && $row["publishDate"] != NULL)? $row["publishDate"] : "\"\"";
           $projectLat = ($row["projectLat"] != "" && $row["projectLat"] != NULL)? $row["projectLat"] : "\"\"";
           $projectLon = ($row["projectLon"] != "" && $row["projectLon"] != NULL)? $row["projectLon"] : "\"\"";
-          $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";
+          $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";*/
+
+          $deploymentName = "\"" . $row["deploymentName"] . "\"";
+          $idType = "\"" . $row["idType"] . "\"";
+          $deployId = "\"" . $row["deployId"] . "\"";
+          $sequenceId = "\"" . $row["sequenceId"] . "\"";
+          $beginTime = "\"". $row["beginTime"] . "\"";
+          $endTime = "\"" . $row["endTime"] . "\"";
+          $speciesName = "\"" . $row["speciesName"] . "\"";
+          $commonName = "\"" . $row["commonName"] . "\"";
+          $age = "\"" . $row["age"] . "\"";
+          $sex = "\"" . $row["sex"] . "\"";
+          $individual = "\"" . $row["individual"] . "\"";
+          $count = $row["count"];
+          $actualLat = $row["actualLat"];
+          $actualLon = $row["actualLon"];
+          $featureType = $row["featureType"];
+          $publishDate = $row["publishDate"];
+          $projectLat = $row["projectLat"];
+          $projectLon = $row["projectLon"];
+          $accessConstraints = $row["accessConstraints"];
 
           $ob = [
             $project,
