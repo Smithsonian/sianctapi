@@ -1564,13 +1564,13 @@ class SIANCTAPI
         while($row = $obstable_res->fetch_assoc())
         {
           //$ob = [];
-          $project = $row["project"] . ", ";
-          $subproject = $row["subproject"] . ", ";
+          $project = ($row["project"] != "" && $row["project"] != NULL)? $row["project"] : "\"\"";
+          $subproject = ($row["subproject"] != "" && $row["subproject"] != NULL)? $row["subproject"] : "\"\"";
 
           $treatment = "\"\"";
           if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
           {
-            $treatment = $plots[$row["plot"]];
+            $treatment = ($row["plot"] != "" && $row["plot"] != NULL)? $plots[$row["plot"]] : "\"\"";
           }
 
           $deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
