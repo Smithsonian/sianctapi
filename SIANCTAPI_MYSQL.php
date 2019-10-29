@@ -667,6 +667,7 @@ class SIANCTAPI
 
     //get array of obstable pids
     $obstablePidArray = str_getcsv($obstablePids);
+    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePidArray));
 
     //get count of obstable pids
     $countPids=count($obstablePidArray);
@@ -685,7 +686,8 @@ class SIANCTAPI
       $obstablePid = trim($obstablePidArray[$i]);
 
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
+      //$obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
+      $obstable = $obstable_set[$i];
       $resultingObservationsForPid = $obstable;
 
       $lines = explode("\n", $obstable);
@@ -972,11 +974,15 @@ class SIANCTAPI
 
     $countObsLines = 0;
 
+
+    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePids));
+
     for($i=0;$i<$countPids;$i++)
     {
       $obstablePid = trim($obstablePidArray[$i]);
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
+      //$obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
+      $obstable = $obstable_set[$i];
 
       $lines = explode("\n", $obstable);
 
@@ -1547,6 +1553,7 @@ class SIANCTAPI
         $count = 1;
         foreach($obstablePids as $pid)
         {
+          $pid = trim($pid);
           $query_string .= "\"$pid\"";
           if($count < sizeof($obstablePids))
           {
