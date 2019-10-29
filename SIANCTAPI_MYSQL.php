@@ -1560,7 +1560,8 @@ class SIANCTAPI
 
       if($obstable_res)
       {
-        $obstables = array();
+        //$obstables = array();
+        $obstables = "";
         while($row = $obstable_res->fetch_assoc())
         {
           //$ob = [];
@@ -1594,7 +1595,8 @@ class SIANCTAPI
           $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";
 
           $obstable_line = "$project, $subproject, $treatment, $deploymentName, $idType, $deployId, $sequenceId, $beginTime, $endTime, $speciesName, $commonName, $age, $sex, $individual, $count, $actualLat, $actualLon, $featureType, $publishDate, $projectLat, $projectLon, $accessConstraints";
-          array_push($obstables, $obstable_line);
+          $obstables .= "$obstable_line\n";
+          //array_push($obstables, $obstable_line);
           /*$observation = [
             $project,
             $subproject,
@@ -1626,7 +1628,8 @@ class SIANCTAPI
           }*/
         }
       }
-      return implode("\n", $obstables);
+      //return implode("\n", $obstables);
+      return $obstables;
     }
     catch(Exception $e)
     {
