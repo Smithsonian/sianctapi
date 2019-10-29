@@ -1652,7 +1652,7 @@ class SIANCTAPI
         }
       }
       //return implode("\n", $obstables);
-      return $obstables;
+      return "hello: " . $obstables;
     }
     catch(Exception $e)
     {
