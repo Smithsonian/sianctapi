@@ -684,7 +684,8 @@ class SIANCTAPI
     {
       $obstablePid = trim($obstablePidArray[$i]);
 
-      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
+      //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
+      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
       $resultingObservationsForPid = $obstable;
 
       $lines = explode("\n", $obstable);
@@ -1059,7 +1060,7 @@ class SIANCTAPI
       $obstablePid = trim($obstablePidArray[$i]);
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
       $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
-      
+
       $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . print_r($obstable, true));
       $lines = explode("\n", $obstable);
       $countLines = count($lines);
