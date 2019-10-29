@@ -1593,7 +1593,9 @@ class SIANCTAPI
           $projectLon = ($row["projectLon"] != "" && $row["projectLon"] != NULL)? $row["projectLon"] : "\"\"";
           $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";
 
-          $observation = [
+          $obstable_line = "$project, $subproject, $treatment, $deploymentName, $idType, $deployId, $sequenceId, $beginTime, $endTime, $speciesName, $commonName, $age, $sex, $individual, $count, $actualLat, $actualLon, $featureType, $publishDate, $projectLat, $projectLon, $accessConstraints";
+          array_push($obstables, $obstable_line);
+          /*$observation = [
             $project,
             $subproject,
             $treatment,
@@ -1621,10 +1623,10 @@ class SIANCTAPI
           if(trim(str_replace(',', '', implode(",", $observation))) != "")
           {
             array_push($obstables, implode(",", $observation));
-          }
+          }*/
         }
 
-        return implode("\n", $obstable);
+        return implode("\n", $obstables);
       }
 
       return NULL;
