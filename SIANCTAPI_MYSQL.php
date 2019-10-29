@@ -1625,11 +1625,8 @@ class SIANCTAPI
             array_push($obstables, implode(",", $observation));
           }*/
         }
-
-        return implode("\n", $obstables);
       }
-
-      return NULL;
+      return implode("\n", $obstables);
     }
     catch(Exception $e)
     {
