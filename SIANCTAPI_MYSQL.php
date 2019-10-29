@@ -557,8 +557,12 @@ class SIANCTAPI
    */
   function sianctapiGetSelectedObservationsCSV($obstablePids, $speciesNames)
   {
-    $obstables = $this->sianctapiGetObstablesFromMySQL();
-    $countobstables = count($obstables);
+    $countobstables = 0;
+    $res = $this->sianctapiQueryMySQLDatabase("SELECT oobservation_id FROM observations");
+    if($res)
+    {
+        $countobstables = $res->num_rows;
+    }
 
     $this->logger->notice("$this->app_id sianctapiGetSelectedObservationsCSV: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
@@ -587,8 +591,12 @@ class SIANCTAPI
    */
   function sianctapiGetSelectedObservations($obstablePids, $speciesNames)
   {
-    $obstables = $this->sianctapiGetObstablesFromMySQL();
-    $countobstables = count($obstables);
+    $countobstables = 0;
+    $res = $this->sianctapiQueryMySQLDatabase("SELECT oobservation_id FROM observations");
+    if($res)
+    {
+        $countobstables = $res->num_rows;
+    }
 
     $this->logger->notice("$this->app_id sianctapiGetSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
@@ -1565,25 +1573,25 @@ class SIANCTAPI
             $treatment = $plots[$row["plot"]];
           }
 
-          $deploymentName = $row["deploymentName"] . ", ";
-          $idType = $row["idType"] . ", ";
-          $deployId = $row["deployId"] . ", ";
-          $sequenceId = $row["sequenceId"] . ", ";
-          $beginTime = $row["beginTime"] . ", ";
-          $endTime = $row["endTime"] . ", ";
-          $speciesName = $row["speciesName"] . ", ";
-          $commonName = $row["commonName"] . ", ";
-          $age = $row["age"] . ", ";
-          $sex = $row["sex"] . ", ";
-          $individual = $row["individual"] . ", ";
-          $count = $row["count"] . ", ";
-          $actualLat = $row["actualLat"] . ", ";
-          $actualLon = $row["actualLon"] . ", ";
-          $featureType = $row["featureType"] . ", ";
-          $publishDate = $row["publishDate"] . ", ";
-          $projectLat = $row["projectLat"] . ", ";
-          $projectLon = $row["projectLon"] . ", ";
-          $accessConstraints = $row["accessConstraints"];
+          $deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
+          $idType = ($row["idType"] != "" && $row["idType"] != NULL)? $row["idType"] : "\"\"";
+          $deployId = ($row["deployId"] != "" && $row["deployId"] != NULL)? $row["deployId"] : "\"\"";
+          $sequenceId = ($row["sequenceId"] != "" && $row["sequenceId"] != NULL)? $row["sequenceId"] : "\"\"";
+          $beginTime = ($row["beginTime"] != "" && $row["beginTime"] != NULL)? $row["beginTime"] : "\"\"";
+          $endTime = ($row["endTime"] != "" && $row["endTime"] != NULL)? $row["endTime"] : "\"\"";
+          $speciesName = ($row["speciesName"] != "" && $row["speciesName"] != NULL)? $row["speciesName"] : "\"\"";
+          $commonName = ($row["commonName"] != "" && $row["commonName"] != NULL)? $row["commonName"] : "\"\"";
+          $age = ($row["age"] != "" && $row["age"] != NULL)? $row["age"] : "\"\"";
+          $sex = ($row["sex"] != "" && $row["sex"] != NULL)? $row["sex"] : "\"\"";
+          $individual = ($row["individual"] != "" && $row["individual"] != NULL)? $row["individual"] : "\"\"";
+          $count = ($row["count"] != "" && $row["count"] != NULL)? $row["count"] : "\"\"";
+          $actualLat = ($row["actualLat"] != "" && $row["actualLat"] != NULL)? $row["actualLat"] : "\"\"";
+          $actualLon = ($row["actualLon"] != "" && $row["actualLon"] != NULL)? $row["actualLon"] : "\"\"";
+          $featureType = ($row["featureType"] != "" && $row["featureType"] != NULL)? $row["featureType"] : "\"\"";
+          $publishDate = ($row["publishDate"] != "" && $row["publishDate"] != NULL)? $row["publishDate"] : "\"\"";
+          $projectLat = ($row["projectLat"] != "" && $row["projectLat"] != NULL)? $row["projectLat"] : "\"\"";
+          $projectLon = ($row["projectLon"] != "" && $row["projectLon"] != NULL)? $row["projectLon"] : "\"\"";
+          $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";
 
           $observation = [
             $project,
@@ -1619,7 +1627,7 @@ class SIANCTAPI
         return implode("\n", $obstable);
       }
 
-      return NULL; 
+      return NULL;
     }
     catch(Exception $e)
     {
