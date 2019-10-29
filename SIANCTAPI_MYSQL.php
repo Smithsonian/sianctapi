@@ -686,8 +686,7 @@ class SIANCTAPI
       $obstablePid = trim($obstablePidArray[$i]);
 
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      //$obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
-      $obstable = $obstable_set[$i];
+      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
       $resultingObservationsForPid = $obstable;
 
       $lines = explode("\n", $obstable);
@@ -981,8 +980,8 @@ class SIANCTAPI
     {
       $obstablePid = trim($obstablePidArray[$i]);
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      //$obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
-      $obstable = $obstable_set[$i];
+      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
+      //$obstable = $obstable_set[$i];
 
       $lines = explode("\n", $obstable);
 
