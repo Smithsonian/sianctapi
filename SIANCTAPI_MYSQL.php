@@ -1567,14 +1567,14 @@ class SIANCTAPI
           //$ob = [];
           /*$project = ($row["project"] != "" && $row["project"] != NULL)? $row["project"] : "\"\"";
           $subproject = ($row["subproject"] != "" && $row["subproject"] != NULL)? $row["subproject"] : "\"\"";*/
-          $project = $row["project"];
-          $subproject = $row["subproject"];
+          $project = "\"" . $row["project"] . "\"";
+          $subproject = "\"" . $row["subproject"] . "\"";
 
           $treatment = "\"\"";
           if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
           {
             //$treatment = ($row["plot"] != "" && $row["plot"] != NULL)? $plots[$row["plot"]] : "\"\"";
-            $treatment = $plots[$row["plot"]];
+            $treatment = "\"" . $plots[$row["plot"]] . "\"";
           }
 
           /*$deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
@@ -1642,7 +1642,7 @@ class SIANCTAPI
             $accessConstraints
           ];
 
-          $obstables .= implode(",", $ob);
+          $obstables .= implode(",", $ob) . "\n";
 
           /*$deploymentName = $row["deploymentName"];
           $idType = $row["idType"];
