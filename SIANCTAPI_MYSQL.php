@@ -1577,7 +1577,7 @@ class SIANCTAPI
             $treatment = $plots[$row["plot"]];
           }
 
-          /*$deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
+          $deploymentName = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["deploymentName"] : "\"\"";
           $idType = ($row["idType"] != "" && $row["idType"] != NULL)? $row["idType"] : "\"\"";
           $deployId = ($row["deployId"] != "" && $row["deployId"] != NULL)? $row["deployId"] : "\"\"";
           $sequenceId = ($row["sequenceId"] != "" && $row["sequenceId"] != NULL)? $row["sequenceId"] : "\"\"";
@@ -1595,9 +1595,36 @@ class SIANCTAPI
           $publishDate = ($row["publishDate"] != "" && $row["publishDate"] != NULL)? $row["publishDate"] : "\"\"";
           $projectLat = ($row["projectLat"] != "" && $row["projectLat"] != NULL)? $row["projectLat"] : "\"\"";
           $projectLon = ($row["projectLon"] != "" && $row["projectLon"] != NULL)? $row["projectLon"] : "\"\"";
-          $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";*/
+          $accessConstraints = ($row["deploymentName"] != "" && $row["deploymentName"] != NULL)? $row["accessConstraints"] : "\"\"";
 
-          $deploymentName = $row["deploymentName"];
+          $ob = [
+            $project,
+            $subproject,
+            $treatment,
+            $deploymentName,
+            $idType,
+            $deployId,
+            $sequenceId,
+            $beginTime,
+            $endTime,
+            $speciesName,
+            $commonName,
+            $age,
+            $sex,
+            $individual,
+            $count,
+            $actualLat,
+            $actualLon,
+            $featureType,
+            $publishDate,
+            $projectLat,
+            $projectLon,
+            $accessConstraints
+          ];
+
+          $obstables .= implod($ob, ",");
+
+          /*$deploymentName = $row["deploymentName"];
           $idType = $row["idType"];
           $deployId = $row["deployId"];
           $sequenceId = $row["sequenceId"];
@@ -1615,9 +1642,9 @@ class SIANCTAPI
           $publishDate = $row["publishDate"];
           $projectLat = $row["projectLat"];
           $projectLon = $row["projectLon"];
-          $accessConstraints = $row["accessConstraints"];
+          $accessConstraints = $row["accessConstraints"];*/
 
-          $obstables .= "$project, $subproject, $treatment, $deploymentName, $idType, $deployId, $sequenceId, $beginTime, $endTime, $speciesName, $commonName, $age, $sex, $individual, $count, $actualLat, $actualLon, $featureType, $publishDate, $projectLat, $projectLon, $accessConstraints\n";
+          //$obstables .= "$project, $subproject, $treatment, $deploymentName, $idType, $deployId, $sequenceId, $beginTime, $endTime, $speciesName, $commonName, $age, $sex, $individual, $count, $actualLat, $actualLon, $featureType, $publishDate, $projectLat, $projectLon, $accessConstraints\n";
           //$obstables .= "$obstable_line\n";
           //array_push($obstables, $obstable_line);
           /*$observation = [
@@ -1650,13 +1677,14 @@ class SIANCTAPI
             array_push($obstables, implode(",", $observation));
           }*/
         }
+        return $obstables;
       }
       //return implode("\n", $obstables);
-      return "hello: " . $obstables;
+      return NULL; 
     }
     catch(Exception $e)
     {
-      return $e;
+      return NULL;
     }
   }
 
