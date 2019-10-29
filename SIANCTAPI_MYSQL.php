@@ -1622,7 +1622,7 @@ class SIANCTAPI
             $accessConstraints
           ];
 
-          $obstables .= implod($ob, ",");
+          $obstables .= implode(",", $ob);
 
           /*$deploymentName = $row["deploymentName"];
           $idType = $row["idType"];
@@ -1680,7 +1680,7 @@ class SIANCTAPI
         return $obstables;
       }
       //return implode("\n", $obstables);
-      return NULL; 
+      return NULL;
     }
     catch(Exception $e)
     {
