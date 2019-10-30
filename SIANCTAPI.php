@@ -19,7 +19,8 @@ date_default_timezone_set(@date_default_timezone_get());
 require_once './lib/Logger.php';
 
 // Class definition
-class SIANCTAPI {
+class SIANCTAPI
+{
   private $config;
   private $app_id;
   private $logger;
@@ -49,6 +50,10 @@ class SIANCTAPI {
       'sianctapi_log_path' => '',
       'sianctapi_log_prefix' => '',
       'sianctapi_path' => '',
+      "mysql_host" => '',
+      "mysql_username" => '',
+      "mysql_password" => '',
+      "mysql_dbname" => ''
     );
 
     // Set app_id
@@ -60,6 +65,11 @@ class SIANCTAPI {
     return;
   }
 
+  /**
+   * Get File Method for API Route
+   * @param  string $filepath path to file
+   * @return string           HTML string of results
+   */
   function sianctapiGetFile($filepath) {
     $this->logger->notice("$this->app_id sianctapiGetFile $filepath ");
 
@@ -75,78 +85,142 @@ class SIANCTAPI {
     return $out;
   }
 
+  /**
+   * [sianctapiGettFile description]
+   * @param  string $filepath path to file
+   * @return string           results of file reaad operation
+   */
   function sianctapiGettFile($filepath) {
     #global $user;
     $this->logger->notice("$this->app_id sianctapiGettFile $filepath ");
-    if (!is_readable($filepath)) {
+
+    if (!is_readable($filepath))
+    {
       $result = 'SYSTEM ERROR: file is not readable: ' . $filepath;
-    } else {
+    }
+    else
+    {
       $fp = fopen($filepath, 'r');
-      if ($fp === false) {
+
+      if ($fp === false)
+      {
         $result = 'SYSTEM ERROR: fopen failed: ' . $filepath;
-      } else {
+      }
+      else
+      {
         $result = fread($fp, filesize($filepath));
-        if ($result === false) {
+
+        if ($result === false)
+        {
           $result = 'SYSTEM ERROR: fread failed: ' . $filepath;
         }
+
         fclose($fp);
       }
     }
     $logString = substr($result,0,2000);
+
     if (strlen($result) > 2000) $logString .= '...';
+
     $this->logger->info("$this->app_id sianctapiGettFile $filepath result:\n $logString");
+
     return $result;
   }
 
-  function sianctapiSaveInFile($filepath, $contents) {
+  /**
+   * Save contents in a file
+   * @param  string $filepath Path to file
+   * @param  string $contents String contents to save in file
+   * @return string           String results of file write operation
+   */
+  function sianctapiSaveInFile($filepath, $contents)
+  {
     $this->logger->notice("$this->app_id sianctapiSaveInFile $filepath");
     $result = 'Saving ' . $filepath . ': ';
     $fp = fopen($filepath, 'w');
-    if ($fp) {
+
+    if ($fp)
+    {
       $fw = fwrite($fp, $contents);
-      if ($fw === false) {
+
+      if ($fw === false)
+      {
         $result .= 'fwrite failed';
-      } else {
+      }
+      else
+      {
         $result .= $fw . ' bytes written';
       }
-    } else {
+    }
+    else
+    {
       $result .= 'fopen failed ('.$filepath . ')';
     }
+
     $this->logger->info("$this->app_id sianctapiSaveInFile $result");
+
     fclose($fp);
+
     return $result;
   }
 
-  function sianctapiSaveSelectedObservations($filepath, $obstables, $obstablePids, $speciesNames) {
+  /**
+   * Get selected obersvations based on a list of obstable pids and a list of
+   * species name and save it to a file
+   *
+   * @param  string $filepath     path to selected observations file
+   * @param  array $obstables     array of observation table data strings
+   * @param  string $obstablePids comma separated list of obstable pids
+   * @param  string $speciesNames comma separated list of species names
+   * @return string               result of file write operation
+   */
+  function sianctapiSaveSelectedObservations($filepath, $obstables, $obstablePids, $speciesNames)
+  {
     $this->logger->notice("$this->app_id sianctapiSaveSelectedObservations $filepath");
+
     $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
-    if ($resultingObservations) {
+
+    if ($resultingObservations)
+    {
       $result = $this->sianctapiSaveInFile($filepath, $resultingObservations);
-    } else {
+    }
+    else
+    {
       $result = 'No resulting observations';
     }
+
     $this->logger->info("$this->app_id sianctapiSaveSelectedObservations $result");
+
     return $result;
   }
 
   /**
    * Streams the content of a file from runtime. Basic rules for limiting to csv.
    * Added by mds
+   *
+   * @param  string $filename name of file or null
+   * @return NULL
    */
-  function sianctapiDownload($filename = NULL) {
+  function sianctapiDownload($filename = NULL)
+  {
     $this->logger->notice("$this->app_id sianctapiDownload $filename");
 
-    if (FALSE !== strpos($filename, '../')) {
+    if (FALSE !== strpos($filename, '../'))
+    {
       return NULL;
     }
 
     $ext = substr($filename, -4);
-    if (!in_array($ext, array('.csv', 'jpeg', 'json', '.png', '.jpg'))) {
+
+    if (!in_array($ext, array('.csv', 'jpeg', 'json', '.png', '.jpg')))
+    {
       return NULL;
     }
 
     $file = $this->path('runtime/' . $filename);
-    if (!is_file($file)) {
+
+    if (!is_file($file))
+    {
       self::sendHeader(404);
       return NULL;
     }
@@ -155,54 +229,94 @@ class SIANCTAPI {
     exit();
   }
 
-  function sianctapiRunWorkflow($workflowName, $obstablePids, $speciesNames, $resultFileExt) {
+  /**
+   * Function for running an r script using passed parameters
+   * @param  string $workflowName  [name of the r script to run
+   * @param  string $obstablePids  comma separated list of obstable pids
+   * @param  string $speciesNames  comma separated list of species names
+   * @param  string $resultFileExt File extension to write results to
+   * @return string                Results in HTML string format
+   */
+  function sianctapiRunWorkflow($workflowName, $obstablePids, $speciesNames, $resultFileExt)
+  {
     $this->logger->notice("$this->app_id sianctapiRunWorkflow / $workflowName / $obstablePids / $speciesNames");
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstables = $sianctapiCache['obstables'];
+
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
+
     $UUID = uniqid();
+
     //$csvfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
     $csvfilepath = $this->config['sianctapi_path'] . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
+
     $result = $csvfilepath;
+
+    //update once sianctapiSaveSelectedObservations is updated
     $saveresult = $this->sianctapiSaveSelectedObservations($csvfilepath, $obstables, $obstablePids, $speciesNames);
+
     $this->logger->info("$this->app_id sianctapiRunWorkflow saving csv: $saveresult");
+
     $result_worked = FALSE;
 
-    if (!file_exists($csvfilepath)) {
+    if (!file_exists($csvfilepath))
+    {
       $result = 'SYSTEM ERROR: csv file was not created: ' . $saveresult;
-    } else {
+    }
+    else
+    {
       $resultfilepath = $csvfilepath;
 
-      if (strpos($workflowName, '.R') > -1) {
+      if (strpos($workflowName, '.R') > -1)
+      {
         /*
         $resultfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.' . $resultFileExt;
         $workflowfilepath = trim($this->config['sianctapi_path'], '/') . '/' . $workflowName;
         $outfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . '-' . $UUID . '.out';
         */
         $resultfilepath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.' . $resultFileExt;
+
         $workflowfilepath = $this->config['sianctapi_path'] . '/resources/rscripts/' . $workflowName;
+
         $outfilepath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
-        if (!is_readable($workflowfilepath)) {
+
+        if (!is_readable($workflowfilepath))
+        {
           $result = 'SYSTEM ERROR: R script file is not readable: ' . $workflowfilepath;
-        } else {
+        }
+        else
+        {
           $command = 'R CMD BATCH --vanilla "--args ' . $csvfilepath . ' ' . $resultfilepath . '" ' . $workflowfilepath . ' ' . $outfilepath . ' 2>&1';
+
           $this->logger->debug("$this->app_id sianctapiRunWorkflow command: $command");
+
           $rOut = shell_exec($command);
+
           $this->logger->debug("$this->app_id sianctapiRunWorkflow R out:\n $rOut");
-          if (!is_readable($resultfilepath)) {
+
+          if (!is_readable($resultfilepath))
+          {
             $result = 'SYSTEM ERROR: result file was not created: ' . $resultfilepath;
             //$routfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/' . $workflowName . 'out';
+
             $routfilepath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . 'out';
-            if (!is_readable($routfilepath)) {
+
+            if (!is_readable($routfilepath))
+            {
               $result .= '\n diagnosis file ' . $routfilepath . ' not found';
-            } else {
+            }
+            else
+            {
               $result .= '\n diagnosis file ' . $routfilepath . ' contains\n' . $this->sianctapiGettFile($routfilepath);
             }
-          } else {
+          }
+          else
+          {
             $result = $resultfilepath;
             $result_worked = TRUE;
           }
         }
-      } else {
+      }
+      else
+      {
         // Assume this works for CSVs...
         $result_worked = TRUE;
       }
@@ -210,19 +324,25 @@ class SIANCTAPI {
 
     $this->logger->info("$this->app_id sianctapiRunWorkflow result: $result");
 
-    if (!$result_worked) {
+    if (!$result_worked)
+    {
       //self::sendHeader(500);
       //return '';
       return $result;
     }
 
     $out = "\n" . '<div id="sianctapiRunWorkflowResult">';
-    if ($result_worked == TRUE && strpos($result, '/') !== FALSE) {
+
+    if ($result_worked == TRUE && strpos($result, '/') !== FALSE)
+    {
       $foo = explode('/', $result);
       $out .= end($foo);
-    } else {
+    }
+    else
+    {
       $out .= $result; //basename($result);
     }
+
     $out .= '</div>' . "\n";
     return $out;
   }
@@ -230,17 +350,23 @@ class SIANCTAPI {
   /**
    * Run R Script workflow for Occupany.
    *
-   * Separate from sianctapiRunWorkflow because extra arguments are required.
+   * NOTE Separate from sianctapiRunWorkflow because extra arguments are required.
    *
-   * @param $workflowName
-   * @param $obstablePids
-   * @param $speciesNames
-   * @param $resultFileExt
+   * NO UPDATE NECESSARY
    *
-   * @return string
+   * @param  string $projectCsvFile   name of project data csv file
+   * @param  string $deploymentCsv  csv deployment data in string format
+   * @param  int    $clumpInterval     clump interval provided by user
+   * @return string                 html string of R script results
    */
-  function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsv, $clumpInterval) {
+  function sianctapiRunOccupancyWorkflow($projectCsvFile, $deploymentCsv, $clumpInterval)
+  {
+    /**
+     * No changes should be necessary. Rather, I should build out a way for project and
+     * deployment data from mysql to be put in csv string format (do I?)
+     */
     $logFunc = __function__;
+
     // Hardcoded the R script filename.
     $workflowName = 'Occupancy.R';
 
@@ -253,39 +379,54 @@ class SIANCTAPI {
 
     $deploymentCsvFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-occupancy-deployments-' . $UUID . '.csv';
     $deploymentCsvFile = fopen($deploymentCsvFilePath, 'w');
+
     fwrite($deploymentCsvFile, $deploymentCsv);
     fclose($deploymentCsvFile);
 
-    if (!file_exists($projectCsvFilePath)) {
+    if (!file_exists($projectCsvFilePath))
+    {
       $result = 'SYSTEM ERROR: project csv file is not available not created.';
     }
-    else if (!file_exists($deploymentCsvFilePath)) {
+    else if (!file_exists($deploymentCsvFilePath))
+    {
       $result = 'SYSTEM ERROR: deployment csv file is not available not created.';
     }
-    else if (!is_readable($workflowFilePath)) {
+    else if (!is_readable($workflowFilePath))
+    {
       $result = 'SYSTEM ERROR: Occupancy R script file is not readable';
     }
-    else if ($clumpInterval <= 0) {
+    else if ($clumpInterval <= 0)
+    {
       $result = 'SYSTEM ERROR: invalid clump interval: ' . $clumpInterval;
     }
-    else {
+    else
+    {
       $resultFilePath = $this->config['sianctapi_path'] . '/runtime/sianctapi-result-' . $workflowName . '-' . $UUID . '.csv';
       $outFilePath = $this->config['sianctapi_path'] . '/runtime/' . $workflowName . '-' . $UUID . '.out';
 
       $command = sprintf('R CMD BATCH --vanilla "--args %s %s %s %s" %s %s 2>&1', $projectCsvFilePath, $deploymentCsvFilePath, $clumpInterval, $resultFilePath, $workflowFilePath, $outFilePath );
 
       $this->logger->debug("$this->app_id $logFunc command: $command");
+
       $rOut = shell_exec($command);
+
       $this->logger->debug("$this->app_id $logFunc R out:\n $rOut");
 
-      if (!is_readable($resultFilePath)) {
+      if (!is_readable($resultFilePath))
+      {
         $result = 'SYSTEM ERROR: result file was not created: ' . $resultFilePath;
-        if (!is_readable($outFilePath)) {
+
+        if (!is_readable($outFilePath))
+        {
           $result .= '\n diagnosis file ' . $outFilePath . ' not found';
-        } else {
+        }
+        else
+        {
           $result .= '\n diagnosis file ' . $outFilePath . ' contains\n' . $this->sianctapiGettFile($outFilePath);
         }
-      } else {
+      }
+      else
+      {
         $result = $resultFilePath;
         $result_worked = TRUE;
       }
@@ -293,62 +434,96 @@ class SIANCTAPI {
 
     $this->logger->info("$this->app_id $logFunc result: $result");
 
-    if (!$result_worked) {
+    if (!$result_worked)
+    {
       //self::sendHeader(500);
       //return '';
       return $result;
     }
 
     $out = "\n" . '<div id="sianctapiRunWorkflowResult">';
-    if ($result_worked == TRUE && strpos($result, '/') !== FALSE) {
+
+    if ($result_worked == TRUE && strpos($result, '/') !== FALSE)
+    {
       $foo = explode('/', $result);
       $out .= end($foo);
-    } else {
+    }
+    else
+    {
       $out .= $result; //basename($result);
     }
+
     $out .= '</div>' . "\n";
+
     return $out;
   }
 
-  function sianctapiGetProjectStructure($xslt, $wt='xslt') {
+  /**
+   * Get project structure
+   * @param  [type] $xslt
+   * @param  string $wt
+   */
+  function sianctapiGetProjectStructure($xslt, $wt='xslt')
+  {
     $solrResult = $this->sianctapiGetProjectStructureFromSolr($xslt, $wt);
     return $solrResult;
   }
 
-  function sianctapiGetProjectStructureMetadata($params) {
+  /*
+      NO UPDATE NECESSARY
+   */
+  function sianctapiGetProjectStructureMetadata($params)
+  {
     $paramtxt = dt($params);
     $this->logger->notice("$this->app_id sianctapiGetProjectStructureMetadata\n $paramtxt");
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
   }
 
-  function sianctapiGetProjectStructureCached() {
-    $sianctapiCache = $this->sianctapiCacheGet(); #FIX
-    $result = $sianctapiCache['projectStructure'];
+  /*
+      UPDATED
+   */
+  function sianctapiGetProjectStructureCached()
+  {
+    $result = $this->sianctapiGetProjectStructureFromSolr('default');
     $logString = substr($result,0,300);
     if (strlen($result) > 300) $logString .= '...';
     $this->logger->info("$this->app_id sianctapiGetProjectStructureCached\n $logString");
     return $result;
   }
 
-  function sianctapiGetProjectStructureFromSolr($xslt, $wt='xslt') {
+  /*
+      NO UPDATE NECESSARY
+   */
+  function sianctapiGetProjectStructureFromSolr($xslt, $wt='xslt')
+  {
     $solrXslt = $xslt;
-    if ($xslt == '' || $xslt == 'default') {
+
+    if ($xslt == '' || $xslt == 'default')
+    {
       $solrXslt = $this->config['sianctapi_block_solr_xslt_tree']; #FIX
     }
+
     $xsltParams =  '';
-    if ($solrXslt != 'none') {
+
+    if ($solrXslt != 'none')
+    {
       $xsltParams = '&tr=' . $solrXslt;
     }
 
     $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si%20OR%20ct*)&sort=projectPID+asc,parkPID+asc,sitePID+asc,ctPID+asc,PID+asc&rows=99999&wt=' . $wt . $xsltParams;
+
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
+
     return $solrResult;
   }
 
-  function sianctapiGetProjectStructureMetadataFromSolr($params) {
+  /*
+      NO UPDATE NECESSARY
+   */
+  function sianctapiGetProjectStructureMetadataFromSolr($params)
+  {
     $projectStructureLogger = $this->createLogger('sianctapi-project-structure-' . date('Y-m-d') . '.log');
-
     $projectStructureLogger->notice("$this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
     $solrUrl = $this->config['sianctapi_block_solr'] . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on';
     $solrResults = $this->curlWithRetries($solrUrl);
@@ -356,57 +531,100 @@ class SIANCTAPI {
     return $solrResults['results'];
   }
 
-  function sianctapiGetAllObstablePids() {
+  /*
+      NO UPDATE NECESSARY
+   */
+  function sianctapiGetAllObstablePids()
+  {
     $this->logger->notice("$this->app_id sianctapiGetAllObstablePids: noparams ");
     $solrResult = $this->sianctapiGetAllObstablePidsFromSolr();
     return $solrResult;
   }
 
-  function sianctapiGetAllObstablePidsFromSolr() {
+  /*
+      NO UPDATE NECESSARY
+   */
+  function sianctapiGetAllObstablePidsFromSolr()
+  {
     $this->logger->notice("$this->app_id sianctapiGetAllObstablePidsFromSolr: noparams ");
     $params = 'q=PID:(si*%20OR%20ct*)+OR+projectPID:(si*%20OR%20ct*)+OR+ctPID:(si*%20OR%20ct*)&rows=99999&wt=xslt&tr=sianctapiGetObstablePids.xslt';
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
   }
 
-  function sianctapiGetSelectedObservationsCSV($obstablePids, $speciesNames) {
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstables = $sianctapiCache['obstables'];
-    $countobstables = count($obstables);
-    $this->logger->notice("$this->app_id sianctapiGetSelectedObservationsCSV: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
-    if ($obstablePids == 'ALL') {
-      //$obstablePids = $this->sianctapiGetAllObstablePidsFromSolr();
-      $obstablePids = $sianctapiCache['obstablePids'];
+  /*
+    UPDATED
+   */
+  function sianctapiGetSelectedObservationsCSV($obstablePids, $speciesNames)
+  {
+    $countobstables = 0;
+    $res = $this->sianctapiQueryMySQLDatabase("SELECT oobservation_id FROM observations");
+    if($res)
+    {
+        $countobstables = $res->num_rows;
     }
+
+    $this->logger->notice("$this->app_id sianctapiGetSelectedObservationsCSV: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
+
+    if ($obstablePids == 'ALL')
+    {
+      $obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+    }
+
     $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
+
     $UUID = uniqid();
     //$csvfilepath = trim($this->config['sianctapi_path'], '/') . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
     $csvfilepath = $this->config['sianctapi_path'] . '/runtime/sianctapi-selected-observations-' . $UUID . '.csv';
+
+    //write csv data to file
     $fp = fopen($csvfilepath, 'w');
     fwrite($fp, $resultingObservations);
     fclose($fp);
+
+    //return the file path
     return $csvfilepath;
   }
 
-  function sianctapiGetSelectedObservations($obstablePids, $speciesNames) {
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstables = $sianctapiCache['obstables'];
-    $countobstables = count($obstables);
-    $this->logger->notice("$this->app_id sianctapiGetSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
-    if ($obstablePids == 'ALL') {
-      $obstablePids = $sianctapiCache['obstablePids'];
+  /*
+    UPDATED
+   */
+  function sianctapiGetSelectedObservations($obstablePids, $speciesNames)
+  {
+    $countobstables = 0;
+    $res = $this->sianctapiQueryMySQLDatabase("SELECT oobservation_id FROM observations");
+    if($res)
+    {
+        $countobstables = $res->num_rows;
     }
+
+    $this->logger->notice("$this->app_id sianctapiGetSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
+
+    if ($obstablePids == 'ALL')
+    {
+      $obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+    }
+
     $resultingObservations = $this->sianctapiGettSelectedObservations($obstables, $obstablePids, $speciesNames);
+
     $out = '<div id="sianctapiGetObservationsResult">' . "\n";
     $out .= $resultingObservations;
     $out .= "\n" . '</div>' . "\n";
     return $out;
   }
 
-  function sianctapiGettSelectedObservations(&$obstables, $obstablePids, $speciesNames) {
+  /*
+    UPDATED
+   */
+  function sianctapiGettSelectedObservations(&$obstables, $obstablePids, $speciesNames)
+  {
+    //count number of passed obstables (obstables passed by reference)
     $countobstables = count($obstables);
+
+    //log
     $this->logger->notice("$this->app_id sianctapiGettSelectedObservations: obstablePids= $obstablePids speciesNames= $speciesNames countobstables= $countobstables");
 
+    //get csv headers
     $csvHeaders = array(
       'Project',
       'Subproject',
@@ -431,76 +649,51 @@ class SIANCTAPI {
       'Project Lon',
       'Access Constraints'
     );
+
+    //implode into a csv string
     $resultingObservations = implode($csvHeaders, ', ');
+
+    //turn species csv string into an array
     $speciesnamesArray = str_getcsv($speciesNames);
+
+    //get number of species entries
     $countSpeciesnames=count($speciesnamesArray);
-    if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
+
+    //check if null or empty
+    if ($countSpeciesnames == 1 && !$speciesnamesArray[0])
+    {
       $countSpeciesnames = 0;
     }
+
+    //get array of obstable pids
     $obstablePidArray = str_getcsv($obstablePids);
-    $countPids=count($obstablePidArray);
-    if ($countPids == 1 && !$obstablePidArray[0]) {
-      $countPids = 0;
-    }
-    $countLinesSum = 0;
-    $countSelectedLinesSum = 0;
-    for($i=0;$i<$countPids;$i++) {
-      $obstablePid = trim($obstablePidArray[$i]);
-      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $resultingObservationsForPid = $obstable;
-      $lines = explode("\n", $obstable);
-      $countLines = count($lines);
-      if ($countLines == 1 && !$lines[0]) {
-        $countLines = 0;
-      }
-      $countSelectedLines = $countLines;
-      if ($countSpeciesnames>0 && trim($speciesnamesArray[0])) {
-        $countSelectedLines = 0;
-        $resultingObservationsForPid = '';
-        for($j=0;$j<=$countLines;$j++) {
-          $line = trim($lines[$j]);
-          $speciesFound = false;
-          if ($line) {
-            for($k=0;$k<$countSpeciesnames;$k++) {
-              $speciesName = trim($speciesnamesArray[$k]);
-              if($speciesName && stripos($line, $speciesName)) {
-                $speciesFound = true;
-                break;
-              }
-            }
-          }
-          if ($speciesFound) {
-            if ($countSelectedLines > 0) {
-              $resultingObservationsForPid .= "\n";
-            }
-            $resultingObservationsForPid .= $line;
-            $countSelectedLines++;
-          }
-        }
-      }
-      if ($resultingObservationsForPid) {
-        $resultingObservations .= "\n" . $resultingObservationsForPid;
-      }
-      $countSelectedLinesSum += $countSelectedLines;
-      $countLinesSum += $countLines;
-      $lenselectedObservations = strlen($resultingObservations);
-      $n = $i + 1;
-      $this->logger->info("$this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
-    }
+    $resultingObservations .= "\n" . $this->sianctapiGetObstablesFromMySQL($obstablePidArray, $speciesnamesArray);
+
     return $resultingObservations;
-    //return str_replace('"', '', $resultingObservations);
   }
 
-  function sianctapiGetObstable(&$obstables, $obstablePid) {
-    if (!array_key_exists($obstablePid, $obstables)) {
+  /*
+    UPDATED
+   */
+  function sianctapiGetObstable(&$obstables, $obstablePid)
+  {
+    //query mysql db for obstable data associated with pid
+    $obstable = $this->sianctapiGetObstableFromMysql($obstablePid);
+
+    //if obstable data associated with passed PID is not cached, query solr
+    if (!$obstable)
+    {
       $obstable = $this->sianctapiGetObstableForSianct($obstables, $obstablePid);
-      return $obstable;
-    } else {
-      return $obstables[$obstablePid];
     }
+
+    return $obstable;
   }
 
-  function sianctapiGetObstableForSianct(&$obstables, $obstablePid) {
+  /*
+    NO UPDATE NECESSARY
+   */
+  function sianctapiGetObstableForSianct(&$obstables, $obstablePid)
+  {
     $obstable = '';
 
     $this->logger->debug("TESTING NEW WCS FIELDS...... $obstablePid");
@@ -593,20 +786,31 @@ class SIANCTAPI {
     return $obstable;
   }
 
-  function sianctapiGetFieldsAddedToCsvFromSolr($obstablePid) {
+  /*
+    NO UPDATE NECESSARY
+   */
+  function sianctapiGetFieldsAddedToCsvFromSolr($obstablePid)
+  {
     $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiFieldsAddedToCsv-CT3.xslt';
     $solrResult =$this->sianctapiGetProjectStructureMetadataFromSolr($params);
     $solrResult = trim($solrResult);
     return $solrResult;
   }
 
+  /*
+    NO UPDATE NECESSARY
+   */
   function sianctapiGetProjectHierarchyLabelsFromSolr($obstablePid) {
     $params = 'q=PID:%22' . $obstablePid . '%22&rows=1&wt=xslt&tr=sianctapiProjectStructureToCsv.xslt';
     $solrResult = $this->sianctapiGetProjectStructureMetadataFromSolr($params);
     return $solrResult;
   }
 
-  function sianctapiGetDataFromFedora($params) {
+  /*
+    NO UPDATE NECESSARY
+   */
+  function sianctapiGetDataFromFedora($params)
+  {
     $this->logger->notice("$this->app_id sianctapiGetDataFromFedora: params=$params ");
     $fedoraUrl = $this->config['sianctapi_block_fedora'];
     $fedoraUserPass = $this->config['sianctapi_block_fedora_userpass'];
@@ -619,88 +823,104 @@ class SIANCTAPI {
     return $fedoraResults['results'];
   }
 
-  function sianctapiGetSpecies($obstablePids) {
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstables = $sianctapiCache['obstables'];
+  /*
+    UPDATED
+   */
+  function sianctapiGetSpecies($obstablePids)
+  {
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
     $countobstables = count($obstables);
     $this->logger->notice("$this->app_id sianctapiGetSpecies: obstablePids= $obstablePids countobstables= $countobstables");
-    $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids, $sianctapiCache);
+    $result = $this->sianctapiGetSpeciesOptions($obstables, $obstablePids);
     return $result;
   }
 
-  function sianctapiGetSpeciesJSON($obstablePids) {
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstables = $sianctapiCache['obstables'];
+  /*
+    UPDATED
+   */
+  function sianctapiGetSpeciesJSON($obstablePids)
+  {
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
     $countobstables = count($obstables);
     $this->logger->notice("$this->app_id sianctapiGetSpeciesJSON: obstablePids= $obstablePids countobstables= $countobstables");
-    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids, $sianctapiCache);
+    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids);
     return $result;
   }
 
-  function sianctapiGetAllSpeciesNamesCached() {
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $result = $sianctapiCache['speciesOptions'];
+  /*
+    UPDATED
+   */
+  function sianctapiGetAllSpeciesNamesCached()
+  {
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
+    $result = $this->sianctapiGetSpeciesOptions($obstables, 'ALL');
     $this->logger->info("$this->app_id sianctapiGetAllSpeciesNamesCached\n $result");
     return $result;
   }
 
-  function sianctapiGetAllSpeciesNamesCachedJSON() {
+  /*
+    UPDATED
+   */
+  function sianctapiGetAllSpeciesNamesCachedJSON()
+  {
     #global $user;
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $result = $sianctapiCache['speciesOptionsJSON'];
+    $obstables = $this->sianctapiGetObstablesFromMySQL();
+    $result = $this->sianctapiGetSpeciesOptionsJSON($obstables, 'ALL');
     $this->logger->info("$this->app_id sianctapiGetAllSpeciesNamesCachedJSON\n $result");
     return $result;
   }
 
-  function sianctapiGetSpeciesOptions($obstables, $obstablePids, &$sianctapiCache) {
+  /*
+    UPDATED
+   */
+  function sianctapiGetSpeciesOptions($obstables, $obstablePids)
+  {
     $this->logger->notice("$this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids countobstables= " . count($obstables));
-    if ($obstablePids == 'ALL') {
-      $obstablePids = $sianctapiCache['obstablePids'];
+
+    if ($obstablePids == 'ALL')
+    {
+      //$obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+      $obstablePids = NULL;
       $this->logger->notice("$this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids");
     }
 
     $speciesnames = array();
     $obstablePidArray = str_getcsv($obstablePids);
     $countPids=count($obstablePidArray);
-    if ($countPids == 1 && !$obstablePidArray[0]) {
+
+    if ($countPids == 1 && !$obstablePidArray[0])
+    {
       $countPids = 0;
     }
+
     $countObsLines = 0;
 
-    for($i=0;$i<$countPids;$i++) {
-      $obstablePid = trim($obstablePidArray[$i]);
-      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $lines = explode("\n", $obstable);
-      $countLines = count($lines);
-      if ($countLines == 1 && !$lines[0]) {
-        $countLines = 0;
-      }
-      for($j=0;$j<=$countLines;$j++) {
-        if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
-          continue;
+
+    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePids));
+
+    for($i=0; $i<sizeof($obstable_set); $i++)
+    {
+      $columns = str_getcsv($obstable_set[$i]);
+      // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
+      //echo count($columns);
+      //echo '\n';
+      $begintime = trim($columns[7]);
+      $speciesname = trim($columns[9]);
+      $speciesname = trim($speciesname, '"');
+      if ($speciesname and $begintime) {
+        $commonname = trim($columns[10]);
+        $commonname = trim($commonname, '"');
+        if ( array_key_exists($speciesname, $speciesnames) ) {
+          $countObs = $speciesnames[$speciesname][1];
+          $speciesnames[$speciesname] = array($commonname, $countObs + 1);
+        } else {
+          $speciesnames[$speciesname] = array($commonname, 1);
         }
-        $line = $lines[$j];
-        $columns = str_getcsv($line);
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
-        $begintime = trim($columns[7]);
-        $speciesname = trim($columns[9]);
-        $speciesname = trim($speciesname, '"');
-        if ($speciesname and $begintime) {
-          $commonname = trim($columns[10]);
-          $commonname = trim($commonname, '"');
-          if ( array_key_exists($speciesname, $speciesnames) ) {
-            $countObs = $speciesnames[$speciesname][1];
-            $speciesnames[$speciesname] = array($commonname, $countObs + 1);
-          } else {
-            $speciesnames[$speciesname] = array($commonname, 1);
-          }
-          $countObsLines++;
-          $count = $speciesnames[$speciesname][1];
-        }
+        $countObsLines++;
+        $count = $speciesnames[$speciesname][1];
       }
     }
+
     $countSpeciesNames = count($speciesnames);
 
     ksort($speciesnames);
@@ -716,61 +936,58 @@ class SIANCTAPI {
     return $result;
   }
 
-
-  function sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids, &$sianctapiCache) {
+  /*
+    UPDATED
+   */
+  function sianctapiGetSpeciesOptionsJSON($obstables, $obstablePids)
+  {
     $this->logger->notice("$this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids countobstables= " . count($obstables));
-    if ($obstablePids == 'ALL') {
-      $obstablePids = $sianctapiCache['obstablePids'];
+
+    //if obstablePids is all -> use MySQL db
+    if ($obstablePids == 'ALL')
+    {
+      //$obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+      $obstablePids = NULL;
       $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: obstablePids= $obstablePids");
     }
+
     $speciesnames = array();
     $obstablePidArray = str_getcsv($obstablePids);
     $countPids=count($obstablePidArray);
+
     //if ($countPids == 1 && !$obstablePidArray[0]) {
     if (!$obstablePidArray[0]) {
       $countPids = 0;
     }
+
     $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countPids= $countPids");
     $countObsLines = 0;
-    for($i=0;$i<$countPids;$i++) {
-      $obstablePid = trim($obstablePidArray[$i]);
-      $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . print_r($obstable, true));
-      $lines = explode("\n", $obstable);
-      $countLines = count($lines);
-      //if ($countLines == 1 && !$lines[0]) {
-      if (!$lines[0]) {
-        $countLines = 0;
-      }
-      $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countLines= $countLines");
-      for($j=0;$j<=$countLines;$j++) {
-        if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
-          continue;
+
+    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePids));
+
+    for($i=0; $i<sizeof($obstable_set); $i++)
+    {
+      $columns = str_getcsv($obstable_set[$i]);
+      // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
+      //echo count($columns);
+      //echo '\n';
+      $begintime = trim($columns[7]);
+      $speciesname = trim($columns[9]);
+      $speciesname = trim($speciesname, '"');
+      if ($speciesname and $begintime) {
+        $commonname = trim($columns[10]);
+        $commonname = trim($commonname, '"');
+        if ( array_key_exists($speciesname, $speciesnames) ) {
+          $countObs = $speciesnames[$speciesname][1];
+          $speciesnames[$speciesname] = array($commonname, $countObs + 1);
+        } else {
+          $speciesnames[$speciesname] = array($commonname, 1);
         }
-        $line = $lines[$j];
-        $columns = str_getcsv($line);
-        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . count($columns));
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
-        $begintime = trim($columns[7]);
-        $speciesname = trim($columns[9]);
-        $speciesname = trim($speciesname, '"');
-        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: speciesname= $speciesname      begintime= $begintime");
-        if ($speciesname and $begintime) {
-          $commonname = trim($columns[10]);
-          $commonname = trim($commonname, '"');
-          if ( array_key_exists($speciesname, $speciesnames) ) {
-            $countObs = $speciesnames[$speciesname][1];
-            $speciesnames[$speciesname] = array($commonname, $countObs + 1);
-          } else {
-            $speciesnames[$speciesname] = array($commonname, 1);
-          }
-          $countObsLines++;
-          $count = $speciesnames[$speciesname][1];
-        }
+        $countObsLines++;
+        $count = $speciesnames[$speciesname][1];
       }
     }
+
     $countSpeciesNames = count($speciesnames);
 
     ksort($speciesnames);
@@ -778,7 +995,11 @@ class SIANCTAPI {
     return json_encode($speciesnames);
   }
 
-  function sianctapiSelectObstables($query, $xslt) {
+  /*
+    NO UPDATE NECESSARY
+   */
+  function sianctapiSelectObstables($query, $xslt)
+  {
     $solrXslt = $xslt;
     if ($xslt == '' || $xslt == 'default') {
       $solrXslt = $this->config['sianctapi_block_solr_xslt_filtered'];
@@ -795,109 +1016,87 @@ class SIANCTAPI {
   /**
    * This isn't called within the API, but called from the .sh script.
    */
-  function sianctapiCacheRefresh() {
-    $cacheLogger = $this->createLogger('sianctapi-cache-' . date('Y-m-d') . '.log');
+  /*function sianctapiCacheRefresh()
+  {
+    $conn = new mysqli($servername, $username, $password, $dbname);
 
-    $file = $this->path('runtime/sianctapi-cache-file');
-    if (!is_writable($file)) {
-      exit('Failed to write cache at ' . $file . '. Cache not writable.');
-    } else {
-      echo "Writing cache to $file\n";
+    // Check connection
+    if ($conn->connect_error)
+    {
+      die("Connection failed: " . $conn->connect_error);
     }
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh begin");
-    $sianctapiCacheRefreshing = array(
-      'beginTime'=> date('c'),
-      'obstablePids'=>'',
-      'obstables'=>array(),
-      'selectedObservations'=>'',
-      'projectStructure'=>'',
-      'speciesOptions'=>'',
-      'speciesOptionsJSON' => '',
-      'endTime'=>'',
-      );
 
-    // Obstable PIDs
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh obstablePids started.");
-    $sianctapiCacheRefreshing['obstablePids'] = $this->sianctapiGetAllObstablePidsFromSolr();
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh obstablePids complete.");
-    $cacheLogger->debug($sianctapiCacheRefreshing['obstablePids']);
+    $sql = "SELECT * FROM project_structure";
+    $result = $this->sianctapiQueryMySQLDatabase($sql);
 
-    // Selected Observations
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh selectedObservations started.");
-    $sianctapiCacheRefreshing['selectedObservations'] = $this->sianctapiGettSelectedObservations($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], '');
-    $countobstables = count($sianctapiCacheRefreshing['obstables']);
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh selectedObservations complete");
-    $cacheLogger->notice("selectedObservations countobstables: $countobstables");
-    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh selectedObservations:\n " . $sianctapiCacheRefreshing['selectedObservations']);
+    if($result->num_rows > 0)
+    {
+      //clear existing cache data
+      $sql = "DELETE FROM project_structure";
+      $result = $conn->query($sql);
 
-    // Project Structure
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh projectStructure started.");
-    $sianctapiCacheRefreshing['projectStructure'] = $this->sianctapiGetProjectStructureFromSolr('default');
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh projectStructure complete.");
-    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh projectStructure:\n " . $sianctapiCacheRefreshing['projectStructure']);
-
-    // Species Data
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh speciesOptions started.");
-    $sianctapiCacheRefreshing['speciesOptions'] = $this->sianctapiGetSpeciesOptions($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
-    $sianctapiCacheRefreshing['speciesOptionsJSON'] = $this->sianctapiGetSpeciesOptionsJSON($sianctapiCacheRefreshing['obstables'], $sianctapiCacheRefreshing['obstablePids'], $sianctapiCacheRefreshing);
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh speciesOptions complete.");
-    $cacheLogger->debug("$this->app_id sianctapiCacheRefresh speciesOptions:\n " . $sianctapiCacheRefreshing['speciesOptions']);
-
-    // Cache creation complete.
-    $sianctapiCacheRefreshing['endTime'] = date('c');
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh end");
-
-    $lenobstablePids = strlen($sianctapiCacheRefreshing['obstablePids']);
-    $countobstables = count($sianctapiCacheRefreshing['obstables']);
-    $lenselectedObservations = strlen($sianctapiCacheRefreshing['selectedObservations']);
-    $lenprojectStructure = strlen($sianctapiCacheRefreshing['projectStructure']);
-    $lenspeciesOptions = strlen($sianctapiCacheRefreshing['speciesOptions']);
-
-    $cacheCheckLine = "$this->app_id sianctapiCacheRefresh check
-      lenobstablePids: $lenobstablePids
-      countobstables: $countobstables
-      lenselectedObservations: $lenselectedObservations
-      lenprojectStructure: $lenprojectStructure
-      lenspeciesOptions: $lenspeciesOptions";
-    $cacheLogger->notice($cacheCheckLine);
-
-    if ($lenobstablePids < 1000 ||
-        $countobstables < 100 ||
-        $lenselectedObservations < 1000 ||
-        $lenprojectStructure < 1000 ||
-        $lenspeciesOptions < 1000) {
-      $this->logger->critical("sianctapiCacheRefresh FAILED");
-      $cacheLogger->critical("sianctapiCacheRefresh FAILED");
-      return "CACHE FAILED";
-    } else {
-      $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
+      //kill script if there are rows in the data table and you cannot remove them
+      if (!$result)
+      {
+        echo "ERROR: Could not remove existing cache data from project_structure table\n";
+        die("MySQL ERROR: $conn->error");
+      }
+      else
+      {
+        echo "Existing cache data cleared\n";
+      }
     }
-    $this->logger->notice("$this->app_id sianctapiCacheRefresh end");
-    $cacheLogger->notice("$this->app_id sianctapiCacheRefresh end");
+
+    //get the project structure html string
+    $projectStructure = $this->sianctapiGetProjectStructureFromSolr('default');
+
+    //query to insert data
+    $sql = "INSERT INTO project_structure (project_structure_html) VALUES ('$projectStructure')";
+
+    if ($conn->query($sql) === TRUE) //on success
+    {
+      echo "New record created successfully in project_structure\n";
+    }
+    else //on failure
+    {
+      echo "Error: in sql syntax\n" . $conn->error;
+    }
+
+    $conn->close();
     exit();
-  }
+  }*/
 
+  /*
+     UPDATED
+   */
   function sianctapiCacheCheck() {
     $this->logger->notice("$this->app_id sianctapiCacheCheck ");
-    $sianctapiCache = $this->sianctapiCacheGet();
-    $obstablePids = $sianctapiCache['obstablePids'];
-    $lenobstablePids = strlen($obstablePids);
-    $obstablesRefreshing = $sianctapiCache['obstables'];
-    $countobstables = count($obstablesRefreshing);
-    $selectedObservations = $sianctapiCache['selectedObservations'];
-    $lenselectedObservations = strlen($selectedObservations);
-    $projectStructure = $sianctapiCache['projectStructure'];
-    $lenprojectStructure = strlen($projectStructure);
-    $speciesOptions = $sianctapiCache['speciesOptions'];
-    $lenspeciesOptions = strlen($speciesOptions);
-    $endtime = $sianctapiCache['endTime'];
-    $cacheCheckLine = "$this->app_id sianctapiCacheCheck
-      lenobstablePids: $lenobstablePids
-      countobstables: $countobstables
-      lenselectedObservations: $lenselectedObservations
-      lenprojectStructure: $lenprojectStructure
-      lenspeciesOptions: $lenspeciesOptions
-      endtime: $endtime";
+
+    $cacheCheckLine = "";
+
+    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_username'], $this->config['mysql_password'], $this->config['mysql_dbname']);
+
+    // Check connection
+    if ($conn->connect_error)
+    {
+      $cacheCheckLine .= "MYSQL_HOST: " .  $this->config['mysql_host'] . "\n";
+      $cacheCheckLine .= "MYSQL_USER: " . $this->config['mysql_username'] . "\n";
+      $cacheCheckLine .= "MYSQL_PASS: " . $this->config['mysql_password'] . "\n";
+      $cacheCheckLine .= "MYSQL_DBNAME: " . $this->config['mysql_dbname'] . "\n";
+      $cacheCheckLine .= "Connection to MySQL database failed - $conn->connect_error";
+    }
+    else
+    {
+      $cacheCheckLine = "$this->app_id sianctapiCacheCheck\n";
+
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("projects");
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("subprojects");
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("plots");
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("deployments");
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("species");
+      $cacheCheckLine .= $this->sianctapiGetMySQLTableStatus("observations");
+    }
+
     $this->logger->notice($cacheCheckLine);
     return "$cacheCheckLine \n";
   }
@@ -911,6 +1110,9 @@ class SIANCTAPI {
     return "\n" . '<div id="sianctapiModulePathResult">' . $result . '</div>' . "\n";
   }
 
+  /*
+      NO UPDATE NECESSARY
+   */
   function path($path, $cron=true) {
     if ($cron) {
       return $this->config['sianctapi_path'] . '/' . $path;
@@ -919,31 +1121,9 @@ class SIANCTAPI {
     }
   }
 
-  /**
-   * This replace's drupal's variable_set function.
-   * TODO: This needs to be replaced with a much, much better model.
+  /*
+      NO UPDATE NECESSARY
    */
-  function sianctapiCacheSet($name, $val) {
-    $value = serialize($val);
-    $file = $this->path('runtime/sianctapi-cache-file');
-    #return file_put_contents('/tmp/sianctapi-cache-file', $value);
-    if (!file_exists($file)) {
-      touch($file);
-    }
-    chmod($file, 0644);
-    return file_put_contents($file, $value);
-  }
-
-  function sianctapiCacheGet() {
-    $file = $this->path('runtime/sianctapi-cache-file');
-    if (file_exists($file)) {
-      #$cache = file_get_contents('/tmp/sianctapi-cache-file');
-      $cache = file_get_contents($file);
-      return unserialize($cache);
-    }
-    return array();
-  }
-
   function sendHeader($code = NULL) {
     switch ($code) {
       case 100: $text = 'Continue'; break;
@@ -994,6 +1174,8 @@ class SIANCTAPI {
   ///////
   // Gets additional fields from Fedora EAC-CPF datastream
   //
+  // NO UPDATE NECESSARY
+  //
   // Author: Paul Day
   // Date: 1/22/2016
   /////
@@ -1015,6 +1197,8 @@ class SIANCTAPI {
   ///////
   // Gets additional fields from Fedora EAC-CPF datastream
   //
+  // NO UPDATE NECESSARY
+  //
   // Author: Paul Day
   // Date: 1/22/2016
   /////
@@ -1031,6 +1215,8 @@ class SIANCTAPI {
   ///////
   // Get Access Constraints from Fedora FGDC datastream
   //
+  // NO UPDATE NECESSARY
+  //
   // Author: Paul Day
   // Date: 1/22/2016
   ///////
@@ -1046,6 +1232,8 @@ class SIANCTAPI {
 
   /**
    * Get volunteer and researcher identifications for a deployment
+   *
+   * NO UPDATE NECESSARY
    *
    * @param $ctPid
    *   The deployment's ctPID.
@@ -1164,5 +1352,395 @@ class SIANCTAPI {
     $logger->setLevel($this->config['sianctapi_log_level']);
 
     return $logger;
+  }
+
+  /***MySQL FUNCTIONS***/
+
+  private function sianctapiQueryMySQLDatabase($sql)
+  {
+    // Create connection
+    $conn = new mysqli($this->config['mysql_host'], $this->config['mysql_username'], $this->config['mysql_password'], $this->config['mysql_dbname']);
+
+    // Check connection
+    if ($conn->connect_error)
+    {
+      $this->logger->debug("Connection to MySQL database failed - $conn->connect_error");
+    }
+
+    //$sql = "SELECT id, firstname, lastname FROM MyGuests";
+    $result = $conn->query($sql);
+
+    if ($result->num_rows > 0)
+    {
+      return $result;
+    }
+
+    $conn->close();
+    return NULL;
+  }
+
+  private function sianctapiGetObstablePidsStringFromMySQL()
+  {
+    $pidsArray = $this->sianctapiGetObstablePidsArrayFromMySQL();
+    return implode(",", $pidsArray);
+  }
+
+  private function sianctapiGetObstablePidsArrayFromMySQL()
+  {
+    $obstablePids = [];
+
+    $sql = "SELECT DISTINCT obstable_id FROM observations";
+    $result = $this->sianctapiQueryMySQLDatabase($sql);
+
+    if($result)
+    {
+      while($row = $result->fetch_assoc())
+      {
+        array_push($obstablePids, $row['obstable_id']);
+      }
+    }
+
+    return $obstablePids;
+  }
+
+  private function sianctapiGetObstablesFromMySQL($obstablePids=NULL, $speciesNames=NULL)
+  {
+    try
+    {
+      $prefix = "./mysql/sql/query";
+
+      $obstable_query = file_get_contents("$prefix/obstable.sql");
+      $plots_query = file_get_contents("$prefix/plots.sql");
+      $plots_res = $this->sianctapiQueryMySQLDatabase($plots_query);
+
+      $plots = array();
+
+      if($plots_res != NULL)
+      {
+        while($row = $plots_res->fetch_assoc())
+        {
+          $plots[$row['id']] = $row['treatment'];
+        }
+      }
+
+      if($obstablePids && sizeof($obstablePids) > 0)
+      {
+        $query_string = "observations.obstable_id IN (";
+        $count = 1;
+        foreach($obstablePids as $pid)
+        {
+          $pid = trim($pid);
+          $query_string .= "\"$pid\"";
+          if($count < sizeof($obstablePids))
+          {
+            $query_string .= ",";
+            $count++;
+          }
+        }
+
+        $query_string .= ")";
+        $obstable_query .= " AND " . $query_string;
+      }
+
+      if($speciesNames && sizeof($speciesNames) > 0)
+      {
+        $query_string = "species.scientific_name IN (";
+        $count = 1;
+
+        foreach($speciesNames as $name)
+        {
+          $name = trim($name);
+          $query_string .= "\"$name\"";
+
+          if($count < sizeof($speciesNames))
+          {
+            $query_string .= ",";
+            $count++;
+          }
+        }
+
+        $query_string .= ")";
+        $obstable_query .= " AND " . $query_string;
+      }
+
+      $obstable_res = $this->sianctapiQueryMySQLDatabase($obstable_query);
+      $plot_check = (sizeof($plots) > 0);
+
+      if($obstable_res)
+      {
+        $obstables = "";
+        while($row = $obstable_res->fetch_assoc())
+        {
+          $project = "\"" . $row["project"] . "\"";
+          $subproject = "\"" . $row["subproject"] . "\"";
+
+          $treatment = "\"\"";
+          if($row["plot"] != NULL && $row["plot"] != "" && $plot_check)
+          {
+            $treatment = "\"" . $plots[$row["plot"]] . "\"";
+          }
+
+          $deploymentName = "\"" . $row["deploymentName"] . "\"";
+          $idType = "\"" . $row["idType"] . "\"";
+          $deployId = "\"" . $row["deployId"] . "\"";
+          $sequenceId = "\"" . $row["sequenceId"] . "\"";
+          $beginTime = "\"". $row["beginTime"] . "\"";
+          $endTime = "\"" . $row["endTime"] . "\"";
+          $speciesName = "\"" . $row["speciesName"] . "\"";
+          $commonName = "\"" . $row["commonName"] . "\"";
+          $age = "\"" . $row["age"] . "\"";
+          $sex = "\"" . $row["sex"] . "\"";
+          $individual = "\"" . $row["individual"] . "\"";
+          $count = $row["count"];
+          $actualLat = $row["actualLat"];
+          $actualLon = $row["actualLon"];
+          $featureType = $row["featureType"];
+          $publishDate = $row["publishDate"];
+          $projectLat = $row["projectLat"];
+          $projectLon = $row["projectLon"];
+          $accessConstraints = $row["accessConstraints"];
+
+          $ob = [
+            $project,
+            $subproject,
+            $treatment,
+            $deploymentName,
+            $idType,
+            $deployId,
+            $sequenceId,
+            $beginTime,
+            $endTime,
+            $speciesName,
+            $commonName,
+            $age,
+            $sex,
+            $individual,
+            $count,
+            $actualLat,
+            $actualLon,
+            $featureType,
+            $publishDate,
+            $projectLat,
+            $projectLon,
+            $accessConstraints
+          ];
+
+          $obstables .= implode(",", $ob) . "\n";
+        }
+        return $obstables;
+      }
+      //return implode("\n", $obstables);
+      return NULL;
+    }
+    catch(Exception $e)
+    {
+      return NULL;
+    }
+  }
+
+  private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL, $speciesNames=NULL)
+  {
+    if(!$obstablePids)
+    {
+      $obstablePids = $this->sianctapiGetObstablePidsArrayFromMySQL();
+    }
+
+    $obstables = Array();
+
+    foreach($obstablePids as $pid)
+    {
+      $sql = "SELECT * FROM observations WHERE obstable_id=\"$pid\"";
+      $observations = $this->sianctapiQueryMySQLDatabase($sql);
+
+      $obstable = Array();
+
+      if($observations)
+      {
+        //while we still have rows in our results
+        while($vals = $observations->fetch_assoc())
+        {
+          //initialize observation table row values
+          //project
+          $project = "";
+          $subproject = "";
+          $treatment = "";
+          $deploymentName = "";
+          $idType = "";
+          $deployId = "";
+          $sequenceId = "";
+          $beginTime = "";
+          $endTime = "";
+          $speciesName = "";
+          $commonName = "";
+          $age = "";
+          $sex = "";
+          $individual = "";
+          $count = "";
+          $actualLat = "";
+          $actualLon = "";
+          $featureType = "";
+          $publishDate = "";
+          $projectLat = "";
+          $projectLon = "";
+          $accessConstraints = "";
+
+          $idType = $vals['id_type'];
+          $sequenceId = $vals['sequence_id'];
+          $beginTime = $vals['begin_time'];
+          $endTime = $vals['end_time'];
+          $age = $vals['age'];
+          $sex = $vals['sex'];
+          $count = $vals['count'];
+          $individual = $vals['individual'];
+
+          $iucn_id = $vals['iucn_id'];
+
+          $sql = "SELECT scientific_name, common_name FROM species WHERE iucn_id=\"$iucn_id\"";
+          $species_result = $this->sianctapiQueryMySQLDatabase($sql);
+
+          $species_vals = $species_result->fetch_assoc();
+
+          $speciesName = $species_vals['scientific_name'];
+          $commonName = $species_vals['common_name'];
+
+          $deploymentPID = $vals['sidora_deployment_id'];
+          $sql = "SELECT name, ct_deployment_id, feature_type, actual_lat, actual_lon, access_constraints, sidora_plot_id, sidora_subproject_id FROM deployments WHERE sidora_deployment_id=\"$deploymentPID\"";
+
+          $deployment_result = $this->sianctapiQueryMySQLDatabase($sql);
+
+          if($deployment_result)
+          {
+            $deployment_vals = $deployment_result->fetch_assoc();
+
+            $deploymentName = $deployment_vals['name'];
+            $deployId = $deployment_vals['ct_deployment_id'];
+            $featureType = $deployment_vals['feature_type'];
+            $actualLat = $deployment_vals['actual_lat'];
+            $actualLon = $deployment_vals['actual_lon'];
+            $accessConstraints = $deployment_vals['access_constraints'];
+
+            $plot_pid = $deployment_vals['sidora_plot_id'];
+
+            $sql = "SELECT treatment FROM plots WHERE sidora_plot_id=\"$plot_pid\"";
+            $plot_result = $this->sianctapiQueryMySQLDatabase($sql);
+
+            if($plot_result)
+            {
+              $plot_vals = $plot_result->fetch_assoc();
+              $treatment = $plot_vals['treatment'];
+            }
+
+            $subproject_pid = $deployment_vals['sidora_subproject_id'];
+
+            $sql = "SELECT name, sidora_project_id FROM subprojects WHERE sidora_subproject_id=\"$subproject_pid\"";
+            $sub_proj_results = $this->sianctapiQueryMySQLDatabase($sql);
+
+            if($sub_proj_results)
+            {
+              $sub_proj_vals = $sub_proj_results->fetch_assoc();
+
+              $subproject = $sub_proj_vals['name'];
+
+              $project_pid = $sub_proj_vals['sidora_project_id'];
+
+              $sql = "SELECT name, publish_date, lat, lon FROM projects WHERE sidora_project_id=\"$project_pid\"";
+              $proj_results = $this->sianctapiQueryMySQLDatabase($sql);
+
+              if($proj_results)
+              {
+                $proj_vals = $proj_results->fetch_assoc();
+
+                $project = $proj_vals['name'];
+                $publishDate = $proj_vals['publish_date'];
+                $projectLat = $proj_vals['lat'];
+                $projectLon = $proj_vals['lon'];
+              }
+            }
+          }
+
+          $observation = [
+            $project,
+            $subproject,
+            $treatment,
+            $deploymentName,
+            $idType,
+            $deployId,
+            $sequenceId,
+            $beginTime,
+            $endTime,
+            $speciesName,
+            $commonName,
+            $age,
+            $sex,
+            $individual,
+            $count,
+            $actualLat,
+            $actualLon,
+            $featureType,
+            $publishDate,
+            $projectLat,
+            $projectLon,
+            $accessConstraints
+          ];
+
+          if(trim(str_replace(',', '', implode(",", $observation))) != "")
+          {
+            array_push($obstable, implode(",", $observation));
+          }
+        }
+      }
+
+      array_push($obstables, implode("\n", $obstable));
+    }
+
+    if(count($obstables) > 0)
+    {
+      return $obstables;
+    }
+    else
+    {
+      return NULL;
+    }
+  }
+
+  function sianctapiGetObstableFromMysql($PID)
+  {
+    $result = $this->sianctapiGetObstablesFromMySQL([$PID]);
+
+    if($result && count($result) == 1)
+    {
+      return $result[0];
+    }
+    else
+    {
+      return NULL;
+    }
+  }
+
+  private function sianctapiGetMySQLTableStatus($tableName)
+  {
+    $tableCheck = $this->sianctapiQueryMySQLDatabase("SHOW TABLES LIKE '$tableName'");
+    $tableExists = ($tableCheck->num_rows == 1);
+    if($tableExists)
+    {
+      $tableQuery = $this->sianctapiQueryMySQLDatabase("SELECT * FROM $tableName");
+
+      if($tableQuery)
+      {
+        $tableLen = $tableQuery->num_rows;
+      }
+      else
+      {
+        $tableLen = 0;
+      }
+
+      $statusString = $tableName . "TableLen: $tableLen\n";
+    }
+    else
+    {
+      $statusString = $tableName . "Table: Table Not Found\n";
+    }
+
+    return $statusString;
   }
 }
