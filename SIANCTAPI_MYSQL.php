@@ -959,7 +959,7 @@ class SIANCTAPI
     if ($obstablePids == 'ALL')
     {
       //$obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
-      $obstablePids = NULL; 
+      $obstablePids = NULL;
       $this->logger->notice("$this->app_id sianctapiGetSpeciesOptions: obstablePids= $obstablePids");
     }
 
@@ -1068,7 +1068,8 @@ class SIANCTAPI
     //if obstablePids is all -> use MySQL db
     if ($obstablePids == 'ALL')
     {
-      $obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+      //$obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
+      $obstablePids = NULL; 
       $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: obstablePids= $obstablePids");
     }
 
@@ -1084,7 +1085,32 @@ class SIANCTAPI
     $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countPids= $countPids");
     $countObsLines = 0;
 
-    for($i=0;$i<$countPids;$i++)
+    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePids));
+
+    for($i=0; $i<sizeof($obstable_set); $i++)
+    {
+      $columns = str_getcsv($obstable_set[$i]);
+      // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
+      //echo count($columns);
+      //echo '\n';
+      $begintime = trim($columns[7]);
+      $speciesname = trim($columns[9]);
+      $speciesname = trim($speciesname, '"');
+      if ($speciesname and $begintime) {
+        $commonname = trim($columns[10]);
+        $commonname = trim($commonname, '"');
+        if ( array_key_exists($speciesname, $speciesnames) ) {
+          $countObs = $speciesnames[$speciesname][1];
+          $speciesnames[$speciesname] = array($commonname, $countObs + 1);
+        } else {
+          $speciesnames[$speciesname] = array($commonname, 1);
+        }
+        $countObsLines++;
+        $count = $speciesnames[$speciesname][1];
+      }
+    }
+
+    /*for($i=0;$i<$countPids;$i++)
     {
       $obstablePid = trim($obstablePidArray[$i]);
       //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
@@ -1134,7 +1160,7 @@ class SIANCTAPI
           $count = $speciesnames[$speciesname][1];
         }
       }
-    }
+    }*/
     $countSpeciesNames = count($speciesnames);
 
     ksort($speciesnames);
