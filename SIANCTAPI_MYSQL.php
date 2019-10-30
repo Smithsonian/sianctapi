@@ -667,7 +667,8 @@ class SIANCTAPI
 
     //get array of obstable pids
     $obstablePidArray = str_getcsv($obstablePids);
-    $obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePidArray));
+    $resultingObservations .= "\n" . $this->sianctapiGetObstablesFromMySQL($obstablePidArray, $speciesnamesArray);
+    /*$obstable_set = explode("\n", $this->sianctapiGetObstablesFromMySQL($obstablePidArray, $speciesnamesArray));
 
     //get count of obstable pids
     $countPids=count($obstablePidArray);
@@ -746,7 +747,7 @@ class SIANCTAPI
       $lenselectedObservations = strlen($resultingObservations);
       $n = $i + 1;
       $this->logger->info("$this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
-    }
+    }*/
     return $resultingObservations;
     //return str_replace('"', '', $resultingObservations);
   }
@@ -1000,49 +1001,6 @@ class SIANCTAPI
       }
     }
 
-    /*for($i=0;$i<$countPids;$i++)
-    {
-      $obstablePid = trim($obstablePidArray[$i]);
-      //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
-      //$obstable = $obstable_set[$i];
-
-      $lines = explode("\n", $obstable);
-
-      $countLines = count($lines);
-
-      if ($countLines == 1 && !$lines[0])
-      {
-        $countLines = 0;
-      }
-
-      for($j=0;$j<=$countLines;$j++) {
-        if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
-          continue;
-        }
-        $line = $lines[$j];
-        $columns = str_getcsv($line);
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
-        $begintime = trim($columns[7]);
-        $speciesname = trim($columns[9]);
-        $speciesname = trim($speciesname, '"');
-        if ($speciesname and $begintime) {
-          $commonname = trim($columns[10]);
-          $commonname = trim($commonname, '"');
-          if ( array_key_exists($speciesname, $speciesnames) ) {
-            $countObs = $speciesnames[$speciesname][1];
-            $speciesnames[$speciesname] = array($commonname, $countObs + 1);
-          } else {
-            $speciesnames[$speciesname] = array($commonname, 1);
-          }
-          $countObsLines++;
-          $count = $speciesnames[$speciesname][1];
-        }
-      }
-    }*/
-
     $countSpeciesNames = count($speciesnames);
 
     ksort($speciesnames);
@@ -1069,7 +1027,7 @@ class SIANCTAPI
     if ($obstablePids == 'ALL')
     {
       //$obstablePids = $this->sianctapiGetObstablePidsStringFromMySQL();
-      $obstablePids = NULL; 
+      $obstablePids = NULL;
       $this->logger->notice("$this->app_id sianctapiGetSpeciesOptionsJSON: obstablePids= $obstablePids");
     }
 
@@ -1110,57 +1068,6 @@ class SIANCTAPI
       }
     }
 
-    /*for($i=0;$i<$countPids;$i++)
-    {
-      $obstablePid = trim($obstablePidArray[$i]);
-      //$obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
-      $obstable = $this->sianctapiGetObstablesFromMySQL([$obstablePid]);
-
-      $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . print_r($obstable, true));
-      $lines = explode("\n", $obstable);
-      $countLines = count($lines);
-      //if ($countLines == 1 && !$lines[0]) {
-      if (!$lines[0]) {
-        $countLines = 0;
-      }
-
-      $this->logger->info("$this->app_id sianctapiGetSpeciesOptionsJSON: countLines= $countLines");
-
-      for($j=0;$j<=$countLines;$j++)
-      {
-        if (!isset($lines[$j]) || empty($lines[$j])) { // Added by mds
-          continue;
-        }
-
-        $line = $lines[$j];
-        $columns = str_getcsv($line);
-        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: obstable= " . count($columns));
-        // There is bug here.  Mostly the number of columns is 17 or 18 but a few of them are 7. DWD 1/13/2015
-        //echo count($columns);
-        //echo '\n';
-        $begintime = trim($columns[7]);
-        $speciesname = trim($columns[9]);
-        $speciesname = trim($speciesname, '"');
-
-        $this->logger->debug("$this->app_id sianctapiGetSpeciesOptionsJSON: speciesname= $speciesname      begintime= $begintime");
-
-        if ($speciesname and $begintime)
-        {
-          $commonname = trim($columns[10]);
-          $commonname = trim($commonname, '"');
-
-          if ( array_key_exists($speciesname, $speciesnames) )
-          {
-            $countObs = $speciesnames[$speciesname][1];
-            $speciesnames[$speciesname] = array($commonname, $countObs + 1);
-          } else {
-            $speciesnames[$speciesname] = array($commonname, 1);
-          }
-          $countObsLines++;
-          $count = $speciesnames[$speciesname][1];
-        }
-      }
-    }*/
     $countSpeciesNames = count($speciesnames);
 
     ksort($speciesnames);
@@ -1576,7 +1483,7 @@ class SIANCTAPI
     return $obstablePids;
   }
 
-  private function sianctapiGetObstablesFromMySQL($obstablePids=NULL)
+  private function sianctapiGetObstablesFromMySQL($obstablePids=NULL, $speciesNames)
   {
     try
     {
@@ -1605,6 +1512,27 @@ class SIANCTAPI
           $pid = trim($pid);
           $query_string .= "\"$pid\"";
           if($count < sizeof($obstablePids))
+          {
+            $query_string .= ",";
+            $count++;
+          }
+        }
+
+        $query_string .= ")";
+        $obstable_query .= " AND " . $query_string;
+      }
+
+      if($speciesNames && sizeof($speciesNames) > 0)
+      {
+        $query_string = "species.scientific_name IN (";
+        $count = 1;
+
+        foreach($speciesNames as $name)
+        {
+          $name = trim($name);
+          $query_string .= "\"$name\"";
+
+          if($count < sizeof($speciesNames))
           {
             $query_string .= ",";
             $count++;
@@ -1768,7 +1696,7 @@ class SIANCTAPI
     }
   }
 
-  private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL)
+  private function sianctapiGetObstablesFromMySQLDeprecated($obstablePids=NULL, $speciesNames=NULL)
   {
     if(!$obstablePids)
     {
