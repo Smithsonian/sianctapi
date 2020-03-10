@@ -457,7 +457,7 @@ class SIANCTAPI {
       if ($countSpeciesnames>0 && trim($speciesnamesArray[0])) {
         $countSelectedLines = 0;
         $resultingObservationsForPid = '';
-        for($j=0;$j<=$countLines;$j++) {
+        for($j=0;$j<$countLines;$j++) {
           $line = trim($lines[$j]);
           $speciesFound = false;
           if ($line) {
