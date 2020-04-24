@@ -169,12 +169,12 @@ class EDAN_SIANCTAPI {
       });
 
       // Configure Solr parameters.
-      $sequence_slice = '"' . implode('" OR "', $sequence_slices) . '"';
       $params = array(
         'rows' => $rows,
-        'q' => 'p.emammal_image.image.id:(' . $sequence_slice . ')',
+        'q' => '*:*',
         'fqs' => json_encode(array(
           'type:emammal_image',
+          '{!terms f=p.emammal_image.image.id separator=" "}' . implode(' ', $sequence_slices),
         )),
       );
 
