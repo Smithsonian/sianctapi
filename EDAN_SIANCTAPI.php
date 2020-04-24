@@ -160,7 +160,7 @@ class EDAN_SIANCTAPI {
     // Iterate through image sequences in groups of 100, which is the max rows
     // returned by EDAN.
     $edan = new EdanConnection($this->config['server_url'], $this->config['tier_type'], $this->config['app_id'], $this->config['auth_key']);
-    $service = 'metadata/v1.1/metadata/search.htm';
+    $service = 'metadata/v2.0/metadata/search.htm';
     $rows = 100;
     for ($offset = 0; $offset <= count($sequences); $offset = $offset + $rows) {
       $sequence_slices = array_slice($sequences, $offset, $rows);
@@ -211,7 +211,7 @@ class EDAN_SIANCTAPI {
     }
 
     $edan = new EdanConnection($this->config['server_url'], $this->config['tier_type'], $this->config['app_id'], $this->config['auth_key']);
-    $service = 'metadata/v1.1/metadata/search.htm';
+    $service = 'metadata/v2.0/metadata/search.htm';
     $fqs = array(
       'type:emammal_image',
       'status:0',
