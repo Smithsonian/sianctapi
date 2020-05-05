@@ -870,7 +870,10 @@ class SIANCTAPI {
       $cacheLogger->critical("sianctapiCacheRefresh FAILED");
       return "CACHE FAILED";
     } else {
-      $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
+      $status = $this->sianctapiCacheSet('sianctapi_block_cache', $sianctapiCacheRefreshing);
+
+      $this->logger("Write cache file status: " . $status);
+      $cacheLogger->logger("Write cache file status: " . $status);
     }
     $this->logger->notice("$this->app_id sianctapiCacheRefresh end");
     $cacheLogger->notice("$this->app_id sianctapiCacheRefresh end");
