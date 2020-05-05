@@ -350,7 +350,7 @@ class SIANCTAPI {
     $projectStructureLogger = $this->createLogger('sianctapi-project-structure-' . date('Y-m-d') . '.log');
 
     $projectStructureLogger->notice("$this->app_id sianctapiGetProjectStructureMetadataFromSolr: params=$params ");
-    $solrUrl = $this->config['sianctapi_block_solr'] . '/gsearch_sianct/select?' . $params . '&version=2.2&indent=on';
+    $solrUrl = $this->config['sianctapi_block_solr'] . '/sianct/select?' . $params . '&version=2.2&indent=on';
     $solrResults = $this->curlWithRetries($solrUrl);
     $projectStructureLogger->info("$this->app_id solrResult: \n" . $solrResults['log']);
     return $solrResults['results'];
