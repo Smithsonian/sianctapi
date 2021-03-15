@@ -431,37 +431,63 @@ class SIANCTAPI {
       'Project Lon',
       'Access Constraints'
     );
+
     $resultingObservations = implode($csvHeaders, ', ');
     $speciesnamesArray = str_getcsv($speciesNames);
     $countSpeciesnames=count($speciesnamesArray);
-    if ($countSpeciesnames == 1 && !$speciesnamesArray[0]) {
+
+    if ($countSpeciesnames == 1 && !$speciesnamesArray[0])
+    {
       $countSpeciesnames = 0;
     }
+
     $obstablePidArray = str_getcsv($obstablePids);
     $countPids=count($obstablePidArray);
-    if ($countPids == 1 && !$obstablePidArray[0]) {
+
+    if ($countPids == 1 && !$obstablePidArray[0])
+    {
       $countPids = 0;
     }
+
     $countLinesSum = 0;
     $countSelectedLinesSum = 0;
-    for($i=0;$i<$countPids;$i++) {
+
+    if($countPids == 0)
+    {
+      $this->logger->info("$this->app_id sianctapiGettSelectedObservations: No pids were passed for selected observation");
+    }
+
+    $test_obstable_lines = TRUE;
+
+    for($i = 0; $i<$countPids; $i++)
+    {
       $obstablePid = trim($obstablePidArray[$i]);
       $obstable = $this->sianctapiGetObstable($obstables, $obstablePid);
       $resultingObservationsForPid = $obstable;
       $lines = explode("\n", $obstable);
       $countLines = count($lines);
-      if ($countLines == 1 && !$lines[0]) {
+
+      if ($countLines == 1 && !$lines[0])
+      {
         $countLines = 0;
       }
+
       $countSelectedLines = $countLines;
-      if ($countSpeciesnames>0 && trim($speciesnamesArray[0])) {
+
+      if ($countSpeciesnames>0 && trim($speciesnamesArray[0]))
+      {
         $countSelectedLines = 0;
         $resultingObservationsForPid = '';
-        for($j=0;$j<$countLines;$j++) {
+
+        for($j=0; $j < $countLines; $j++)
+        {
           $line = trim($lines[$j]);
           $speciesFound = false;
-          if ($line) {
-            for($k=0;$k<$countSpeciesnames;$k++) {
+
+          if ($line)
+          {
+            for($k=0;$k<$countSpeciesnames;$k++)
+            {
               $speciesName = trim($speciesnamesArray[$k]);
               if($speciesName && stripos($line, $speciesName)) {
                 $speciesFound = true;
@@ -469,24 +495,39 @@ class SIANCTAPI {
               }
             }
           }
-          if ($speciesFound) {
-            if ($countSelectedLines > 0) {
+
+          if ($speciesFound)
+          {
+            if ($countSelectedLines > 0)
+            {
               $resultingObservationsForPid .= "\n";
             }
+
             $resultingObservationsForPid .= $line;
             $countSelectedLines++;
           }
         }
       }
-      if ($resultingObservationsForPid) {
+
+      if ($resultingObservationsForPid)
+      {
+        $test_obstable_lines = FALSE;
         $resultingObservations .= "\n" . $resultingObservationsForPid;
       }
+
       $countSelectedLinesSum += $countSelectedLines;
       $countLinesSum += $countLines;
       $lenselectedObservations = strlen($resultingObservations);
       $n = $i + 1;
+
       $this->logger->info("$this->app_id sianctapiGettSelectedObservations: #obstables: $n of $countPids obstablePid= $obstablePid #lines: $countLines #selectedLines: $countSelectedLines #selectedLinesSum: $countSelectedLinesSum #linesSum: $countLinesSum #lenselectedObservations: $lenselectedObservations");
     }
+
+    if($test_obstable_lines)
+    {
+      $this->logger->info("$this->app_id sianctapiGettSelectedObservations: no obstable lines found"); 
+    }
+
     return $resultingObservations;
     //return str_replace('"', '', $resultingObservations);
   }
