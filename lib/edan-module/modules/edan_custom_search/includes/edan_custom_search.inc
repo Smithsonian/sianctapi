@@ -1070,7 +1070,7 @@ function _edan_custom_search_get_query($slug, $default = '*:*', &$opts = array()
  * @see EDANInterface()
  */
 function _edan_custom_search_execute_search($args, &$opts = array(), $slug) {
-  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
   $edan_auth_key = variable_get('edan_auth_key', '');
   $edan_tier_type = variable_get('edan_tier_type', '0');
   $edan_app_id = variable_get('edan_app_id', '');
@@ -1314,7 +1314,7 @@ function _edan_custom_search_execute_search($args, &$opts = array(), $slug) {
  * @see EDANInterface()
  */
 function _edan_custom_search_execute_collectionssearch($args, &$opts = array(), $slug) {
-  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
   $edan_auth_key = variable_get('edan_auth_key', '');
   $edan_tier_type = variable_get('edan_tier_type', '0');
   $edan_app_id = variable_get('edan_app_id', '');

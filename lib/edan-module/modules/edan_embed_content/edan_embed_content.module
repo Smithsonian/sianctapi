@@ -181,7 +181,7 @@ function edan_embed_content_field_settings_form($field, $instance, $has_data) {
 // render the provided object group
 function render_edan_record($edan_id, $format = 'edan_embed_content_mini_formatter') {
 
-  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
   $edan_auth_key = variable_get('edan_auth_key', '');
   $edan_tier_type = variable_get('edan_tier_type', '0');
   $edan_app_id = variable_get('edan_app_id', '');
