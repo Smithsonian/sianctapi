@@ -5,7 +5,7 @@ require_once(drupal_get_path('module', 'edan') . '/includes/EDANSearch.class.php
  * This is a catch-all function to implement calls not yet implemented?
  */
 function _edan_call_edan($what = '', $params = array(), $uri = '') {
-  $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+  $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
   $edan_auth_key = variable_get('edan_auth_key', '');
   $edan_tier_type = variable_get('edan_tier_type', '0');
   $edan_app_id = variable_get('edan_app_id', '');
@@ -151,7 +151,7 @@ function _get_unitCodes_from_applicationId($app_id) {
   else {
     // see if EDAN has a si-unit record that corresponds
 
-    $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+    $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
     $edan_auth_key = variable_get('edan_auth_key', '');
     $edan_tier_type = variable_get('edan_tier_type', '0');
     $edan_app_id = variable_get('edan_app_id', '');
@@ -235,7 +235,7 @@ function _get_applicationId_from_unitCode($unit_code) {
   }
   else {
     // see if EDAN has a si-unit record that corresponds
-    $edan_server = variable_get('edan_server_url', 'http://edan.si.edu/');
+    $edan_server = variable_get('edan_server_url', 'https://edan.si.edu/');
     $edan_auth_key = variable_get('edan_auth_key', '');
     $edan_tier_type = variable_get('edan_tier_type', '0');
     $edan_app_id = variable_get('edan_app_id', '');
